@@ -33,7 +33,7 @@ TQ.emuIP = nil
 local __TAG = "INIT"
 local print = print
 
-local fibaro = { TQ = TQ }
+local fibaro = { TQ = TQ, HC3EMU_VERSION = VERSION }
 local net,api,plugin = {},{},{}
 local setTimeout,clearTimeout,__assert_type,urlencode,hub,getHierarchy
 local property,class,quickApp,onAction,onUIEvent
@@ -48,6 +48,8 @@ local flags,cfgFlags,DBG = {},{},{ info=true }
 local stat, mobdebug = pcall(require, 'mobdebug')
 if mobdebug then
   mobdebug.start('127.0.0.1', 8818)
+else
+  mobdebug = { on = function() end } -- Used to turn on debugging in coroutines
 end
 TQ.mobdebug = mobdebug
 
@@ -552,8 +554,8 @@ end
     local props = {
       apiVersion = "1.3",
       --quickAppVariables = devTempl.quickAppVariables or {},
-      --      viewLayout = {},
-      --      uiView = {},
+      --viewLayout = {},
+      --uiView = {},
       useUiView=false,
       typeTemplateInitialized = true,
     }
@@ -1367,15 +1369,15 @@ function MODULE.fibaroSDK()
   -- Load main file
   DEBUGF('info',"Loading user file %s",fileName)
   local env = {
-    fibaro = fibaro, api = api, net = net, json = json, print = print,
-    setTimeout = setTimeout, clearTimeout = clearTimeout,
+    fibaro = fibaro, api = api, net = net, json = json, print = print, hub = hub,
+    setTimeout = setTimeout, clearTimeout = clearTimeout, dofile = dofile,
     QuickAppBase = QuickAppBase,QuickApp = QuickApp, QuickAppChild = QuickAppChild,
     plugin = plugin, quickApp = quickApp, collectgarbage = collectgarbage,
     os = os, math = math, string = string, table = table, package = package,
-    getmetatable = getmetatable, setmetatable = setmetatable,
+    getmetatable = getmetatable, setmetatable = setmetatable, property = property, 
     tonumber = tonumber, tostring = tostring, type = type, pairs = pairs, ipairs = ipairs,
     next = next, select = select, unpack = table.unpack, error = error, assert = assert,
-    pcall = pcall, xpcall = xpcall, __TAG = __TAG, __assert_type = __assert_type,
+    pcall = pcall, xpcall = xpcall, __TAG = __TAG, __assert_type = __assert_type, __ternary = __ternary,
     __fibaro_add_debug_message = __fibaro_add_debug_message, __fibaro_get_devices = __fibaro_get_devices,
     __fibaro_get_device = __fibaro_get_device, __fibaro_get_room = __fibaro_get_room,
     __fibaro_get_scene = __fibaro_get_scene, __fibaro_get_global_variable = __fibaro_get_global_variable,

@@ -1,12 +1,6 @@
 ---@diagnostic disable: undefined-global, duplicate-set-field
-local home = "/Users/jangabrielsson/.luarocks"
-package.path = 
-home.."/share/lua/5.4/?.lua;"..
-home.."/share/lua/5.4/?/init.lua;"..
-package.path
-package.cpath = package.cpath..";"..home.."/lib/lua/5.4/?.so"
 
-if not QuickApp then dofile("hc3emu.lua") end
+if not QuickApp then dofile("setup.lua") dofile("hc3emu.lua") end
 --if not QuickApp then require("hc3emu") end
 
 --fibaro.USER = "admin" -- set creds in TQ_cfg.lua instead
@@ -18,11 +12,10 @@ if not QuickApp then dofile("hc3emu.lua") end
 --%%proxy="MyProxy"
 --%%dark=true
 --%%id=5001
+--%%savestate="state.db"
 --%%var=foo:config.secret
 --%%debug=sdk:false,info:true,proxyAPI:true,server:true,onAction:true,onUIEvent:true
 --%%debug=http:true,color:true
-
---%%file=lib_example.lua:lib
 
 local function printf(...) print(string.format(...)) end
 

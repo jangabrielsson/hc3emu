@@ -1,4 +1,6 @@
+---@diagnostic disable: undefined-global, duplicate-set-field
 local fmt = string.format
+local quickApp
 
 function QuickApp:onInit()
   self:debug("Started", self.name, self.id)
@@ -23,7 +25,7 @@ function QuickApp:onInit()
     send({type='resp',id=id,value={stat,res,code}})
   end
 
-  function QuickApp:initChildDevices() end
+  function QuickApp:initChildDevices(t) end
 
   local ip,port = nil,nil
   
@@ -53,7 +55,8 @@ function QuickApp:onInit()
   
   function runSender()
     if connected then
-      if #queue>0 then 
+      if #queue>0 then
+        assert(sock)
         sock:write(queue[1],{
           success = function() print("Sent",table.remove(queue,1)) runSender() end,
         })

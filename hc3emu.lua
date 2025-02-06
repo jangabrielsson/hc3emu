@@ -1,3 +1,4 @@
+---@diagnostic disable: cast-local-type
 -- package.path = "/opt/homebrew/Cellar/luarocks/3.9.2/share/lua/5.4/?.lua;/opt/homebrew/share/lua/5.4/?.lua;/opt/homebrew/share/lua/5.4/?/init.lua;" .. package.path .. ";/Users/jangabrielsson/.luarocks/share/lua/5.4/?.lua"
 -- package.cpath = package.cpath .. ";/opt/homebrew/lib/lua/5.4/?.so;/Users/jangabrielsson/.luarocks/lib/lua/5.4/?.so"
 
@@ -13,12 +14,12 @@ Email: jan@gabrielsson.com
  of this license document, but changing it is not allowed.
 --]]
 
-socket = require("socket")
-ltn12 = require("ltn12")
-copas = require("copas")
-timer = require("copas.timer")
-http = require("copas.http")
-json = require("cjson")
+local socket = require("socket")
+local ltn12 = require("ltn12")
+local copas = require("copas")
+require("copas.timer")
+require("copas.http")
+local json = require("cjson")
 
 local cfgFileName = "hc3emu_cfg.lua"
 local _type,_print = type,print
@@ -27,10 +28,19 @@ local TQ = {}
 TQ.EMUVAR = "TQEMU"
 TQ.emuPort = 8264
 TQ.emuIP = nil 
-__TAG = "INIT"
+local __TAG = "INIT"
+local print = print
 
-fibaro = { TQ = TQ }
-net,api,plugin = {},{},{}
+local fibaro = { TQ = TQ }
+local net,api,plugin = {},{},{}
+local setTimeout,clearTimeout,__assert_type,urlencode,hub,getHierarchy
+local property,class,quickApp,onAction,onUIEvent
+local __ternary,__fibaro_get_devices,__fibaro_get_device,__fibaro_get_room,__fibaro_get_scene
+local __fibaro_get_device_property,__fibaro_get_devices_by_type,__fibaro_add_debug_message
+local __fibaro_get_partition, __fibaro_get_partitions, __fibaro_get_breached_partitions
+local __fibaroSleep,__fibaro_get_global_variable,__fibaroUseAsyncHandler
+QuickAppBase,QuickApp,QuickAppChild = {},{},{}
+
 local flags,cfgFlags,DBG = {},{},{ info=true }
 
 local stat, mobdebug = pcall(require, 'mobdebug')
@@ -61,8 +71,11 @@ end
 local info = debug.getinfo(3)
 local fileName = info.source:match("@*(.*)")
 local f = io.open(fileName)
-local src = f:read("*all")
-f:close()
+local src = nil
+if f then
+  src = f:read("*all")
+  f:close()
+end
 
 --  Directives from main lua file (--%%key=value)
 flags={ 
@@ -88,9 +101,11 @@ local function readDirectives(src)
 
   src:gsub("%-%-%%%%(%w+)=(.-)%s*\n",function(f,v)
       if flags[f]~=nil then
-        if _type(flags[f])=='table' then
-          for _,vs in ipairs(v:split(',')) do 
-            table.insert(flags[f],1,vs)
+        if type(flags[f])=='table' then
+          local tab = flags[f]
+          assert(type(tab)=='table',"Expected table")
+          for _,vs in ipairs(v:split(',')) do
+            table.insert(tab,1,vs)
           end
         else 
           flags[f]=eval(v) 
@@ -345,7 +360,7 @@ function MODULE.net()
       elseif opts and opts.error then opts.error(err) end
     end
     function self:read(opts) -- I interpret this as reading as much as is available...?
-      local data,res = {}
+      local data,res = {},nil
       local b,err = self.sock:receive(1)
       if not err then
         data[#data+1]=b
@@ -365,13 +380,13 @@ function MODULE.net()
     end
     function self:readUntil(delimiter, opts) -- Read until the cows come home, or closed
       local data,ok,res = {},true,nil
-      local b,err = self.sock:receive(sock,1)
+      local b,err = self.sock:receive(self.sock,1)
       if not err then
         data[#data+1]=b
         if not check(data,delimiter) then
           ok = false
           while true do
-            b,err = self.sock:receive(sock,1)
+            b,err = self.sock:receive(self.sock,1)
             if b then 
               data[#data+1]=b 
               if check(data,delimiter) then ok=true break end
@@ -386,7 +401,6 @@ function MODULE.net()
       if res and opts and opts.success then opts.success(res)
       elseif res==nil and opts and opts.error then opts.error(err) end
     end
-    function self.readUntil(_,delimiter, callbacks) end
     function self:write(data, opts) 
       local res,err = self.sock:send(data)
       if res and opts and opts.success then opts.success(res)
@@ -405,7 +419,7 @@ function MODULE.net()
       self.sock:setsockname(TQ.IPAddress, 0)
       self.sock:setoption("broadcast", self.opts.broadcast) 
     end
-    if tonumber(opts.timeout) then self.sock:settimeout(self2.opts.timeout / 1000) end
+    if tonumber(opts.timeout) then self.sock:settimeout(opts.timeout / 1000) end
 
     function self:sendTo(datagram, ip,port, callbacks)
       local stat, res = self.sock:sendto(datagram, ip, port)
@@ -461,7 +475,7 @@ function QuickApp:onInit()
     send({type='resp',id=id,value={stat,res,code}})
   end
 
-  function QuickApp:initChildDevices() end
+  function QuickApp:initChildDevices(_) end
 
   local ip,port = nil,nil
   
@@ -542,18 +556,13 @@ end
     return res
   end
 
-  function fibaro.callHC3(deviceId, actionName, ...)
-    __assert_type(actionName, "string")
-    __assert_type(deviceId, "number")
-    local arg = { ... }; -- arg = #arg > 0 and arg or nil
-    return api.post("/devices/" .. deviceId .. "/action/" .. actionName, {args = arg},"hc3")
-  end
-
   function TQ.interceptAPI(method,path,data) end
   function TQ.setupInterceptors(id)
     local patterns,paths = {},{}
-
-    local ref = 0
+    local function block(m,p,data)
+      DEBUGF('blockAPI',"Blocked API: %s",p)
+      return true,nil,403
+    end
     local function proxyAPI(m,p,data)
       DEBUGF('proxyAPI',"proxyAPI: %s",p)
       if TQ.proxyId then
@@ -590,7 +599,7 @@ end
     end
     local store = {}
     local function getStore(m,p,d,_,v)
-      if TQ.proxyId and false then return proxyAPI(m,p,d,_,v)
+      if TQ.proxyId and false then return proxyAPI(m,p,d)
       else
         if v == "" then
           local res = {} for k,v in pairs(store) do res[#res+1]={name=k,value=v} end
@@ -663,7 +672,8 @@ end
 
   function TQ.getProxy(name,devTempl)
     local devStruct = api.get("/devices?name="..urlencode(name))
-    if devStruct==nil or next(devStruct)==nil then
+    assert(type(devStruct)=='table',"API error")
+    if next(devStruct)==nil then
       devStruct = TQ.createProxy(name,devTempl)
       if not devStruct then return fibaro.error(__TAG,"Can't create proxy on HC3") end
       devStruct.id = math.floor(devStruct.id)
@@ -750,7 +760,7 @@ function MODULE.fibaroSDK()
     return __fibaro_get_partition(id)
   end
 
-  function fibaro.getPartitions() return __fibaro_get_partitions(id) end
+  function fibaro.getPartitions() return __fibaro_get_partitions() end
   function fibaro.alarm(arg1, action)
     if type(arg1) == "string" then return fibaro.__houseAlarm(arg1) end
     __assert_type(arg1, "number")
@@ -786,6 +796,7 @@ function MODULE.fibaroSDK()
 
     if alertType == 'push' then
       local mobileDevices = __fibaro_get_devices_by_type('iOS_device')
+      assert(type(mobileDevices) == 'table', "Failed to get mobile devices")
       local usersId = ids
       ids = {}
       for _, userId in ipairs(usersId) do
@@ -824,7 +835,7 @@ function MODULE.fibaroSDK()
     __assert_type(actionData, "table")
     local response, status = api.post("/devices/groupAction/"..actionName, actionData)
     if status ~= 202 then return nil end
-    return response.devices
+    return response and response.devices
   end
 
   function fibaro.get(deviceId, prop)
@@ -875,7 +886,7 @@ function MODULE.fibaroSDK()
   function fibaro.getRoomNameByDeviceID(deviceId, propertyName)
     __assert_type(deviceId, 'number')
     local dev = __fibaro_get_device(deviceId)
-    if not dev == nil then return end
+    if dev == nil then return end
     local room = __fibaro_get_room(dev.roomID)
     return room and room.name or nil
   end
@@ -903,8 +914,8 @@ function MODULE.fibaroSDK()
         args[#args+1]=tostring(key).."="..tostring(val)
       end
     end
-    args = table.concat(args,"&")
-    return fibaro.getIds(api.get('/devices/?'..args))
+    local argsStr = table.concat(args,"&")
+    return fibaro.getIds(api.get('/devices/?'..argsStr))
   end
 
   function fibaro.getIds(devices)
@@ -918,7 +929,7 @@ function MODULE.fibaroSDK()
   function fibaro.getGlobalVariable(name)
     __assert_type(name, 'string')
     local var = __fibaro_get_global_variable(name)
-    if globalVar == nil then return end
+    if var == nil then return end
     return var.value, var.modified
   end
 
@@ -1006,12 +1017,15 @@ function MODULE.fibaroSDK()
 
   function fibaro.isHomeBreached()
     local ids = __fibaro_get_breached_partitions()
+    assert(type(ids)=="table")
     return next(ids) ~= nil
   end
 
   function fibaro.isPartitionBreached(partitionId)
     __assert_type(partitionId, "number")
-    for _,id in pairs(__fibaro_get_breached_partitions()) do
+    local ids = __fibaro_get_breached_partitions()
+    assert(type(ids)=="table")
+    for _,id in pairs(ids) do
       if id == partitionId then return true end
     end
   end
@@ -1026,7 +1040,9 @@ function MODULE.fibaroSDK()
 
   function fibaro.getHomeArmState()
     local n,armed = 0,0
-    for _,partition in pairs(__fibaro_get_partitions() or {}) do
+    local partitions = __fibaro_get_partitions()
+    assert(type(partitions)=="table")
+    for _,partition in pairs(partitions) do
       n = n + 1; armed = armed + (partition.armed and 1 or 0)
     end
     if armed == 0 then return 'disarmed'
@@ -1042,9 +1058,7 @@ function MODULE.plugin()
   function plugin.deleteDevice(deviceId) return api.delete("/devices/"..deviceId) end
   function plugin.getProperty(deviceId, propertyName) return api.get("/devices/"..deviceId).properties[propertyName] end
   function plugin.getChildDevices(deviceId) return api.get("/devices?parentId="..deviceId) end
-  function plugin.createChildDevice(parentId, type, name)
-    return api.post("/plugins/createChildDevice", {parentId=parentId, type=type, name=name,initialProperties=initialProperties})
-  end
+  function plugin.createChildDevice(opts) return api.post("/plugins/createChildDevice", opts) end
   function plugin.restart() os.exit() end
 end
 
@@ -1209,10 +1223,10 @@ function MODULE.QuickApp()
   function QuickAppBase:internalStorageGet(key)
     if key ~= nil then
       local response, status = api.get("/plugins/"..self.id.."/variables/"..key)
-      return status == 200 and response.value or nil
+      return status == 200 and response and response.value or nil
     else
       local response, status = api.get("/plugins/"..self.id.."/variables")
-      if status == 200 then
+      if status == 200 and type(response)=='table' then
         local res = {}
         for _, v in pairs(response) do res[v.name] = v.value end
         return res
@@ -1242,7 +1256,7 @@ function MODULE.QuickApp()
     props.initialInterfaces = props.initialInterfaces or {}
     table.insert(props.initialInterfaces, 'quickAppChild')
     local device, res = api.post("/plugins/createChildDevice", props)
-    assert(res == 200, "Can't create child device " .. tostring(res) .. " - " .. json.encode(props))
+    assert(res == 200 and device, "Can't create child device " .. tostring(res) .. " - " .. json.encode(props))
     deviceClass = deviceClass or QuickAppChild
     local child = deviceClass(device)
     child.parent = self
@@ -1260,7 +1274,8 @@ function MODULE.QuickApp()
 
   function QuickApp:initChildDevices(map)
     map = map or {}
-    local children = api.get("/devices?parentId="..self.id) or {}
+    local children = api.get("/devices?parentId="..self.id)
+    assert(type(children)=='table')
     local childDevices = self.childDevices
     for _, c in pairs(children) do
       if childDevices[c.id] == nil and map[c.type] then
@@ -1331,7 +1346,26 @@ end
 
 -- Load main file
 DEBUGF('info',"Loading user file %s",fileName)
-local mainFile = loadfile(fileName)
+local env = {
+  fibaro = fibaro, api = api, net = net, json = json, print = print, 
+  setTimeout = setTimeout, clearTimeout = clearTimeout,
+  QuickAppBase = QuickAppBase,QuickApp = QuickApp, QuickAppChild = QuickAppChild, 
+  plugin = plugin, quickApp = quickApp, collectgarbage = collectgarbage,
+  os = os, math = math, string = string, table = table, package = package,
+  tonumber = tonumber, tostring = tostring, type = type, pairs = pairs, ipairs = ipairs,
+  next = next, select = select, unpack = table.unpack, error = error, assert = assert,
+  pcall = pcall, xpcall = xpcall, __TAG = __TAG, __assert_type = __assert_type,
+  __fibaro_add_debug_message = __fibaro_add_debug_message, __fibaro_get_devices = __fibaro_get_devices,
+  __fibaro_get_device = __fibaro_get_device, __fibaro_get_room = __fibaro_get_room,
+  __fibaro_get_scene = __fibaro_get_scene, __fibaro_get_global_variable = __fibaro_get_global_variable,
+  __fibaro_get_device_property = __fibaro_get_device_property, __fibaro_get_devices_by_type = __fibaro_get_devices_by_type,
+  __fibaro_get_partition = __fibaro_get_partition,
+  __fibaro_get_partitions = __fibaro_get_partitions, __fibaro_get_breached_partitions = __fibaro_get_breached_partitions,
+}
+function env.class(name,...) local r = class(name,...) env[name] = _G[name] _G[name]=nil return r end
+
+local mainFile = loadfile(fileName,"t",env)
+assert(mainFile, "Can't load user file "..fileName)
 mainFile()
 
 local function init()
@@ -1353,6 +1387,7 @@ local function init()
     -- Find or create proxy if specified
     if flags.proxy then 
       deviceStruct = TQ.getProxy(flags.proxy,deviceStruct) -- Get deviceStruct from HC3 proxy
+      assert(deviceStruct, "Can't get proxy device")
       api.post("/plugins/updateProperty",{deviceId= deviceStruct.id,propertyName='quickAppVariables',value=qvs})
       TQ.startServer()
     end

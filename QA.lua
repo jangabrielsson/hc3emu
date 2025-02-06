@@ -1,3 +1,4 @@
+---@diagnostic disable: undefined-global, duplicate-set-field
 local home = "/Users/jangabrielsson/.luarocks"
 package.path = 
 home.."/share/lua/5.4/?.lua;"..
@@ -6,6 +7,7 @@ package.path
 package.cpath = package.cpath..";"..home.."/lib/lua/5.4/?.so"
 
 if not QuickApp then dofile("hc3emu.lua") end
+--if not QuickApp then require("hc3emu") end
 
 --fibaro.USER = "admin" -- set creds in TQ_cfg.lua instead
 --fibaro.PASSWORD = "admin"
@@ -83,7 +85,7 @@ function QuickApp:testBasic()
   }
   local a,b = api.post("/plugins/publishEvent", data)
   if b==200 then self:debug("publishEvent OK") 
-  else self:error("publishEvent FAIL") end
+  else self:error("publishEvent FAIL",a,b) end
 
   setTimeout(function() error("This is an intentional error in a setTimeout function") end,0)
 end
@@ -92,9 +94,7 @@ class 'MyChild'(QuickAppChild)
 function MyChild:__init(dev) QuickAppChild.__init(self,dev) end
 
 function QuickApp:testChildren()
-  self:initChildDevices({
-      ["com.fibaro.binarySwitch"] = MyChild,
-    })
+  self:initChildDevices({["com.fibaro.binarySwitch"]=MyChild})
   local children = api.get("/devices?parentId="..self.id)
   if #children == 0 then 
     self:createChildDevice({

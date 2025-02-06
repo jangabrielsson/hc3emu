@@ -1367,6 +1367,8 @@ function env.class(name,...) local r = class(name,...) env[name] = _G[name] _G[n
 local mainFile = loadfile(fileName,"t",env)
 assert(mainFile, "Can't load user file "..fileName)
 mainFile()
+assert(fibaro.URL, fibaro.USER and fibaro.PASSWORD, 
+"Please define URL, USER, and PASSWORD")
 
 local function init()
 -- Start QuickApp if defined

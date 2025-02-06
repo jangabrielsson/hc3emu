@@ -1,7 +1,11 @@
-if not QuickApp then
-  package.path = package.path..";/Users/jangabrielsson/Documents/dev/TQ/?.lua"
-  require("hc3emu")
-end
+local home = "/Users/jangabrielsson/.luarocks"
+package.path = 
+home.."/share/lua/5.4/?.lua;"..
+home.."/share/lua/5.4/?/init.lua;"..
+package.path
+package.cpath = package.cpath..";"..home.."/lib/lua/5.4/?.so"
+
+if not QuickApp then dofile("hc3emu.lua") end
 
 --fibaro.USER = "admin" -- set creds in TQ_cfg.lua instead
 --fibaro.PASSWORD = "admin"
@@ -14,12 +18,18 @@ end
 --%%id=5001
 --%%var=foo:config.secret
 --%%debug=sdk:false,info:true,proxyAPI:true,server:true,onAction:true,onUIEvent:true
---%%debug=http:false
+--%%debug=http:true,color:true
 
 local function printf(...) print(string.format(...)) end
 
 function QuickApp:onInit()
   self:debug(self.name,self.id,self.type)
+  self:testBasic()
+  self:testChildren()
+  print("Done!")
+end
+
+function QuickApp:testBasic()
   local info = api.get("/settings/info")
   printf("SW version:%s",info.currentVersion.version)
   printf("Serial nr:%s",info.serialNumber)
@@ -63,7 +73,7 @@ function QuickApp:onInit()
   if self:internalStorageGet("key") == nil then self:debug("internalStorageRemove OK") 
   else self:error("internalStorageRemove FAIL") end
 
-  --self:addInterfaces({'battery'})
+  --self:addInterfaces({'battery'}) -- Restarts the QA on the HC3...
   local a,b = api.get("/settings/network")
 
   local data = {
@@ -72,8 +82,36 @@ function QuickApp:onInit()
     data = { keyAttribute = 'Pressed', keyId = 1 }
   }
   local a,b = api.post("/plugins/publishEvent", data)
+  if b==200 then self:debug("publishEvent OK") 
+  else self:error("publishEvent FAIL") end
 
   setTimeout(function() error("This is an intentional error in a setTimeout function") end,0)
+end
+
+class 'MyChild'(QuickAppChild)
+function MyChild:__init(dev) QuickAppChild.__init(self,dev) end
+
+function QuickApp:testChildren()
+  self:initChildDevices({
+      ["com.fibaro.binarySwitch"] = MyChild,
+    })
+  local children = api.get("/devices?parentId="..self.id)
+  if #children == 0 then 
+    self:createChildDevice({
+        name = "myChild",
+        type = "com.fibaro.binarySwitch",
+      }, 
+      MyChild)
+  end
+
+  for _,c in pairs(self.childDevices) do 
+    printf("Have child %s %s",c.id,c.name)
+  end
+
+  for id,_ in pairs(self.childDevices) do 
+    printf("Deleting child %s",id)
+    self:removeChildDevice(id)
+  end
 end
 
 function QuickApp:turnOn() print("Turn on called") end

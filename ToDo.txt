@@ -1,0 +1,2 @@
+--Save or upload finished QA to HC3
+--Save state (internalStorage)

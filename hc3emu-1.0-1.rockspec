@@ -20,11 +20,13 @@ dependencies = {
    "lua >= 5.3, <= 5.4",
    --"luasocket >= 2.0, <= 2.2",
    "copas >= 4.7.1-1",
-   "lua-cjson-219 >= 2.1.0.9-1"
+   "lua-cjson-219 >= 2.1.0.9-1",
+   "mobdebug >= 0.80-1",
 }
 build = {
    type = "builtin",
    modules = {
       -- A simple module written in Lua
       hc3emu = "hc3emu.lua",
+  }
 }

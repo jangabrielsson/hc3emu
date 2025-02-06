@@ -1,5 +1,5 @@
-package.path = "/opt/homebrew/Cellar/luarocks/3.9.2/share/lua/5.4/?.lua;/opt/homebrew/share/lua/5.4/?.lua;/opt/homebrew/share/lua/5.4/?/init.lua;" .. package.path .. ";/Users/jangabrielsson/.luarocks/share/lua/5.4/?.lua"
-package.cpath = package.cpath .. ";/opt/homebrew/lib/lua/5.4/?.so;/Users/jangabrielsson/.luarocks/lib/lua/5.4/?.so"
+-- package.path = "/opt/homebrew/Cellar/luarocks/3.9.2/share/lua/5.4/?.lua;/opt/homebrew/share/lua/5.4/?.lua;/opt/homebrew/share/lua/5.4/?/init.lua;" .. package.path .. ";/Users/jangabrielsson/.luarocks/share/lua/5.4/?.lua"
+-- package.cpath = package.cpath .. ";/opt/homebrew/lib/lua/5.4/?.so;/Users/jangabrielsson/.luarocks/lib/lua/5.4/?.so"
 
 --[[
 TQ - Tiny QuickApp emulator for the Fibaro Home Center 3
@@ -34,6 +34,9 @@ net,api,plugin = {},{},{}
 local flags,cfgFlags,DBG = {},{},{ info=true }
 
 local stat, mobdebug = pcall(require, 'mobdebug')
+if mobdebug then
+  mobdebug.start('127.0.0.1', 8818)
+end
 TQ.mobdebug = mobdebug
 
 local function DEBUG(f,...) _print("[SYS]",string.format(f,...)) end
@@ -151,24 +154,50 @@ function MODULE.lib()
     cyan="\027[36;1m",white="\027[37;1m",darkgrey="\027[30;1m",
   }
 
-  TQ.COLORS = { debug='green', trace='blue', warning='orange', ['error']='red', text='black' }
-  if flags.dark then 
-    TQ.COLORS.text='gray' 
-    TQ.COLORS.trace='cyan' 
-  end
+  local COLORMAP = ZBCOLORMAP
 
-  function TQ.html2color(str,startColor)
-    local st,p = {ZBCOLORMAP[startColor or ""] or '\027[0m'},1
-    return str:gsub("(</?font.->)",function(s)
-        if s=="</font>" then
-          p=p-1; return '\027[0m'..st[p]
+  TQ.COLORS = { debug='green', trace='blue', warning='orange', ['error']='red', text='black' }
+  if flags.dark then TQ.COLORS.text='gray' TQ.COLORS.trace='cyan' end
+
+  COLORS = TQ.COLORS
+  local colorEnd = '\027[0m'
+
+  local function html2color(str, startColor, dflTxt)
+    local txt = dflTxt or TQ.COLORS.text
+    local st, p = { startColor or COLORMAP[dflTxt] }, 1
+    return str:gsub("(</?font.->)", function(s)
+        if s == "</font>" then
+          p = p - 1; return st[p]
         else
-          local color = s:match("color=['\"]?([#%w]+)['\"]?")
-          color = ZBCOLORMAP[color] or ZBCOLORMAP[TQ.COLORS['text']]
-          p=p+1; st[p]=color
+          local color = s:match("color=\"?([#%w]+)\"?") or s:match("color='([#%w]+)'")
+          if color then color = color:lower() end
+          color = COLORMAP[color] or COLORMAP[txt]
+          p = p + 1; st[p] = color
           return color
         end
       end)
+  end
+
+  function TQ.debugOutput(tag, str, typ)
+    str = DBG.color~=false and html2color(str, nil, TQ.COLORS.text) or
+    str:gsub("(</?font.->)", "") -- Remove color tags
+    str = str:gsub("(&nbsp;)", " ")  -- remove html space
+    str = str:gsub("</br>", "\n")  -- remove html space
+    str = str:gsub("<br>", "\n")  -- remove html space
+    if DBG.color~=false then
+      local txt_color = COLORMAP[TQ.COLORS.text]
+      local typ_color = COLORMAP[TQ.COLORS[typ] or TQ.COLORS.text]
+      local outstr = fmt("%s%s [%s%-6s%s] [%-7s]: %s%s",
+        txt_color, os.date("[%d.%m.%Y] [%H:%M:%S]"),
+        typ_color, typ:upper(), txt_color,
+        tag,
+        str,
+        colorEnd
+      )
+      _print(outstr)
+    else
+      _print(fmt("%s [%s] [%s]: %s", os.date("[%d.%m.%Y] [%H:%M:%S]"), typ, tag, str))
+    end
   end
 
   local someRandomIP = "192.168.1.122" --This address you make up
@@ -282,6 +311,7 @@ function MODULE.net()
     local jf,data = pcall(json.decode,res)
     local t2 = socket.gettime()
     if DBG.http then print(fmt("API: %s %.4fs (decode %.4fs)",path,t1-t0,t2-t1)) end
+    if _type(data)=='table' and data.id then data.id=math.floor(data.id) end -- HACK! ToDo
     return (jf and data or res),stat
   end
 
@@ -685,7 +715,8 @@ end
       end
       DEBUGF("server","Connection closed: %s",name)
     end
-    local server = socket.bind('*', TQ.emuPort)
+    local server,err= socket.bind('*', TQ.emuPort)
+    if not server then error(fmt("Failed open socket %s: %s",TQ.emuPort,tostring(err))) end
     copas.addserver(server, handle)
   end
 end
@@ -701,9 +732,7 @@ function MODULE.fibaroSDK()
   function __fibaro_get_device_property(deviceId, propertyName) return api.get("/devices/"..deviceId.."/properties/"..propertyName) end
   function __fibaro_get_devices_by_type(type) return api.get("/devices?type="..type) end
   function __fibaro_add_debug_message(tag, msg, typ)
-    typ = fmt("<font color='%s'>%s</font>",TQ.COLORS[typ],typ:upper())
-    local str = fmt("%s[%s][%s]: %s",os.date("[%d.%m.%y][%H:%M:%S]"),typ,tag,msg)
-    _print((TQ.html2color(str,TQ.COLORS['text'])))
+    TQ.debugOutput(tag, msg, typ)
   end
 
   function __fibaro_get_partition(id) return api.get('/alarms/v1/partitions/' .. tostring(id)) end
@@ -1031,8 +1060,8 @@ function MODULE.timers()
         callback = callback,
         params = fun,
         errorhandler = function(err, coro, skt)
+          fibaro.error(tostring(__TAG),fmt("setTimeout:%s",tostring(err)))
           copas.seterrorhandler()
-          fibaro.error(__TAG,fmt("setTimeout:%s",err))
         end
       })
     return ref
@@ -1231,19 +1260,24 @@ function MODULE.QuickApp()
 
   function QuickApp:initChildDevices(map)
     map = map or {}
-    local children = api.get("/devices?parentId=" .. self.id) or {}
+    local children = api.get("/devices?parentId="..self.id) or {}
     local childDevices = self.childDevices
     for _, c in pairs(children) do
       if childDevices[c.id] == nil and map[c.type] then
         childDevices[c.id] = map[c.type](c)
       elseif childDevices[c.id] == nil then
-        self:error(string.format(
-            "Class for the child device: %s, with type: %s not found. Using base class: QuickAppChild", c.id, c.type))
+        self:error(fmt("Class for the child device: %s, with type: %s not found. Using base class: QuickAppChild", c.id, c.type))
         childDevices[c.id] = QuickAppChild(c)
       end
       childDevices[c.id].parent = self
     end
     self._childsInited = true
+  end
+
+  class 'QuickAppChild' (QuickAppBase)
+  function QuickAppChild:__init(device)
+    QuickAppBase.__init(self, device)
+    if self.onInit then self:onInit() end
   end
 
   function onAction(id,event)

@@ -22,6 +22,8 @@ if not QuickApp then dofile("hc3emu.lua") end
 --%%debug=sdk:false,info:true,proxyAPI:true,server:true,onAction:true,onUIEvent:true
 --%%debug=http:true,color:true
 
+--%%file=lib_example.lua:lib
+
 local function printf(...) print(string.format(...)) end
 
 function QuickApp:onInit()

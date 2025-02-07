@@ -99,7 +99,6 @@ end
 - fibaro.warning(...)
 - net.HTTPClient(...)
 - net.TCPSocket(...)
-- net.TESTMQTT(...)
 - net.UDPSocket(...)
 - mqtt.Client.connect(uri, options)
 - setTimeout(fun,ms)

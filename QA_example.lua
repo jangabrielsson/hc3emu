@@ -8,22 +8,24 @@ if not QuickApp then dofile("hc3emu.lua") end
 
 --%%name="Test"
 --%%type="com.fibaro.multilevelSwitch"
---%%proxy="MyProxy"
+--%% proxy="MyProxy"
 --%%dark=true
 --%%id=5001
 --%%state="state.db"
 --%%save="MyQA.fqa"
 --%%var=foo:config.secret
 --%%debug=sdk:false,info:true,proxyAPI:true,server:true,onAction:true,onUIEvent:true
---%%debug=http:true,color:true
+--%%debug=http:true,color:true,blockAPI:true
 --%%file=lib_example.lua:lib
 
 local function printf(...) print(string.format(...)) end
 
 function QuickApp:onInit()
   self:debug(self.name,self.id,self.type)
-  -- self:testBasic()
-  -- self:testChildren()
+  self:testBasic()
+  if fibaro.hc3emu.proxyId then 
+    self:testChildren() -- Only works with proxy
+  end
   self:testMQTT()
   print("Done!")
 end

@@ -16,6 +16,8 @@ of this license document, but changing it is not allowed.
 local VERSION = "1.0"
 print("HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..VERSION)
 
+local startTime = os.clock()
+
 local function readFile(args)
   local file,eval,env,silent = args.file,args.eval,args.env,args.silent~=false
   local f,err,res = io.open(file, "rb")
@@ -1639,4 +1641,6 @@ function MODULE.fibaroSDK()
 end
 
 copas(init)
+DEBUG("Runtime %.3f sec",os.clock()-startTime)
+os.exit(0)
 

@@ -16,11 +16,31 @@ of this license document, but changing it is not allowed.
 local VERSION = "1.0"
 print("HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..VERSION)
 
+local function readFile(args)
+  local file,eval,env,silent = args.file,args.eval,args.env,args.silent~=false
+  local f,err = io.open(file, "rb")
+  if not f then if not silent then error(err) end end
+  local content = f:read("*all")
+  f:close()
+  if eval then
+    if type(eval)=='function' then eval(file) end
+    local code,err = load(content,file,"t",env or _G)
+    if code == nil then error(err) end
+    err,content = pcall(code)
+    if err == false then error(content) end
+  end
+  return content
+end
+
+local HOME = os.getenv("HOME")
+local homeCfg = readFile{file=HOME.."/.hc3emu.lua",eval=function(f) print("[SYS] Loading "..f) end}
+
 local socket = require("socket")
 local ltn12 = require("ltn12")
 local copas = require("copas")
 require("copas.timer")
 require("copas.http")
+local luamqtt = require("mqtt")
 local json = require("cjson")
 
 local cfgFileName = "hc3emu_cfg.lua"
@@ -33,7 +53,7 @@ TQ.emuIP = nil
 local __TAG = "INIT"
 local print = print
 
-local fibaro = { TQ = TQ, HC3EMU_VERSION = VERSION }
+local fibaro = { hc3emu = TQ, HC3EMU_VERSION = VERSION }
 local net,api,plugin = {},{},{}
 local setTimeout,clearTimeout,__assert_type,urlencode,hub,getHierarchy
 local property,class,quickApp,onAction,onUIEvent
@@ -53,23 +73,20 @@ else
 end
 TQ.mobdebug = mobdebug
 
-local function DEBUG(f,...) _print("[SYS]",string.format(f,...)) end
+local fmt = string.format
+local function DEBUG(f,...) _print("[SYS]",fmt(f,...)) end
 local function DEBUGF(flag,f,...) if DBG[flag] then DEBUG(f,...) end end
-local function WARNINGF(f,...) _print("[SYSWARN]",string.format(f,...)) end
-local function ERRORF(f,...) _print("[SYSERR]",string.format(f,...)) end
+local function WARNINGF(f,...) _print("[SYSWARN]",fmt(f,...)) end
+local function ERRORF(f,...) _print("[SYSERR]",fmt(f,...)) end
 
 local modules = {}
 local MODULE = setmetatable({},{__newindex = function(t,k,v)
   modules[#modules+1]={name=k,fun=v}
 end })
 
-local fmt = string.format
-
 -- Get config file
-local cfgf = loadfile(cfgFileName)
-if cfgf then DEBUGF('info',"Loading config file %s",cfgFileName)
-  cfgFlags = cfgf()
-end
+
+local cfgFlags = readFile{file=cfgFileName,eval=function(f) DEBUGF('info',"Loading config file ./%s",f) end}
 
 -- Get main lua file
 local info = debug.getinfo(3)
@@ -89,20 +106,20 @@ flags={
 
 local function readDirectives(src)
   DEBUGF('info',"Reading %s directives...",fileName)
-
+  
   function string.split(inputstr, sep)
     local t={}
     for str in string.gmatch(inputstr, "([^"..(sep or "%s").."]+)") do t[#t+1] = str end
     return t
   end
-
+  
   local function eval(str)
     local stat, res = pcall(function() return load("return " .. str, nil, "t", { config = cfgFlags })() end)
     if stat then return res end
     ERRORF("directive '%s' %s",tostring(str),res)
     error()
   end
-
+  
   src:gsub("%-%-%%%%(%w+)=(.-)%s*\n",function(f,v)
     if flags[f]~=nil then
       if type(flags[f])=='table' then
@@ -116,13 +133,13 @@ local function readDirectives(src)
       end
     else WARNINGF("Unknown directive: %s",tostring(f)) end
   end)
-
+  
   for _,d in ipairs(flags.debug) do local n,v = d:match("(.-):(.*)") DBG[n] = eval(v) end
   local var = {}
   for _,d in ipairs(flags.var) do local n,v = d:match("(.-):(.*)") var[n] = eval(v) end
   flags.var = var
   for i,f in ipairs(flags.file) do local n,v = f:match("(.-):(.*)") flags.file[i] = {name=v,file=n} end
-
+  
   flags.debug = DBG
   for k,v in pairs(cfgFlags) do
     if flags[k]==nil then
@@ -134,7 +151,7 @@ local function readDirectives(src)
       end
     end
   end
-
+  
   fibaro.USER = flags.creds.user
   fibaro.PASSWORD = flags.creds.password
   fibaro.URL = flags.creds.url
@@ -151,37 +168,38 @@ function MODULE.lib()
     end
     return str
   end
-
+  
   function table.copy(obj)
     if _type(obj) == 'table' then
       local res = {} for k,v in pairs(obj) do res[k] = table.copy(v) end
       return res
     else return obj end
   end
-
+  
   function string.starts(str, start) return str:sub(1,#start)==start end
-
+  
   function __assert_type(param, typ)
     if type(param) ~= typ then
       error(fmt("Wrong parameter type, %s required. Provided param '%s' is type of %s",typ, tostring(param), type(param)), 3)
     end
   end
-
+  
   local ZBCOLORMAP = {
     black="\027[30m",brown="\027[31m",green="\027[32m",orange="\027[33m",navy="\027[34m",
     purple="\027[35m",teal="\027[36m",grey="\027[37m", gray="\027[37m",red="\027[31;1m",
     tomato="\027[31;1m",neon="\027[32;1m",yellow="\027[33;1m",blue="\027[34;1m",magenta="\027[35;1m",
     cyan="\027[36;1m",white="\027[37;1m",darkgrey="\027[30;1m",
   }
-
+  
   local COLORMAP = ZBCOLORMAP
-
+  
   TQ.COLORS = { debug='green', trace='blue', warning='orange', ['error']='red', text='black' }
   if flags.dark then TQ.COLORS.text='gray' TQ.COLORS.trace='cyan' end
-
+  
   COLORS = TQ.COLORS
+  TQ.COLORMAP = COLORMAP
   local colorEnd = '\027[0m'
-
+  
   local function html2color(str, startColor, dflTxt)
     local txt = dflTxt or TQ.COLORS.text
     local st, p = { startColor or COLORMAP[dflTxt] }, 1
@@ -197,7 +215,7 @@ function MODULE.lib()
       end
     end)
   end
-
+  
   function TQ.debugOutput(tag, str, typ)
     str = DBG.color~=false and html2color(str, nil, TQ.COLORS.text) or
     str:gsub("(</?font.->)", "") -- Remove color tags
@@ -230,11 +248,11 @@ TQ.emuIP = myDevicesIpAddress == "0.0.0.0" and "127.0.0.1" or myDevicesIpAddress
 end
 
 function MODULE.class()
-
+  
   function property(get,set)
     return {__PROP=true,get=get,set=set}
   end
-
+  
   local function setupProps(cl,t,k,v)
     local props = {}
     function cl.__index(t,k)
@@ -250,7 +268,7 @@ function MODULE.class()
     cl.__newindex(t,k,v)
     return props
   end
-
+  
   function class(name)
     local cl,fmt,index,props = {},string.format,0,nil
     cl.__index = cl
@@ -287,7 +305,7 @@ function MODULE.class()
 end
 
 function MODULE.net()
-
+  
   local function httpRequest(method,url,headers,data,timeout,user,pwd)
     local resp, req = {}, {}
     req.url = url
@@ -313,7 +331,7 @@ function MODULE.net()
       return nil, status, h, resp
     end
   end
-
+  
   local function hackInts(t,d)
     if type(t)~='table' then return
     else
@@ -323,7 +341,7 @@ function MODULE.net()
       end
     end
   end
-
+  
   local function HC3Call(method,path,data)
     assert(fibaro.URL,"Missing fibaro.URL")
     assert(fibaro.USER,"Missing fibaro.USER")
@@ -344,12 +362,12 @@ function MODULE.net()
     if _type(data)=='table' then hackInts(data,0) end -- HACK! ToDo
     return (jf and data or res),stat
   end
-
+  
   function api.get(path) return HC3Call("GET",path) end
   function api.post(path,data) return HC3Call("POST",path,data) end
   function api.put(path,data) return HC3Call("PUT",path, data) end
   function api.delete(path,data) return HC3Call("DELETE",path,data) end
-
+  
   function net.HTTPClient()
     return {
       request = function(_,url,options)
@@ -361,7 +379,7 @@ function MODULE.net()
       end
     }
   end
-
+  
   function net.TCPSocket(opts)
     local self = { opts = opts or {} }
     self.sock = copas.wrap(socket.tcp())
@@ -393,88 +411,242 @@ function MODULE.net()
       for i=1,#del do if data[#data-n+i]~=del:sub(i,i) then return false end end
       return true
     end
-    function self:readUntil(delimiter, opts) -- Read until the cows come home, or closed
-    local data,ok,res = {},true,nil
-    local b,err = self.sock:receive(self.sock,1)
-    if not err then
-      data[#data+1]=b
-      if not check(data,delimiter) then
-        ok = false
-        while true do
-          b,err = self.sock:receive(self.sock,1)
-          if b then
-            data[#data+1]=b
-            if check(data,delimiter) then ok=true break end
-          else break end
-        end -- while
+    function self:readUntil(delimiter, opts) -- Read un..til the cows come home, or closed
+      local data,ok,res = {},true,nil
+      local b,err = self.sock:receive(self.sock,1)
+      if not err then
+        data[#data+1]=b
+        if not check(data,delimiter) then
+          ok = false
+          while true do
+            b,err = self.sock:receive(self.sock,1)
+            if b then
+              data[#data+1]=b
+              if check(data,delimiter) then ok=true break end
+            else break end
+          end 
+        end
+        if ok then
+          for i=1,#delimiter do table.remove(data,#data) end
+          res = table.concat(data)
+        end
       end
-      if ok then
-        for i=1,#delimiter do table.remove(data,#data) end
-        res = table.concat(data)
+      if res and opts and opts.success then opts.success(res)
+      elseif res==nil and opts and opts.error then opts.error(err) end
+    end
+    function self:write(data, opts)
+      local res,err = self.sock:send(data)
+      if res and opts and opts.success then opts.success(res)
+      elseif res==nil and opts and opts.error then opts.error(err) end
+    end
+    function self:close() self.sock:close() end
+    local pstr = "TCPSocket object: "..tostring(self):match("%s(.*)")
+    setmetatable(self,{__tostring = function(_) return pstr end})
+    return self
+  end
+  
+  function net.UDPSocket(opts)
+    local self = { opts = opts or {} }
+    self.sock = copas.wrap(socket.udp())
+    if self.opts.broadcast~=nil then
+      self.sock:setsockname(TQ.IPAddress, 0)
+      self.sock:setoption("broadcast", self.opts.broadcast)
+    end
+    if tonumber(opts.timeout) then self.sock:settimeout(opts.timeout / 1000) end
+    
+    function self:sendTo(datagram, ip,port, callbacks)
+      local stat, res = self.sock:sendto(datagram, ip, port)
+      if stat and callbacks.success then
+        pcall(callbacks.success,1)
+      elseif stat==nil and callbacks.error then
+        pcall(callbacks.error,res)
       end
     end
-    if res and opts and opts.success then opts.success(res)
-    elseif res==nil and opts and opts.error then opts.error(err) end
-  end
-  function self:write(data, opts)
-    local res,err = self.sock:send(data)
-    if res and opts and opts.success then opts.success(res)
-    elseif res==nil and opts and opts.error then opts.error(err) end
-  end
-  function self:close() self.sock:close() end
-  local pstr = "TCPSocket object: "..tostring(self):match("%s(.*)")
-  setmetatable(self,{__tostring = function(_) return pstr end})
-  return self
-end
-
-function net.UDPSocket(opts)
-  local self = { opts = opts or {} }
-  self.sock = copas.wrap(socket.udp())
-  if self.opts.broadcast~=nil then
-    self.sock:setsockname(TQ.IPAddress, 0)
-    self.sock:setoption("broadcast", self.opts.broadcast)
-  end
-  if tonumber(opts.timeout) then self.sock:settimeout(opts.timeout / 1000) end
-
-  function self:sendTo(datagram, ip,port, callbacks)
-    local stat, res = self.sock:sendto(datagram, ip, port)
-    if stat and callbacks.success then
-      pcall(callbacks.success,1)
-    elseif stat==nil and callbacks.error then
-      pcall(callbacks.error,res)
+    function self:bind(ip,port) self.sock:setsockname(ip,port) end
+    function self:receive(callbacks)
+      local stat, res = self.sock:receivefrom()
+      if stat and callbacks.success then
+        pcall(callbacks.success,stat, res)
+      elseif stat==nil and callbacks.error then
+        pcall(callbacks.error,res)
+      end
     end
+    function self:close() self.sock:close() end
+    local pstr = "UDPSocket object: "..tostring(self):match("%s(.*)")
+    setmetatable(self,{__tostring = function(_) return pstr end})
+    return self
   end
-  function self:bind(ip,port) self.sock:setsockname(ip,port) end
-  function self:receive(callbacks)
-    local stat, res = self.sock:receivefrom()
-    if stat and callbacks.success then
-      pcall(callbacks.success,stat, res)
-    elseif stat==nil and callbacks.error then
-      pcall(callbacks.error,res)
+  
+  function net.TESTMQTT()
+    -- create mqtt client
+    local client = luamqtt.client{
+      -- NOTE: this broker is not working sometimes; comment username = "..." below if you still want to use it
+      -- uri = "test.mosquitto.org",
+      uri = "mqtt.flespi.io",
+      -- NOTE: more about flespi tokens: https://flespi.com/kb/tokens-access-keys-to-flespi-platform
+      username = "stPwSVV73Eqw5LSv0iMXbc4EguS7JyuZR9lxU5uLxI5tiNM8ToTVqNpu85pFtJv9",
+      clean = true,
+      
+      -- NOTE: copas connector
+      connector = require("mqtt.luasocket-copas"),
+    }
+    print("created MQTT client", client)
+    
+    client:on{
+      connect = function(connack)
+        if connack.rc ~= 0 then
+          print("connection to broker failed:", connack:reason_string(), connack)
+          return
+        end
+        print("connected:", connack) -- successful connection
+        
+        -- subscribe to test topic and publish message after it
+        assert(client:subscribe{ topic="luamqtt/#", qos=1, callback=function(suback)
+          print("subscribed:", suback)
+          
+          -- publish test message
+          print('publishing test message "hello" to "luamqtt/simpletest" topic...')
+          assert(client:publish{
+            topic = "luamqtt/simpletest",
+            payload = "hello",
+            qos = 1
+          })
+        end})
+      end,
+      
+      message = function(msg)
+        assert(client:acknowledge(msg))
+        
+        print("received:", msg)
+        print("disconnecting...")
+        assert(client:disconnect())
+      end,
+      
+      error = function(err)
+        print("MQTT client error:", err)
+      end,
+      
+      close = function()
+        print("MQTT conn closed")
+      end
+    }
+    
+    -- run io loop for client until connection close
+    copas.addthread(function()
+      print("running client in separated copas thread #1...")
+      luamqtt.run_sync(client)
+      
+      -- NOTE: in sync mode no automatic reconnect is working, but you may just wrap "mqtt.run_sync(client)" call in a loop like this:
+      -- while true do
+      -- 	mqtt.run_sync(client)
+      -- end
+    end)
+    
+    copas.addthread(function()
+      print("execution of separated copas thread #2...")
+      copas.sleep(0.1)
+      print("thread #2 stopped")
+    end)
+  end
+  
+  mqtt = { interval = 1000, Client = {}, QoS = { EXACTLY_ONCE = 1 } }
+  
+  mqtt.MSGT = { 
+    CONNECT = 1, CONNACK = 2, PUBLISH = 3, PUBACK = 4, PUBREC = 5,PUBREL = 6, PUBCOMP = 7, SUBSCRIBE = 8, SUBACK = 9,
+    UNSUBSCRIBE = 10, UNSUBACK = 11, PINGREQ = 12, PINGRESP = 13, DISCONNECT = 14, AUTH = 15,
+  }
+  mqtt.MSGMAP = {
+    [9] = 'subscribed', [11] = 'unsubscribed', [14] = 'closed', [4] = 'published', -- Should be onpublished according to doc?
+  }
+  
+  function mqtt.Client.connect(uri, options)
+    uri = string.gsub(uri, "mqtt://", "")
+    --cafile="...", certificate="...", key="..." (default false)
+    local secure = nil
+    if options.clientCertificate then -- Not in place...
+      secure = {
+        certificate = options.clientCertificate,
+        cafile = options.certificateAuthority,
+        key = "",
+      }
     end
+    local client = luamqtt.client{
+      uri = uri,
+      username = options.username, 
+      password = options.password,
+      clean = not (options.cleanSession==false),
+      will = options.lastWill,
+      keep_alive = options.keepAlivePeriod,
+      id = options.clientId,
+      secure = secure,
+      connector = require("mqtt.luasocket-copas"),
+    }
+    
+    local callbacks = {}
+    client:on{
+      connect = function(connack)
+        if callbacks.connected then callbacks.connected(connack) end
+      end,
+      message = function(msg)
+        local msgt = mqtt.MSGMAP[msg.type]
+        if msgt and callbacks[msgt] then callbacks[msgt](msg)
+        elseif callbacks.message then callbacks.message(msg) end
+      end,
+      error = function(err)
+        if callbacks.error then callbacks.error(err) end
+      end,
+      close = function()
+        if callbacks.close then callbacks.close() end
+      end
+    }
+    
+    local mqttClient = {}
+    function mqttClient:addEventListener(message, handler) callbacks[message] = handler end
+    
+    function mqttClient:subscribe(topic, options)
+      local qos = options and options.qos or 1
+      return client:subscribe({ topic=topic, qos=qos, callback=function(suback) end })
+    end
+    
+    function mqttClient:unsubscribe(topics, options)
+      if type(topics) == 'string' then return client:unsubscribe(topics)
+      else
+        local res; for _, t in ipairs(topics) do res = self:unsubscribe(t) end; return res
+      end
+    end
+    
+    function mqttClient:publish(topic, payload, options)
+      local qos = options and options.qos or 1
+      return client:publish({ topic = topic, payload = payload, qos = qos }) 
+    end
+    
+    function mqttClient:disconnect(options)
+      return client:disconnect(nil, { callback = (options or {}).callback })
+    end
+    
+    copas.addthread(function() mobdebug.on() luamqtt.run_sync(client) end)
+    
+    local pstr = "MQTT object: " .. tostring(mqttClient):match("%s(.*)")
+    setmetatable(mqttClient, { __tostring = function(_) return pstr end })
+    return mqttClient
   end
-  function self:close() self.sock:close() end
-  local pstr = "UDPSocket object: "..tostring(self):match("%s(.*)")
-  setmetatable(self,{__tostring = function(_) return pstr end})
-  return self
-end
-
+  
 end
 
 function MODULE.proxy()
-
+  
   function TQ.createProxy(name,devTempl)
     local code = [[
 local fmt = string.format
-
+    
 function QuickApp:onInit()
   self:debug("Started", self.name, self.id)
   quickApp = self
-
+    
   local send
-
+    
   local IGNORE={ MEMORYWATCH=true,APIFUN=true}
-
+    
   function quickApp:actionHandler(action)
     if IGNORE[action.actionName] then
       print(action.actionName)
@@ -482,18 +654,18 @@ function QuickApp:onInit()
     end
     send({type='action',value=action})
   end
-
+    
   function quickApp:UIHandler(ev) send({type='ui',value=ev}) end
-
+    
   function QuickApp:APIFUN(id,method,path,data)
     local stat,res,code = pcall(api[method:lower()],path,data)
     send({type='resp',id=id,value={stat,res,code}})
   end
-
+    
   function QuickApp:initChildDevices(_) end
-
+    
   local ip,port = nil,nil
-
+    
   local function getAddress() -- continously poll for new address from emulator
     local var = __fibaro_get_global_variable("TQEMU") or {}
     local success,values = pcall(json.decode,var.value)
@@ -504,20 +676,20 @@ function QuickApp:onInit()
     setTimeout(getAddress,5000)
   end
   getAddress()
-
+    
   local queue = {}
   local sender = nil
   local connected = false
   local sock = nil
   local runSender
-
+    
   local function retry()
     if sock then sock:close() end
     connected = false
     queue = {}
     sender = setTimeout(runSender,1500)
   end
-
+    
   function runSender()
     if connected then
       if #queue>0 then
@@ -541,16 +713,16 @@ function QuickApp:onInit()
       })
     end
   end
-
+    
   function send(msg)
     msg = json.encode(msg).."\n"
     queue[#queue+1]=msg
     if not sender then print("Starting") sender=setTimeout(runSender,0) end
   end
-
+    
 end
 ]]
-
+    
     local props = {
       apiVersion = "1.3",
       --quickAppVariables = devTempl.quickAppVariables or {},
@@ -570,7 +742,7 @@ end
     local res,code2 = api.post("/quickApp/", fqa)
     return res
   end
-
+  
   function TQ.interceptAPI(method,path,data) end
   function TQ.setupInterceptors(id)
     local patterns,paths = {},{}
@@ -648,7 +820,7 @@ end
         return true,true,200
       end
     end
-
+    
     patterns["(%w+)/devices/"..id.."/?"] = {
       ['POST/devices/(%d+)/action'] = call,
       ['GET/devices/(%d+)/properties/([%w_]+)$'] = getProp,
@@ -659,7 +831,7 @@ end
       ['POST/plugins/(%d+)/variables'] = postStore,
       ['DELETE/plugins/(%d+)/variables/?(.*)'] = deleteStore,
     }
-
+    
     paths[fmt('GET/devices/(%s)',id)] = getStruct
     paths[fmt('PUT/devices/(%s)',id)] = putStruct
     paths[fmt('DELETE/devices/(%s)',id)] = block
@@ -668,7 +840,7 @@ end
     paths['POST/plugins/createChildDevice'] = blockParentId
     paths['POST/plugins/publishEvent'] = proxyAPI
     paths['POST/plugins/interfaces'] = proxyAPI
-
+    
     function TQ.interceptAPI(method,path,data)
       local key = method..path
       if paths[key] then return paths[key](method,path,data)
@@ -684,7 +856,7 @@ end
       end
     end
   end
-
+  
   function TQ.getProxy(name,devTempl)
     local devStruct = api.get("/devices?name="..urlencode(name))
     assert(type(devStruct)=='table',"API error")
@@ -699,10 +871,10 @@ end
       DEBUG("Proxy found: %s %s",devStruct.id,name)
     end
     TQ.proxyId = devStruct.id
-
+    
     return devStruct
   end
-
+  
   local callRef = {}
   local ref = 0
   function TQ.callAPIFUN(...)
@@ -715,13 +887,13 @@ end
     callRef[id] = nil
     return msg
   end
-
+  
   function TQ.startServer()
     local emuval = json.encode({ip = TQ.emuIP, port = TQ.emuPort}) -- Update HC3 var with emulator connection data
     api.post("/globalVariables", {name=TQ.EMUVAR, value=emuval})
     api.put("/globalVariables/"..TQ.EMUVAR, {name=TQ.EMUVAR, value=emuval})
     DEBUGF('info',"Server started at %s:%s",TQ.emuIP,TQ.emuPort)
-
+    
     local function handle(skt)
       mobdebug.on()
       local name = skt:getpeername() or "N/A"
@@ -747,7 +919,7 @@ end
 end
 
 function MODULE.fibaroSDK()
-
+  
   function __ternary(c, t,f) if c then return t else return f end end
   function __fibaro_get_devices() return api.get("/devices/") end
   function __fibaro_get_device(deviceId) return api.get("/devices/"..deviceId) end
@@ -759,22 +931,22 @@ function MODULE.fibaroSDK()
   function __fibaro_add_debug_message(tag, msg, typ)
     TQ.debugOutput(tag, msg, typ)
   end
-
+  
   function __fibaro_get_partition(id) return api.get('/alarms/v1/partitions/' .. tostring(id)) end
   function __fibaro_get_partitions() return api.get('/alarms/v1/partitions') end
   function __fibaro_get_breached_partitions() return api.get("/alarms/v1/partitions/breached") end
   function __fibaroSleep(ms)
     copas.pause(ms/1000.0)
   end
-
+  
   fibaro = fibaro or {}
   hub = fibaro
-
+  
   function  fibaro.getPartition(id)
     __assert_type(id, "number")
     return __fibaro_get_partition(id)
   end
-
+  
   function fibaro.getPartitions() return __fibaro_get_partitions() end
   function fibaro.alarm(arg1, action)
     if type(arg1) == "string" then return fibaro.__houseAlarm(arg1) end
@@ -783,9 +955,9 @@ function MODULE.fibaroSDK()
     local url = "/alarms/v1/partitions/" .. arg1 .. "/actions/arm"
     if action == "arm" then api.post(url)
     elseif action == "disarm" then api.delete(url)
-    else error("Wrong parameter: " .. action .. ". Available parameters: arm, disarm", 2) end
+    else error(fmt("Wrong parameter: %s. Available parameters: arm, disarm",action),2) end
   end
-
+  
   function fibaro.__houseAlarm(action)
     __assert_type(action, "string")
     local url = "/alarms/v1/partitions/actions/arm"
@@ -793,7 +965,7 @@ function MODULE.fibaroSDK()
     elseif action == "disarm" then api.delete(url)
     else error("Wrong parameter: '" .. action .. "'. Available parameters: arm, disarm", 3) end
   end
-
+  
   function fibaro.alert(alertType, ids, notification)
     __assert_type(alertType, "string")
     __assert_type(ids, "table")
@@ -808,7 +980,7 @@ function MODULE.fibaroSDK()
       error("Wrong parameter: '" .. alertType .. "'. Available parameters: email, push, simplePush", 2)
     end
     for _,id in ipairs(ids) do __assert_type(id, "number") end
-
+    
     if alertType == 'push' then
       local mobileDevices = __fibaro_get_devices_by_type('iOS_device')
       assert(type(mobileDevices) == 'table', "Failed to get mobile devices")
@@ -826,12 +998,12 @@ function MODULE.fibaroSDK()
       fibaro.call(id, actions[alertType], notification, isDefined)
     end
   end
-
+  
   function fibaro.emitCustomEvent(name)
     __assert_type(name, "string")
     api.post("/customEvents/"..name)
   end
-
+  
   function fibaro.call(deviceId, action, ...)
     __assert_type(action, "string")
     if type(deviceId) == "table" then
@@ -844,7 +1016,7 @@ function MODULE.fibaroSDK()
       return api.post("/devices/"..deviceId.."/action/"..action, { args = arg })
     end
   end
-
+  
   function fibaro.callGroupAction(actionName, actionData)
     __assert_type(actionName, "string")
     __assert_type(actionData, "table")
@@ -852,7 +1024,7 @@ function MODULE.fibaroSDK()
     if status ~= 202 then return nil end
     return response and response.devices
   end
-
+  
   function fibaro.get(deviceId, prop)
     __assert_type(deviceId, "number")
     __assert_type(prop, "string")
@@ -860,44 +1032,44 @@ function MODULE.fibaroSDK()
     if prop == nil then return end
     return prop.value, prop.modified
   end
-
+  
   function fibaro.getValue(deviceId, propertyName)
     __assert_type(deviceId, "number")
     __assert_type(propertyName, "string")
     return (fibaro.get(deviceId, propertyName))
   end
-
+  
   function fibaro.getType(deviceId)
     __assert_type(deviceId, "number")
     local dev = __fibaro_get_device(deviceId)
     return dev and dev.type or nil
   end
-
+  
   function fibaro.getName(deviceId)
     __assert_type(deviceId, 'number')
     local dev = __fibaro_get_device(deviceId)
     return dev and dev.name or nil
   end
-
+  
   function fibaro.getRoomID(deviceId)
     __assert_type(deviceId, 'number')
     local dev = __fibaro_get_device(deviceId)
     return dev and dev.roomID or nil
   end
-
+  
   function fibaro.getSectionID(deviceId)
     __assert_type(deviceId, 'number')
     local dev = __fibaro_get_device(deviceId)
     if dev == nil then return end
     return __fibaro_get_room(dev.roomID).sectionID
   end
-
+  
   function fibaro.getRoomName(roomId)
     __assert_type(roomId, 'number')
     local room = __fibaro_get_room(roomId)
     return room and room.name or nil
   end
-
+  
   function fibaro.getRoomNameByDeviceID(deviceId, propertyName)
     __assert_type(deviceId, 'number')
     local dev = __fibaro_get_device(deviceId)
@@ -905,12 +1077,12 @@ function MODULE.fibaroSDK()
     local room = __fibaro_get_room(dev.roomID)
     return room and room.name or nil
   end
-
+  
   function fibaro.getDevicesID(filter)
     if not (type(filter) == 'table' and next(filter)) then
       return fibaro.getIds(__fibaro_get_devices())
     end
-
+    
     local args = {}
     for key, val in pairs(filter) do
       if key == 'properties' and type(val) == 'table' then
@@ -932,7 +1104,7 @@ function MODULE.fibaroSDK()
     local argsStr = table.concat(args,"&")
     return fibaro.getIds(api.get('/devices/?'..argsStr))
   end
-
+  
   function fibaro.getIds(devices)
     local res = {}
     for _,d in pairs(devices) do
@@ -940,20 +1112,20 @@ function MODULE.fibaroSDK()
     end
     return res
   end
-
+  
   function fibaro.getGlobalVariable(name)
     __assert_type(name, 'string')
     local var = __fibaro_get_global_variable(name)
     if var == nil then return end
     return var.value, var.modified
   end
-
+  
   function fibaro.setGlobalVariable(name, value)
     __assert_type(name, 'string')
     __assert_type(value, 'string')
     return api.put("/globalVariables/"..name, {value=tostring(value), invokeScenes=true})
   end
-
+  
   function fibaro.scene(action, ids)
     __assert_type(action, "string")
     __assert_type(ids, "table")
@@ -961,7 +1133,7 @@ function MODULE.fibaroSDK()
     for _, id in ipairs(ids) do __assert_type(id, "number") end
     for _, id in ipairs(ids) do api.post("/scenes/"..id.."/"..action) end
   end
-
+  
   function fibaro.profile(action, id)
     __assert_type(id, "number")
     __assert_type(action, "string")
@@ -970,7 +1142,7 @@ function MODULE.fibaroSDK()
     end
     return api.post("/profiles/activeProfile/"..id)
   end
-
+  
   function fibaro.setTimeout(timeout, action, errorHandler)
     __assert_type(timeout, "number")
     __assert_type(action, "function")
@@ -983,59 +1155,59 @@ function MODULE.fibaroSDK()
       end
       return setTimeout(fun, timeout)
     end
-
+    
     function fibaro.clearTimeout(ref)
       __assert_type(ref, "number")
       clearTimeout(ref)
     end
-
+    
     function fibaro.wakeUpDeadDevice(deviceID)
       __assert_type(deviceID, 'number')
       fibaro.call(1,'wakeUpDeadDevice',deviceID)
     end
-
+    
     function fibaro.sleep(ms)
       __assert_type(ms, "number")
       __fibaroSleep(ms)
     end
-
+    
     local function concatStr(...)
       local args = {}
       for _,o in ipairs({...}) do args[#args+1]=tostring(o) end
       return table.concat(args," ")
     end
-
+    
     function fibaro.debug(tag, ...)
       __assert_type(tag, "string")
       __fibaro_add_debug_message(tag, concatStr(...), "debug")
     end
-
+    
     function fibaro.warning(tag, ...)
       __assert_type(tag, "string")
       __fibaro_add_debug_message(tag,  concatStr(...), "warning")
     end
-
+    
     function fibaro.error(tag, ...)
       __assert_type(tag, "string")
       __fibaro_add_debug_message(tag,  concatStr(...), "error")
     end
-
+    
     function fibaro.trace(tag, ...)
       __assert_type(tag, "string")
       __fibaro_add_debug_message(tag,  concatStr(...), "trace")
     end
-
+    
     function fibaro.useAsyncHandler(value)
       __assert_type(value, "boolean")
       __fibaroUseAsyncHandler(value)
     end
-
+    
     function fibaro.isHomeBreached()
       local ids = __fibaro_get_breached_partitions()
       assert(type(ids)=="table")
       return next(ids) ~= nil
     end
-
+    
     function fibaro.isPartitionBreached(partitionId)
       __assert_type(partitionId, "number")
       local ids = __fibaro_get_breached_partitions()
@@ -1044,7 +1216,7 @@ function MODULE.fibaroSDK()
         if id == partitionId then return true end
       end
     end
-
+    
     function fibaro.getPartitionArmState(partitionId)
       __assert_type(partitionId, "number")
       local partition = __fibaro_get_partition(partitionId)
@@ -1052,7 +1224,7 @@ function MODULE.fibaroSDK()
         return partition.armed and 'armed' or 'disarmed'
       end
     end
-
+    
     function fibaro.getHomeArmState()
       local n,armed = 0,0
       local partitions = __fibaro_get_partitions()
@@ -1064,9 +1236,9 @@ function MODULE.fibaroSDK()
       elseif armed == n then return 'armed'
       else return 'partially_armed' end
     end
-
+    
   end
-
+  
   function MODULE.plugin()
     plugin = plugin or {}
     function plugin.getDevice(deviceId) return api.get("/devices/"..deviceId) end
@@ -1076,10 +1248,10 @@ function MODULE.fibaroSDK()
     function plugin.createChildDevice(opts) return api.post("/plugins/createChildDevice", opts) end
     function plugin.restart() os.exit() end
   end
-
+  
   function MODULE.timers()
     local ref,timers = 0,{}
-
+    
     local function callback(_,fun) mobdebug.on() fun() end
     function setTimeout(fun,ms)
       ref = ref+1
@@ -1095,22 +1267,22 @@ function MODULE.fibaroSDK()
       })
       return ref
     end
-
+    
     function clearTimeout(ref)
-      if timers[ref] then timers[ref].cancel() end
+      if timers[ref] then timers[ref]:cancel() end
       timers[ref]=nil
     end
   end
-
+  
   function MODULE.QuickApp()
-
+    
     class 'QuickAppBase'
-
+    
     function QuickAppBase:__init(dev)
       plugin._dev = self
       if _type(arg) == 'number' then dev = api.get("/devices/" .. dev)
       elseif not _type(arg) == 'table' then error('expected number or table') end
-
+      
       self.id = dev.id
       self.type = dev.type
       self.name = dev.name
@@ -1120,12 +1292,12 @@ function MODULE.fibaroSDK()
       self.uiCallbacks = {}
       self.childDevices = {}
     end
-
+    
     function QuickAppBase:debug(...) fibaro.debug(__TAG, ...) end
     function QuickAppBase:warning(...) fibaro.warning(__TAG, ...) end
     function QuickAppBase:error(...) fibaro.error(__TAG, ...) end
     function QuickAppBase:trace(...) fibaro.trace(__TAG, ...) end
-
+    
     function QuickAppBase:updateProperty(name, value, forceUpdate)
       if (self.properties[name] ~= value or forceUpdate == true) then
         self.properties[name] = value
@@ -1136,7 +1308,7 @@ function MODULE.fibaroSDK()
         })
       end
     end
-
+    
     function QuickAppBase:updateView(componentName, propertyName, newValue, forceUpdate)
       api.post("/plugins/updateView",{
         deviceId = self.id,
@@ -1145,7 +1317,7 @@ function MODULE.fibaroSDK()
         newValue = newValue
       })
     end
-
+    
     function QuickAppBase:hasInterface(name)
       for _, v in pairs(self.interfaces) do
         if v == name then
@@ -1154,7 +1326,7 @@ function MODULE.fibaroSDK()
       end
       return false
     end
-
+    
     function QuickAppBase:addInterfaces(values)
       assert(type(values) == "table")
       self:updateInterfaces("add",values)
@@ -1162,7 +1334,7 @@ function MODULE.fibaroSDK()
         table.insert(self.interfaces, v)
       end
     end
-
+    
     function QuickAppBase:deleteInterfaces(values)
       assert(type(values) == "table")
       self:updateInterfaces("delete", values)
@@ -1175,33 +1347,33 @@ function MODULE.fibaroSDK()
         end
       end
     end
-
+    
     function QuickAppBase:updateInterfaces(action, interfaces)
       api.post("/plugins/interfaces", {action = action, deviceId = self.id, interfaces = interfaces})
     end
-    function QuickAppBase:setName(name) api.put("/devices/" .. self.id,  {name=name}) end
-    function QuickAppBase:setEnabled(enabled) api.put("/devices/" .. self.id, {enabled=enabled} ) end
-    function QuickAppBase:setVisible(visible) api.put("/devices/" .. self.id, {visible=visible} ) end
-
+    function QuickAppBase:setName(name) api.put("/devices/"..self.id,  {name=name}) end
+    function QuickAppBase:setEnabled(enabled) api.put("/devices/"..self.id, {enabled=enabled}) end
+    function QuickAppBase:setVisible(visible) api.put("/devices/"..self.id, {visible=visible}) end
+    
     function QuickAppBase:registerUICallback(elm, typ, fun)
       local uic = self.uiCallbacks
       uic[elm] = uic[elm] or {}
       uic[elm][typ] = fun
     end
-
+    
     function QuickAppBase:setupUICallbacks()
       local callbacks = (self.properties or {}).uiCallbacks or {}
       for _, elm in pairs(callbacks) do
         self:registerUICallback(elm.name, elm.eventType, elm.callback)
       end
     end
-
+    
     function QuickAppBase:getVariable(name)
       __assert_type(name, 'string')
       for _, v in ipairs(self.properties.quickAppVariables or {}) do if v.name == name then return v.value end end
       return ""
     end
-
+    
     local function copy(l)
       local r = {}; for _, i in ipairs(l) do r[#r + 1] = { name = i.name, value = i.value } end
       return r
@@ -1221,20 +1393,20 @@ function MODULE.fibaroSDK()
       api.post("/plugins/updateProperty", { deviceId = self.id, propertyName = 'quickAppVariables', value = vars })
       self.properties.quickAppVariables = vars
     end
-
+    
     function QuickAppBase:callAction(name, ...)
       if (type(self[name]) == 'function') then return self[name](self, ...)
-      else _print(string.format("[WARNING] Class does not have '%s' function defined - action ignored",tostring(name))) end
+      else _print(fmt("[WARNING] Class does not have '%s' function defined - action ignored",tostring(name))) end
     end
-
+    
     function QuickAppBase:isTypeOf(baseType) return getHierarchy():isTypeOf(baseType, self.type) end
-
+    
     function QuickAppBase:internalStorageSet(key, value, isHidden)
       local data = { name = key, value = value, isHidden = isHidden }
       local _, status = api.post("/plugins/"..self.id.."/variables", data)
       if status == 409 then api.put("/plugins/"..self.id.."/variables/"..key, data) end
     end
-
+    
     function QuickAppBase:internalStorageGet(key)
       if key ~= nil then
         local response, status = api.get("/plugins/"..self.id.."/variables/"..key)
@@ -1248,10 +1420,10 @@ function MODULE.fibaroSDK()
         end
       end
     end
-
+    
     function QuickAppBase:internalStorageRemove(key) api.delete("/plugins/"..self.id.."/variables/"..key) end
     function QuickAppBase:internalStorageClear() api.delete("/plugins/"..self.id.."/variables") end
-
+    
     class 'QuickApp'(QuickAppBase)
     function QuickApp:__init(dev)
       QuickAppBase.__init(self,dev)
@@ -1264,7 +1436,7 @@ function MODULE.fibaroSDK()
       end
       if self._childsInited == nil then self:initChildDevices() end
     end
-
+    
     function QuickApp:createChildDevice(props, deviceClass)
       __assert_type(props, 'table')
       props.parentId = self.id
@@ -1278,7 +1450,7 @@ function MODULE.fibaroSDK()
       self.childDevices[device.id] = child
       return child
     end
-
+    
     function QuickApp:removeChildDevice(id)
       __assert_type(id, 'number')
       if self.childDevices[id] then
@@ -1286,7 +1458,8 @@ function MODULE.fibaroSDK()
         self.childDevices[id] = nil
       end
     end
-
+    
+    ---@diagnostic disable-next-line: duplicate-set-field
     function QuickApp:initChildDevices(map)
       map = map or {}
       local children = api.get("/devices?parentId="..self.id)
@@ -1303,13 +1476,13 @@ function MODULE.fibaroSDK()
       end
       self._childsInited = true
     end
-
+    
     class 'QuickAppChild' (QuickAppBase)
     function QuickAppChild:__init(device)
       QuickAppBase.__init(self, device)
       if self.onInit then self:onInit() end
     end
-
+    
     function onAction(id,event)
       local quickApp = plugin.quickApp
       if DBG.onAction then print("onAction: ", json.encode(event)) end
@@ -1319,9 +1492,9 @@ function MODULE.fibaroSDK()
       elseif quickApp.childDevices[event.deviceId] then
         return quickApp.childDevices[event.deviceId]:callAction(event.actionName, table.unpack(event.args))
       end
-      fibaro.warning(__TAG,string.format("Child with id:%s not found",id))
+      fibaro.warning(__TAG,fmt("Child with id:%s not found",id))
     end
-
+    
     function onUIEvent(id, event)
       local quickApp = plugin.quickApp
       if DBG.onUIEvent then print("UIEvent: ", json.encode(event)) end
@@ -1329,17 +1502,17 @@ function MODULE.fibaroSDK()
       if quickApp.uiCallbacks[event.elementName] and quickApp.uiCallbacks[event.elementName][event.eventType] then
         quickApp:callAction(quickApp.uiCallbacks[event.elementName][event.eventType], event)
       else
-        fibaro.warning(__TAG,string.format("UI callback for element:%s not found.", event.elementName))
+        fibaro.warning(__TAG,fmt("UI callback for element:%s not found.", event.elementName))
       end
     end
   end
-
+  
   -- Parse directives
   readDirectives(src)
-
+  
   -- Load modules
   for _,m in ipairs(modules) do DEBUGF('info',"Loading library %s",m.name) m.fun() end
-
+  
   local skip = load("return function(f) return function(...) return f(...) end end")()
   local luaType = function(obj)
     local t = _type(obj)
@@ -1347,7 +1520,7 @@ function MODULE.fibaroSDK()
   end
   type = skip(luaType)
   function print(...) fibaro.debug(__TAG,...) end
-
+  
   if flags.sdk then
     for n,f in pairs(api) do local f0=f; api[n] = skip(f0) end
     setTimeout = skip(setTimeout)
@@ -1358,18 +1531,18 @@ function MODULE.fibaroSDK()
       if _type(f) == 'function' then local f0=f fibaro[n]=skip(f0) end
     end
   end
-
+  
   -- local ts = tostring
   -- function tostring(a)
   --   if math.type(a) ~= 'float' then return ts(a)
   --   else local fa = math.floor(a) return a==fa and fa or a end
   -- end
   -- tostring = skip(tostring)
-
+  
   -- Load main file
   DEBUGF('info',"Loading user file %s",fileName)
   local env = {
-    fibaro = fibaro, api = api, net = net, json = json, print = print, hub = hub,
+    fibaro = fibaro, api = api, net = net, json = json, print = print, hub = hub, mqtt = mqtt,
     setTimeout = setTimeout, clearTimeout = clearTimeout, dofile = dofile,
     QuickAppBase = QuickAppBase,QuickApp = QuickApp, QuickAppChild = QuickAppChild,
     plugin = plugin, quickApp = quickApp, collectgarbage = collectgarbage,
@@ -1386,19 +1559,17 @@ function MODULE.fibaroSDK()
     __fibaro_get_partitions = __fibaro_get_partitions, __fibaro_get_breached_partitions = __fibaro_get_breached_partitions,
   }
   function env.class(name,...) local r = class(name,...) env[name] = _G[name] _G[name]=nil return r end
-
+  
   for _,lf in ipairs(flags.file) do
     DEBUGF('info',"Loading user library %s",lf.file)
-    local lib = loadfile(lf.file,"t",env)
-    assert(lib, "Can't load user library "..lf.file)
-    lib()
+    readFile{file=lf.file,eval=true,env=env,silent=false}
   end
   local mainFile = loadfile(fileName,"t",env)
   assert(mainFile, "Can't load user file "..fileName)
   mainFile()
   assert(fibaro.URL, fibaro.USER and fibaro.PASSWORD,
 "Please define URL, USER, and PASSWORD")
-
+  
   local function init()
     -- Start QuickApp if defined
     mobdebug.on()
@@ -1414,11 +1585,11 @@ function MODULE.fibaroSDK()
       created = os.time(),
       modified = os.time(),
     }
-
+    
     -- Find or create proxy if specified
     if flags.proxy then
       local pname = tostring(flags.proxy)
-      if pname:starts("-") then
+      if pname:starts("-") then -- delete proxy if name is preceeded with "-"
         pname = pname:sub(2)
         local qa = api.get("/devices?name="..urlencode(pname))
         assert(type(qa)=='table')
@@ -1434,7 +1605,7 @@ function MODULE.fibaroSDK()
         TQ.startServer()
       end
     end
-
+    
     plugin._dev = deviceStruct
     plugin.mainDeviceId = deviceStruct.id
     TQ.setupInterceptors(plugin.mainDeviceId)

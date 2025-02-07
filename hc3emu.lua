@@ -18,18 +18,18 @@ print("HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..VERSION
 
 local function readFile(args)
   local file,eval,env,silent = args.file,args.eval,args.env,args.silent~=false
-  local f,err = io.open(file, "rb")
-  if not f then if not silent then error(err) end end
+  local f,err,res = io.open(file, "rb")
+  if f==nil then if not silent then error(err) end end
   local content = f:read("*all")
   f:close()
   if eval then
     if type(eval)=='function' then eval(file) end
     local code,err = load(content,file,"t",env or _G)
     if code == nil then error(err) end
-    err,content = pcall(code)
+    err,res = pcall(code)
     if err == false then error(content) end
   end
-  return content
+  return res,content
 end
 
 local HOME = os.getenv("HOME")
@@ -101,7 +101,7 @@ end
 --  Directives from main lua file (--%%key=value)
 flags={
   name='MyQA', type='com.fibaro.binarySwitch', debug={}, dark = false, id = 5001,
-  var = {}, gv = {}, file = {}, proxy=false, creds = {}
+  var = {}, gv = {}, file = {}, proxy=false, creds = {}, state=false, save=false,
 }
 
 local function readDirectives(src)
@@ -1562,13 +1562,11 @@ function MODULE.fibaroSDK()
   
   for _,lf in ipairs(flags.file) do
     DEBUGF('info',"Loading user library %s",lf.file)
-    readFile{file=lf.file,eval=true,env=env,silent=false}
+    _,lf.src = readFile{file=lf.file,eval=true,env=env,silent=false}
   end
-  local mainFile = loadfile(fileName,"t",env)
-  assert(mainFile, "Can't load user file "..fileName)
-  mainFile()
-  assert(fibaro.URL, fibaro.USER and fibaro.PASSWORD,
-"Please define URL, USER, and PASSWORD")
+  DEBUGF('info',"Loading user main file %s",fileName)
+  local _,mainSrc = readFile{file=fileName,eval=true,env=env,silent=false}
+  assert(fibaro.URL, fibaro.USER and fibaro.PASSWORD,"Please define URL, USER, and PASSWORD")
   
   local function init()
     -- Start QuickApp if defined
@@ -1605,7 +1603,34 @@ function MODULE.fibaroSDK()
         TQ.startServer()
       end
     end
-    
+
+    if flags.save then
+      local files = {}
+      for _,f in ipairs(flags.file) do
+        files[#files+1] = {name=f.lib, isMain=false, isOpen=false, type='lua', content=f.src} 
+      end
+      files[#files+1] = {name="main", isMain=true, isOpen=false, type='lua', content=mainSrc}
+      local initProps = {}
+      local savedProps = {
+        "uiCallbacks","quickAppVariables","uiView","viewLayout","apiVersion","useEmbededView","manufacturer","useUiView",
+        "model","buildNumber","supportedDeviceRoles"
+      }
+      for _,k in ipairs(savedProps) do initProps[k]=deviceStruct.properties[k] end
+      local fqa = {
+        apiVersion = "1.3",
+        name = deviceStruct.name,
+        type = deviceStruct.type,
+        initialProperties = initProps,
+        initialInterfaces = deviceStruct.interfaces,
+        file = files
+      }
+      local f = io.open(flags.save,"w")
+      assert(f,"Can't open file "..flags.save)
+      f:write(json.encode(fqa))
+      f:close()
+      DEBUG("Saved QuickApp to %s",flags.save)
+    end
+
     plugin._dev = deviceStruct
     plugin.mainDeviceId = deviceStruct.id
     TQ.setupInterceptors(plugin.mainDeviceId)

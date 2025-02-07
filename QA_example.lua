@@ -12,6 +12,7 @@ if not QuickApp then dofile("hc3emu.lua") end
 --%%dark=true
 --%%id=5001
 --%%state="state.db"
+--%%save="MyQA.fqa"
 --%%var=foo:config.secret
 --%%debug=sdk:false,info:true,proxyAPI:true,server:true,onAction:true,onUIEvent:true
 --%%debug=http:true,color:true

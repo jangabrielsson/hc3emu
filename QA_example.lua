@@ -27,7 +27,7 @@ function QuickApp:onInit()
     self:testChildren() -- Only works with proxy
   end
   self:testMQTT()
-  self:listFuns()
+  --self:listFuns()
   print("Done!")
 end
 

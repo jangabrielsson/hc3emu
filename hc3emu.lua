@@ -36,7 +36,7 @@ local function readFile(args)
 end
 
 local HOME = os.getenv("HOME")
-local homeCfg = readFile{file=HOME.."/.hc3emu.lua",eval=function(f) print("[SYS] Loading "..f) end}
+local homeCfg = readFile{file=HOME.."/.hc3emu.lua",eval=function(f) print("[SYS] Loading "..f) end} or {}
 
 local socket = require("socket")
 local ltn12 = require("ltn12")
@@ -89,7 +89,7 @@ end })
 
 -- Get config file
 
-local cfgFlags = readFile{file=cfgFileName,eval=function(f) DEBUGF('info',"Loading config file ./%s",f) end}
+local cfgFlags = readFile{file=cfgFileName,eval=function(f) DEBUGF('info',"Loading config file ./%s",f) end} or {}
 
 -- Get main lua file
 local info = debug.getinfo(3)
@@ -100,6 +100,15 @@ if f then
   src = f:read("*all")
   f:close()
 end
+
+local function merge(a, b)
+  if type(a) == 'table' and type(b) == 'table' then
+      for k,v in pairs(b) do if type(v)=='table' and type(a[k] or false)=='table' then merge(a[k],v) else a[k]=v end end
+  end
+  return a
+end
+
+cfgFlags = merge(cfgFlags,homeCfg)
 
 --  Directives from main lua file (--%%key=value)
 flags={

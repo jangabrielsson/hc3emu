@@ -35,6 +35,7 @@ HC3Emu is a Lua-based emulator designed to simulate the behavior of Fibaro Home 
 ## Configuration
 
 Configure the emulator by editing the `hc3emu_cfg.lua` file. You can set various options including credentials for accessing the HC3.
+You can also have a ".hc3emu.lua" file in your home directory, e.g. ENV "HOME"
 
 Include header in QA file and set --%% directives
 ```lua

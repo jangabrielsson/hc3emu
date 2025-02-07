@@ -104,20 +104,18 @@ end
 - net.TCPSocket(...)
 - net.UDPSocket(...)
 - plugin._dev
+- plugin._quickApp
 - plugin.createChildDevice(...)
 - plugin.deleteDevice(...)
 - plugin.getChildDevices(...)
 - plugin.getDevice(...)
 - plugin.getProperty(...)
 - plugin.mainDeviceId
-- plugin.quickApp
 - plugin.restart(...)
 - json.encode(expr)
 - json.decode(str)
 - setTimeout(fun,ms)
-- setTimeout(ref)
-- setInterval(fun,ms)
-- clearInterval(ref)
+- clearTimeout(ref)
 - setInterval(fun,ms)
 - clearInterval(ref)
 - class <name>(<parent>)

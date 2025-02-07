@@ -55,6 +55,7 @@ end
 ```
 
 ## Supported APIs
+
 - api.delete(...)
 - api.get(...)
 - api.post(...)
@@ -93,8 +94,8 @@ end
 - fibaro.profile(...)
 - fibaro.scene(...)
 - fibaro.setGlobalVariable(...)
-- fibaro.setTimeout(ms,fun)
-- fibaro.sleep(ms)
+- fibaro.setTimeout(...)
+- fibaro.sleep(...)
 - fibaro.trace(...)
 - fibaro.useAsyncHandler(...)
 - fibaro.wakeUpDeadDevice(...)
@@ -102,11 +103,29 @@ end
 - net.HTTPClient(...)
 - net.TCPSocket(...)
 - net.UDPSocket(...)
-- mqtt.Client.connect(uri, options)
+- plugin._dev
+- plugin.createChildDevice(...)
+- plugin.deleteDevice(...)
+- plugin.getChildDevices(...)
+- plugin.getDevice(...)
+- plugin.getProperty(...)
+- plugin.mainDeviceId
+- plugin.quickApp
+- plugin.restart(...)
+- json.encode(expr)
+- json.decode(str)
 - setTimeout(fun,ms)
 - setTimeout(ref)
 - setInterval(fun,ms)
 - clearInterval(ref)
+- setInterval(fun,ms)
+- clearInterval(ref)
+- class <name>(<parent>)
+- property(...)
+- class QuickAppBase()
+- class QuickApp()
+- class QuickAppChild
+- hub = fibaro
 
 ## Contributing
 

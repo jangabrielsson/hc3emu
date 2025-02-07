@@ -27,7 +27,7 @@ function QuickApp:onInit()
     self:testChildren() -- Only works with proxy
   end
   --self:testMQTT()
-  --self:listFuns()
+  self:listFuns()
   print("Done!")
 end
 
@@ -155,11 +155,22 @@ function QuickApp:listFuns()
   for k,v in pairs(fibaro) do pr("- fibaro.%s%s",k,type(v)=='function' and "(...)" or "") end
   for k,v in pairs(api) do pr("- api.%s%s",k,type(v)=='function' and "(...)" or "") end
   for k,v in pairs(net) do pr("- net.%s%s",k,type(v)=='function' and "(...)" or "") end
+  for k,v in pairs(plugin) do pr("- plugin.%s%s",k,type(v)=='function' and "(...)" or "") end
   table.sort(buff)
+  pr("- json.encode(expr)")
+  pr("- json.decode(str)")
   pr("- setTimeout(fun,ms)")
   pr("- setTimeout(ref)")
   pr("- setInterval(fun,ms)")
   pr("- clearInterval(ref)")
+  pr("- setInterval(fun,ms)")
+  pr("- clearInterval(ref)")
+  pr("- class <name>(<parent>)")
+  pr("- property(...)")
+  pr("- class QuickAppBase()")
+  pr("- class QuickApp()")
+  pr("- class QuickAppChild")
+  pr("- hub = fibaro")
   local s = table.concat(buff,"\n")
   self:debug("\n"..s)
 end

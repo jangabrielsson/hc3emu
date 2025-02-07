@@ -103,7 +103,7 @@ end
 
 local function merge(a, b)
   if type(a) == 'table' and type(b) == 'table' then
-      for k,v in pairs(b) do if type(v)=='table' and type(a[k] or false)=='table' then merge(a[k],v) else a[k]=v end end
+    for k,v in pairs(b) do if type(v)=='table' and type(a[k] or false)=='table' then merge(a[k],v) else a[k]=v end end
   end
   return a
 end
@@ -196,57 +196,54 @@ function MODULE.lib()
     end
   end
   
-  local ZBCOLORMAP = {
+  local ANSICOLORMAP = { -- Seems to work in both VSCode and Zerobrane console...
     black="\027[30m",brown="\027[31m",green="\027[32m",orange="\027[33m",navy="\027[34m",
     purple="\027[35m",teal="\027[36m",grey="\027[37m", gray="\027[37m",red="\027[31;1m",
     tomato="\027[31;1m",neon="\027[32;1m",yellow="\027[33;1m",blue="\027[34;1m",magenta="\027[35;1m",
     cyan="\027[36;1m",white="\027[37;1m",darkgrey="\027[30;1m",
   }
   
-  local COLORMAP = ZBCOLORMAP
+  TQ.SYSCOLORS = { debug='green', trace='blue', warning='orange', ['error']='red', text='black' }
+  if flags.dark then TQ.SYSCOLORS.text='gray' TQ.SYSCOLORS.trace='cyan' end
   
-  TQ.COLORS = { debug='green', trace='blue', warning='orange', ['error']='red', text='black' }
-  if flags.dark then TQ.COLORS.text='gray' TQ.COLORS.trace='cyan' end
-  
-  COLORS = TQ.COLORS
-  TQ.COLORMAP = COLORMAP
+  TQ.COLORMAP = ANSICOLORMAP
   local colorEnd = '\027[0m'
   
-  local function html2color(str, startColor, dflTxt)
-    local txt = dflTxt or TQ.COLORS.text
-    local st, p = { startColor or COLORMAP[dflTxt] }, 1
-    return str:gsub("(</?font.->)", function(s)
+  local function html2ansiColor(str, dfltColor) -- Allows for nested font tags and resets color to dfltColor
+    local COLORMAP = TQ.COLORMAP
+    dfltColor = COLORMAP[dfltColor]
+    local st, p = { dfltColor }, 1
+    return dfltColor..str:gsub("(</?font.->)", function(s)
       if s == "</font>" then
         p = p - 1; return st[p]
       else
         local color = s:match("color=\"?([#%w]+)\"?") or s:match("color='([#%w]+)'")
         if color then color = color:lower() end
-        color = COLORMAP[color] or COLORMAP[txt]
+        color = COLORMAP[color] or COLORMAP[dfltColor]
         p = p + 1; st[p] = color
         return color
       end
-    end)
+    end)..colorEnd
   end
   
   function TQ.debugOutput(tag, str, typ)
-    str = DBG.color~=false and html2color(str, nil, TQ.COLORS.text) or
-    str:gsub("(</?font.->)", "") -- Remove color tags
-    str = str:gsub("(&nbsp;)", " ")  -- remove html space
-    str = str:gsub("</br>", "\n")  -- remove html space
-    str = str:gsub("<br>", "\n")  -- remove html space
-    if DBG.color~=false then
-      local txt_color = COLORMAP[TQ.COLORS.text]
-      local typ_color = COLORMAP[TQ.COLORS[typ] or TQ.COLORS.text]
-      local outstr = fmt("%s%s [%s%-6s%s] [%-7s]: %s%s",
-      txt_color, os.date("[%d.%m.%Y] [%H:%M:%S]"),
-      typ_color, typ:upper(), txt_color,
+    str = str:gsub("(&nbsp;)", " ")  -- transform html space
+    str = str:gsub("</br>", "\n")    -- transform break line
+    str = str:gsub("<br>", "\n")     -- transform break line
+    if DBG.color==false then
+      str = str:gsub("(</?font.->)", "") -- Remove color tags
+      _print(fmt("%s[%s][%s]: %s", os.date("[%d.%m.%Y][%H:%M:%S]"), typ:upper(), tag, str))
+    else
+      local outstr = 
+      fmt("<font color='%s'>%s[<font color='%s'>%-6s</font>][%-7s]: %s</font>",
+      TQ.SYSCOLORS.text,
+      os.date("[%d.%m.%Y][%H:%M:%S]"),
+      TQ.SYSCOLORS[typ:lower()] or TQ.SYSCOLORS.text,
+      typ:upper(), 
       tag,
-      str,
-      colorEnd
+      str
     )
-    _print(outstr)
-  else
-    _print(fmt("%s [%s] [%s]: %s", os.date("[%d.%m.%Y] [%H:%M:%S]"), typ, tag, str))
+    _print(html2ansiColor(outstr,TQ.SYSCOLORS.text))
   end
 end
 
@@ -684,7 +681,7 @@ end
   end
   
   function TQ.interceptAPI(method,path,data) end
-
+  
   function TQ.setupInterceptors(id)
     local patterns,paths = {},{}
     local function block(m,p,data)
@@ -1512,7 +1509,7 @@ function MODULE.fibaroSDK()
         TQ.startServer()
       end
     end
-
+    
     if flags.save then
       local files = {}
       for _,f in ipairs(flags.file) do
@@ -1539,7 +1536,7 @@ function MODULE.fibaroSDK()
       f:close()
       DEBUG("Saved QuickApp to %s",flags.save)
     end
-
+    
     plugin._dev = deviceStruct
     plugin.mainDeviceId = deviceStruct.id
     TQ.setupInterceptors(plugin.mainDeviceId)

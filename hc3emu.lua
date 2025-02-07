@@ -22,6 +22,7 @@ local function readFile(args)
   local file,eval,env,silent = args.file,args.eval,args.env,args.silent~=false
   local f,err,res = io.open(file, "rb")
   if f==nil then if not silent then error(err) end end
+  assert(f)
   local content = f:read("*all")
   f:close()
   if eval then
@@ -56,7 +57,7 @@ local __TAG = "INIT"
 local print = print
 
 local fibaro = { hc3emu = TQ, HC3EMU_VERSION = VERSION }
-local net,api,plugin = {},{},{}
+local net,api,plugin,mqtt = {},{},{},{}
 local setTimeout,clearTimeout,__assert_type,urlencode,hub,getHierarchy
 local property,class,quickApp,onAction,onUIEvent
 local __ternary,__fibaro_get_devices,__fibaro_get_device,__fibaro_get_room,__fibaro_get_scene
@@ -143,7 +144,7 @@ local function readDirectives(src)
   for i,f in ipairs(flags.file) do local n,v = f:match("(.-):(.*)") flags.file[i] = {name=v,file=n} end
   
   flags.debug = DBG
-  for k,v in pairs(cfgFlags) do
+  for k,v in pairs(cfgFlags or {}) do
     if flags[k]==nil then
       flags[k] = v
     elseif type(flags[k])=='table' and type(v)=='table' then
@@ -746,6 +747,7 @@ end
   end
   
   function TQ.interceptAPI(method,path,data) end
+
   function TQ.setupInterceptors(id)
     local patterns,paths = {},{}
     local function block(m,p,data)
@@ -786,52 +788,10 @@ end
         return true,{value=value,modified = plugin._dev.modified},200
       end
     end
-    local store = {}
-    local function getStore(m,p,d,_,v)
-      if TQ.proxyId and false then return proxyAPI(m,p,d)
-      else
-        if v == "" then
-          local res = {} for k,v in pairs(store) do res[#res+1]={name=k,value=v} end
-          return true,res,200
-        end
-        local v = store[v]
-        if v~=nil then return true,{value=v},200
-        else return true,nil,409 end
-      end
-    end
-    local function postStore(m,p,d)
-      if TQ.proxyId and false then return proxyAPI(m,p,d)
-      elseif not store[d.name] then return true,nil,409
-      else
-        store[d.name]=d.value
-        return true,d.value,200
-      end
-    end
-    local function putStore(m,p,d)
-      if TQ.proxyId and false then return proxyAPI(m,p,d)
-      else
-        store[d.name]=d.value
-        return true,d.value,200
-      end
-    end
-    local function deleteStore(m,p,d,_,v)
-      if TQ.proxyId and false then return proxyAPI(m,p,d)
-      else
-        if v == "" then store = {}
-        else store[v]=nil end
-        return true,true,200
-      end
-    end
     
     patterns["(%w+)/devices/"..id.."/?"] = {
       ['POST/devices/(%d+)/action'] = call,
       ['GET/devices/(%d+)/properties/([%w_]+)$'] = getProp,
-    }
-    patterns["(%w+)/plugins/"..id.."/"] = {
-      ['GET/plugins/(%d+)/variables/?(.*)'] = getStore,
-      ['PUT/plugins/(%d+)/variables/(.*)'] = putStore,
-      ['POST/plugins/(%d+)/variables'] = postStore,
-      ['DELETE/plugins/(%d+)/variables/?(.*)'] = deleteStore,
     }
     
     paths[fmt('GET/devices/(%s)',id)] = getStruct
@@ -1403,28 +1363,33 @@ function MODULE.fibaroSDK()
     
     function QuickAppBase:isTypeOf(baseType) return getHierarchy():isTypeOf(baseType, self.type) end
     
+    local store = {}
+    if type(flags.state)=='string' then 
+      local f = io.open(flags.state,"r")
+      if f then store = json.decode(f:read("*a")) f:close() end
+    end
+    local function flushStore()
+      if type(flags.state)~='string' then return end
+      local f = io.open(flags.state,"w")
+      if f then f:write(json.encode(store)) f:close() end
+    end
     function QuickAppBase:internalStorageSet(key, value, isHidden)
       local data = { name = key, value = value, isHidden = isHidden }
-      local _, status = api.post("/plugins/"..self.id.."/variables", data)
-      if status == 409 then api.put("/plugins/"..self.id.."/variables/"..key, data) end
+      store[key] = data
+      flushStore()
     end
     
     function QuickAppBase:internalStorageGet(key)
-      if key ~= nil then
-        local response, status = api.get("/plugins/"..self.id.."/variables/"..key)
-        return status == 200 and response and response.value or nil
-      else
-        local response, status = api.get("/plugins/"..self.id.."/variables")
-        if status == 200 and type(response)=='table' then
-          local res = {}
-          for _, v in pairs(response) do res[v.name] = v.value end
-          return res
-        end
+      if key ~= nil then return store[key] and store[key].value or nil
+      else 
+        local r = {}
+        for _, v in pairs(store) do r[v.name] = v.value end
+        return r
       end
     end
     
-    function QuickAppBase:internalStorageRemove(key) api.delete("/plugins/"..self.id.."/variables/"..key) end
-    function QuickAppBase:internalStorageClear() api.delete("/plugins/"..self.id.."/variables") end
+    function QuickAppBase:internalStorageRemove(key) store[key] = nil flushStore() end
+    function QuickAppBase:internalStorageClear() store = {} flushStore() end
     
     class 'QuickApp'(QuickAppBase)
     function QuickApp:__init(dev)

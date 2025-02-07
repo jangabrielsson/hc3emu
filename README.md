@@ -30,7 +30,7 @@ HC3Emu is a Lua-based emulator designed to simulate the behavior of Fibaro Home 
 
 1. IDEs supported
   1. Zerobrane
-  2. VSCode
+  2. VSCode, tested with "Lua MobDebug adapter"
 
 ## Configuration
 

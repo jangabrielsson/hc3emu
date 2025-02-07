@@ -27,6 +27,7 @@ function QuickApp:onInit()
     self:testChildren() -- Only works with proxy
   end
   self:testMQTT()
+  self:listFuns()
   print("Done!")
 end
 
@@ -139,6 +140,21 @@ function QuickApp:testMQTT()
   end)
   self.client:addEventListener('connected', handleConnect)
   self.client:addEventListener('connected', handleConnect)
+end
+
+function QuickApp:listFuns()
+  local buff = {}
+  local function pr(...) buff[#buff+1] = string.format(...) end
+  for k,v in pairs(fibaro) do pr("- fibaro.%s%s",k,type(v)=='function' and "(...)" or "") end
+  for k,v in pairs(api) do pr("- api.%s%s",k,type(v)=='function' and "(...)" or "") end
+  for k,v in pairs(net) do pr("- net.%s%s",k,type(v)=='function' and "(...)" or "") end
+  table.sort(buff)
+  pr("- setTimeout(fun,ms)")
+  pr("- setTimeout(ref)")
+  pr("- setInterval(fun,ms)")
+  pr("- clearInterval(ref)")
+  local s = table.concat(buff,"\n")
+  self:debug("\n"..s)
 end
 
 function QuickApp:turnOn() print("Turn on called") end

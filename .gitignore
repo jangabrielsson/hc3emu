@@ -1,4 +1,7 @@
 *.fqa
 *.db
 *.rock
+test.lua
+*.log
+*.out
 

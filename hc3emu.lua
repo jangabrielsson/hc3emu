@@ -58,7 +58,7 @@ local print = print
 
 local fibaro = { hc3emu = TQ, HC3EMU_VERSION = VERSION }
 local net,api,plugin,mqtt = {},{},{},{}
-local setTimeout,clearTimeout,__assert_type,urlencode,hub,getHierarchy
+local setTimeout,clearTimeout,setInterval,clearInterval,__assert_type,urlencode,hub,getHierarchy
 local property,class,quickApp,onAction,onUIEvent
 local __ternary,__fibaro_get_devices,__fibaro_get_device,__fibaro_get_room,__fibaro_get_scene
 local __fibaro_get_device_property,__fibaro_get_devices_by_type,__fibaro_add_debug_message
@@ -1152,11 +1152,13 @@ function MODULE.fibaroSDK()
     local ref,timers = 0,{}
     
     local function callback(_,fun) mobdebug.on() fun() end
-    function setTimeout(fun,ms)
+    local function _setTimeout(rec,fun,ms)
       ref = ref+1
       timers[ref]= copas.timer.new({
         name = "setTimeout:"..ref,
         delay = ms / 1000.0,
+        recurring = rec,
+        initial_delay = rec and ms / 1000.0 or nil,
         callback = callback,
         params = fun,
         errorhandler = function(err, coro, skt)
@@ -1167,10 +1169,13 @@ function MODULE.fibaroSDK()
       return ref
     end
     
+    function setTimeout(fun,ms) return _setTimeout(false,fun,ms) end
+    function setInterval(fun,ms) return _setTimeout(true,fun,ms) end
     function clearTimeout(ref)
       if timers[ref] then timers[ref]:cancel() end
       timers[ref]=nil
     end
+    clearInterval = clearTimeout
   end
   
   function MODULE.QuickApp()
@@ -1447,7 +1452,7 @@ function MODULE.fibaroSDK()
   DEBUGF('info',"Loading user file %s",fileName)
   local env = {
     fibaro = fibaro, api = api, net = net, json = json, print = print, hub = hub, mqtt = mqtt,
-    setTimeout = setTimeout, clearTimeout = clearTimeout, dofile = dofile,
+    setTimeout = setTimeout, clearTimeout = clearTimeout, setInterval = setInterval, clearInterval = clearInterval, dofile = dofile,
     QuickAppBase = QuickAppBase,QuickApp = QuickApp, QuickAppChild = QuickAppChild,
     plugin = plugin, quickApp = quickApp, collectgarbage = collectgarbage,
     os = os, math = math, string = string, table = table, package = package,

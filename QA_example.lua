@@ -26,7 +26,7 @@ function QuickApp:onInit()
   if fibaro.hc3emu.proxyId then 
     self:testChildren() -- Only works with proxy
   end
-  self:testMQTT()
+  --self:testMQTT()
   --self:listFuns()
   print("Done!")
 end
@@ -47,6 +47,13 @@ function QuickApp:testBasic()
   setTimeout(function() 
     self:debug("End",delay,"sec later") 
   end,delay*1000)
+
+  local i,iref = 0,nil
+  iref = setInterval(function() 
+    i=i+1 
+    print("This is a repeating message nr:",i) 
+    if i >= 5 then clearInterval(iref) end
+  end,3000)
   
   self:debug("This is a debug statement")
   self:trace("This is a trace statement")

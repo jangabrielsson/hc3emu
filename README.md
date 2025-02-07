@@ -15,6 +15,7 @@ HC3Emu is a Lua-based emulator designed to simulate the behavior of Fibaro Home 
 - Lua 5.3 or higher
 - luasocket >= 2.0, <= 2.2
 - copas >= 4.7.1-1 (+ timer and timerwheel)
+- luamqtt >= 3.4.3-1
 - lua-cjson-219 >= 2.1.0.9-1
 - mobdebug >= 0.80-1
 

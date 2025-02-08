@@ -2,7 +2,7 @@
 if require and not QuickApp then dofile("hc3emu.lua") end
 -- if require and not QuickApp then require("hc3emu") end
 
---fibaro.USER = "admin" -- set creds in hc3emu_cfg.lua instead
+--fibaro.USER = "admin" -- set creds in ./hc3emu_cfg.lua or ~/.hc3emu.lua
 --fibaro.PASSWORD = "admin"
 --fibaro.URL = "http://192.168.1.57/"
 
@@ -22,12 +22,12 @@ local function printf(...) print(string.format(...)) end
 
 function QuickApp:onInit()
   self:debug(self.name,self.id,self.type)
-  --self:testBasic()
+  self:testBasic()
   if fibaro.hc3emu.proxyId then 
     self:testChildren() -- Only works with proxy
   end
-  self:testTCP()
-  --self:testMQTT()
+  --self:testTCP()
+  self:testMQTT()
   --self:listFuns()
   print("Done!")
 end

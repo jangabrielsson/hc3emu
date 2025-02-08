@@ -37,6 +37,7 @@
     "MyChild",
     "UDPServer",
     "QwikAppChild",
+    "mqtt",
     "sourceTrigger",
     "RefreshStateSubscriber",
     "_sceneId"

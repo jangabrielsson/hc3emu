@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global, duplicate-set-field
-if not QuickApp then dofile("hc3emu.lua") end
---if not QuickApp then require("hc3emu") end
+--if require and not QuickApp then dofile("hc3emu.lua") end
+if require and not QuickApp then require("hc3emu") end
 
 --fibaro.USER = "admin" -- set creds in TQ_cfg.lua instead
 --fibaro.PASSWORD = "admin"

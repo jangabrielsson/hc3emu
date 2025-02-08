@@ -1,8 +1,8 @@
 package = "hc3emu"
-version = "1.0.1-1"
+version = "1.0.1-2"
 source = {
    url = "git://github.com/jangabrielsson/hc3emu",
-   tag = "v1.0",
+   tag = "v1.0.1",
 }
 description = {
    summary = "hc3emu is a emulator for developing Fibaro HC3 QuickApps offline.",

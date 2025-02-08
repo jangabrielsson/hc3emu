@@ -57,14 +57,14 @@ The header is ignored when we move the code to the HC3 as the function 'require'
 
 ## Directives
 Comments in the main file starting with --%% are interpreted as configuration directives to the emulator.
-- name=<string>, The name of the QuickApp
-- type=<string>, the fibaro type
-- proxy=<string>, If defined is the name of the proxy on the HC3. If it doesn't exist it will be created. If the name is preceeded with a dash ,ex. "-MyProxy", a QA with that name will be deleted on the HC3 if it exists and the proxy directive is set to nil...
-- dark=<boolean>, Sets dark mode. Affects what colors are used in the log console.
-- var=<name>:<value>, defines a quickAppVariable for the QA with the name and the value. The value is an evaluated lua value. The lua table 'config' is the values read from the config files and can be used as values. In the example above, we set a quickVar 'foo' to the value in config.secret. This is a great way to initialize the QA with credentials without including them in plain sight in the code...
-- debug=<flag>:<value>, Sets various debug flags, affecting what is logged in the console.
-- save=<filename>, When run it will package and save the QA as a .fqa file on disk. Ex. save="MyQA.fqa"
-- state=<filename>, Will save the "internalStorage" keys in this file and read them back when running. Thus allowing retarts of the QA and preserve some state between runs. internalStorage is only saved in the emulator and not reflected to the HC3 proxy. quickVars are currently always set to the --%%var declaration when running.
+- name="string", The name of the QuickApp
+- type="string", the fibaro type
+- proxy="string", If defined is the name of the proxy on the HC3. If it doesn't exist it will be created. If the name is preceeded with a dash ,ex. "-MyProxy", a QA with that name will be deleted on the HC3 if it exists and the proxy directive is set to nil...
+- dark=boolean, Sets dark mode. Affects what colors are used in the log console.
+- var=name:value, defines a quickAppVariable for the QA with the name and the value. The value is an evaluated lua value. The lua table 'config' is the values read from the config files and can be used as values. In the example above, we set a quickVar 'foo' to the value in config.secret. This is a great way to initialize the QA with credentials without including them in plain sight in the code...
+- debug=flag:"value", Sets various debug flags, affecting what is logged in the console.
+- save="filename", When run it will package and save the QA as a .fqa file on disk. Ex. save="MyQA.fqa"
+- state="filename", Will save the "internalStorage" keys in this file and read them back when running. Thus allowing retarts of the QA and preserve some state between runs. internalStorage is only saved in the emulator and not reflected to the HC3 proxy. quickVars are currently always set to the --%%var declaration when running.
 
 ## Supported APIs
 

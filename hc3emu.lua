@@ -26,10 +26,10 @@ local __TAG = "INIT"
 local print = print
 
 local fibaro = { hc3emu = TQ, HC3EMU_VERSION = VERSION }
-local net,api,plugin = {},{},{}
-local exports = { hub = fibaro }
+local api,plugin = {},{}
+local exports = { hub = fibaro } -- Collect all functions that should be exported to the QA environment
 local __assert_type,urlencode,getHierarchy
-local property,class,quickApp
+local class,quickApp
 local flags,DBG = {},{ info=true }
 QuickAppBase,QuickApp,QuickAppChild = {},{},{}
 
@@ -112,7 +112,7 @@ function MODULE.lib()
   
   function table.merge(a, b)
     if type(a) == 'table' and type(b) == 'table' then
-      for k,v in pairs(b) do if type(v)=='table' and type(a[k] or false)=='table' then merge(a[k],v) else a[k]=v end end
+      for k,v in pairs(b) do if type(v)=='table' and type(a[k] or false)=='table' then table.merge(a[k],v) else a[k]=v end end
     end
     return a
   end
@@ -124,6 +124,10 @@ function MODULE.lib()
     else return obj end
   end
   
+  function table.member(key,tab)
+    for i,elm in ipairs(tab) do if key==elm then return i end end
+  end
+
   function string.starts(str, start) return str:sub(1,#start)==start end
 
   function string.split(inputstr, sep)
@@ -142,7 +146,7 @@ end
 function MODULE.directives()
   DEBUGF('info',"Reading %s directives...",mainFileName)
   
-  cfgFlags = table.merge(cfgFlags,homeCfg) -- merge with home config
+  cfgFlags = table.merge(homeCfg,cfgFlags) -- merge with home config
 
   local function eval(str)
     local stat, res = pcall(function() return load("return " .. str, nil, "t", { config = cfgFlags })() end)
@@ -172,16 +176,7 @@ function MODULE.directives()
   for i,f in ipairs(flags.file) do local n,v = f:match("(.-):(.*)") flags.file[i] = {name=v,file=n} end
   
   flags.debug = DBG
-  for k,v in pairs(cfgFlags or {}) do
-    if flags[k]==nil then
-      flags[k] = v
-    elseif type(flags[k])=='table' and type(v)=='table' then
-      local fv = flags[k]
-      for k,v in pairs(v) do
-        if fv[k]==nil then fv[k]=v end
-      end
-    end
-  end
+  flags = table.merge(cfgFlags,flags)
   
   fibaro.USER = flags.creds.user -- Set credentials here
   fibaro.PASSWORD = flags.creds.password
@@ -247,7 +242,7 @@ end
 
 function MODULE.class()
   
-  function property(get,set)
+  function exports.property(get,set)
     return {__PROP=true,get=get,set=set}
   end
   
@@ -303,7 +298,7 @@ function MODULE.class()
 end
 
 function MODULE.net()
-  
+  local net = {}
   local function httpRequest(method,url,headers,data,timeout,user,pwd)
     local resp, req = {}, {}
     req.url = url
@@ -595,6 +590,7 @@ function MODULE.net()
     return mqttClient
   end
   
+  exports.net = net
   exports.mqtt = mqtt
 end
 
@@ -1243,14 +1239,7 @@ function MODULE.QuickApp()
     })
   end
   
-  function QuickAppBase:hasInterface(name)
-    for _, v in pairs(self.interfaces) do
-      if v == name then
-        return true
-      end
-    end
-    return false
-  end
+  function QuickAppBase:hasInterface(name) return table.member(name, self.interfaces) end
   
   function QuickAppBase:addInterfaces(values)
     assert(type(values) == "table")
@@ -1276,9 +1265,9 @@ function MODULE.QuickApp()
   function QuickAppBase:updateInterfaces(action, interfaces)
     api.post("/plugins/interfaces", {action = action, deviceId = self.id, interfaces = interfaces})
   end
-  function QuickAppBase:setName(name) api.put("/devices/"..self.id,  {name=name}) end
-  function QuickAppBase:setEnabled(enabled) api.put("/devices/"..self.id, {enabled=enabled}) end
-  function QuickAppBase:setVisible(visible) api.put("/devices/"..self.id, {visible=visible}) end
+  function QuickAppBase:setName(name) api.put("/devices/"..self.id,{name=name}) end
+  function QuickAppBase:setEnabled(enabled) api.put("/devices/"..self.id,{enabled=enabled}) end
+  function QuickAppBase:setVisible(visible) api.put("/devices/"..self.id,{visible=visible}) end
   
   function QuickAppBase:registerUICallback(elm, typ, fun)
     local uic = self.uiCallbacks
@@ -1326,6 +1315,7 @@ function MODULE.QuickApp()
   
   function QuickAppBase:isTypeOf(baseType) return getHierarchy():isTypeOf(baseType, self.type) end
   
+  -- Internal storage only stored in the emulator and is not copied to the HC3 proxy
   local store = {}
   if type(flags.state)=='string' then 
     local f = io.open(flags.state,"r")
@@ -1464,9 +1454,9 @@ end
 
 -- Load main file
 local env = {
-  fibaro = fibaro, api = api, net = net, plugin = plugin, 
+  fibaro = fibaro, api = api, plugin = plugin, 
   QuickAppBase = QuickAppBase,QuickApp = QuickApp, QuickAppChild = QuickAppChild,
-  property = property, __assert_type = __assert_type, __TAG = __TAG, quickApp = quickApp, 
+  __assert_type = __assert_type, __TAG = __TAG, quickApp = quickApp, 
   collectgarbage = collectgarbage, json = json, os = os, math = math, string = string, table = table, 
   getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring, 
   type = type, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack, 
@@ -1486,10 +1476,9 @@ DEBUGF('info',"Loading user main file %s",mainFileName)
 load(mainSrc,mainFileName,"t",env)()
 assert(fibaro.URL, fibaro.USER and fibaro.PASSWORD,"Please define URL, USER, and PASSWORD")
 
-local function init()
-  -- Start QuickApp if defined
+local function init() -- The rest is run in a copas tasks...
   mobdebug.on()
-  if QuickApp.onInit then
+  if QuickApp.onInit then   -- Start QuickApp if defined
     local qvs = {}
     for k,v in pairs(flags.var or {}) do qvs[#qvs+1]={name=k,value=v} end
     
@@ -1523,6 +1512,9 @@ local function init()
       end
     end
     
+    plugin._dev = deviceStruct            -- Now we have an device structure
+    plugin.mainDeviceId = deviceStruct.id -- Now we have an deviceId
+
     if flags.save then
       local files,fileName = {},flags.save
       for _,f in ipairs(flags.file) do
@@ -1550,10 +1542,8 @@ local function init()
       DEBUG("Saved QuickApp to %s",fileName)
     end
     
-    plugin._dev = deviceStruct
-    plugin.mainDeviceId = deviceStruct.id
-    TQ.setupInterceptors(plugin.mainDeviceId)
-    quickApp = QuickApp(deviceStruct)
+    TQ.setupInterceptors(plugin.mainDeviceId) -- Setup interceptors for some API calls
+    quickApp = QuickApp(deviceStruct) -- quickApp defined first when we return from :onInit()...
   end
 end
 

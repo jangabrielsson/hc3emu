@@ -197,54 +197,54 @@ function MODULE.lib()
   end
   
   local ANSICOLORMAP = { -- Seems to work in both VSCode and Zerobrane console...
-    black="\027[30m",brown="\027[31m",green="\027[32m",orange="\027[33m",navy="\027[34m",
-    purple="\027[35m",teal="\027[36m",grey="\027[37m", gray="\027[37m",red="\027[31;1m",
-    tomato="\027[31;1m",neon="\027[32;1m",yellow="\027[33;1m",blue="\027[34;1m",magenta="\027[35;1m",
-    cyan="\027[36;1m",white="\027[37;1m",darkgrey="\027[30;1m",
-  }
-  
-  TQ.SYSCOLORS = { debug='green', trace='blue', warning='orange', ['error']='red', text='black' }
-  if flags.dark then TQ.SYSCOLORS.text='gray' TQ.SYSCOLORS.trace='cyan' end
-  
-  TQ.COLORMAP = ANSICOLORMAP
-  local colorEnd = '\027[0m'
-  
-  local function html2ansiColor(str, dfltColor) -- Allows for nested font tags and resets color to dfltColor
-    local COLORMAP = TQ.COLORMAP
-    dfltColor = COLORMAP[dfltColor]
-    local st, p = { dfltColor }, 1
-    return dfltColor..str:gsub("(</?font.->)", function(s)
-      if s == "</font>" then
-        p = p - 1; return st[p]
-      else
-        local color = s:match("color=\"?([#%w]+)\"?") or s:match("color='([#%w]+)'")
-        if color then color = color:lower() end
-        color = COLORMAP[color] or COLORMAP[dfltColor]
-        p = p + 1; st[p] = color
-        return color
-      end
-    end)..colorEnd
-  end
-  
-  function TQ.debugOutput(tag, str, typ)
-    str = str:gsub("(&nbsp;)", " ")  -- transform html space
-    str = str:gsub("</br>", "\n")    -- transform break line
-    str = str:gsub("<br>", "\n")     -- transform break line
-    if DBG.color==false then
-      str = str:gsub("(</?font.->)", "") -- Remove color tags
-      _print(fmt("%s[%s][%s]: %s", os.date("[%d.%m.%Y][%H:%M:%S]"), typ:upper(), tag, str))
+  black="\027[30m",brown="\027[31m",green="\027[32m",orange="\027[33m",navy="\027[34m",
+  purple="\027[35m",teal="\027[36m",grey="\027[37m", gray="\027[37m",red="\027[31;1m",
+  tomato="\027[31;1m",neon="\027[32;1m",yellow="\027[33;1m",blue="\027[34;1m",magenta="\027[35;1m",
+  cyan="\027[36;1m",white="\027[37;1m",darkgrey="\027[30;1m",
+}
+
+TQ.SYSCOLORS = { debug='green', trace='blue', warning='orange', ['error']='red', text='black' }
+if flags.dark then TQ.SYSCOLORS.text='gray' TQ.SYSCOLORS.trace='cyan' end
+
+TQ.COLORMAP = ANSICOLORMAP
+local colorEnd = '\027[0m'
+
+local function html2ansiColor(str, dfltColor) -- Allows for nested font tags and resets color to dfltColor
+  local COLORMAP = TQ.COLORMAP
+  dfltColor = COLORMAP[dfltColor]
+  local st, p = { dfltColor }, 1
+  return dfltColor..str:gsub("(</?font.->)", function(s)
+    if s == "</font>" then
+      p = p - 1; return st[p]
     else
-      local outstr = 
-      fmt("<font color='%s'>%s[<font color='%s'>%-6s</font>][%-7s]: %s</font>",
-      TQ.SYSCOLORS.text,
-      os.date("[%d.%m.%Y][%H:%M:%S]"),
-      TQ.SYSCOLORS[typ:lower()] or TQ.SYSCOLORS.text,
-      typ:upper(), 
-      tag,
-      str
-    )
-    _print(html2ansiColor(outstr,TQ.SYSCOLORS.text))
-  end
+      local color = s:match("color=\"?([#%w]+)\"?") or s:match("color='([#%w]+)'")
+      if color then color = color:lower() end
+      color = COLORMAP[color] or COLORMAP[dfltColor]
+      p = p + 1; st[p] = color
+      return color
+    end
+  end)..colorEnd
+end
+
+function TQ.debugOutput(tag, str, typ)
+  str = str:gsub("(&nbsp;)", " ")  -- transform html space
+  str = str:gsub("</br>", "\n")    -- transform break line
+  str = str:gsub("<br>", "\n")     -- transform break line
+  if DBG.color==false then
+    str = str:gsub("(</?font.->)", "") -- Remove color tags
+    _print(fmt("%s[%s][%s]: %s", os.date("[%d.%m.%Y][%H:%M:%S]"), typ:upper(), tag, str))
+  else
+    local outstr = 
+    fmt("<font color='%s'>%s[<font color='%s'>%-6s</font>][%-7s]: %s</font>",
+    TQ.SYSCOLORS.text,
+    os.date("[%d.%m.%Y][%H:%M:%S]"),
+    TQ.SYSCOLORS[typ:lower()] or TQ.SYSCOLORS.text,
+    typ:upper(), 
+    tag,
+    str
+  )
+  _print(html2ansiColor(outstr,TQ.SYSCOLORS.text))
+end
 end
 
 local someRandomIP = "192.168.1.122" --This address you make up
@@ -318,8 +318,8 @@ function MODULE.net()
   local function httpRequest(method,url,headers,data,timeout,user,pwd)
     local resp, req = {}, {}
     req.url = url
-    req.method = method
-    req.headers = headers
+    req.method = method or "GET"
+    req.headers = headers or {}
     req.timeout = timeout and timeout / 1000
     req.sink = ltn12.sink.table(resp)
     req.headers["Accept"] = req.headers["Accept"] or "*/*"
@@ -377,20 +377,29 @@ function MODULE.net()
   function api.put(path,data) return HC3Call("PUT",path, data) end
   function api.delete(path,data) return HC3Call("DELETE",path,data) end
   
+  local function async(call,...) return copas.addthread(function(...) mobdebug.on() call(...) end,...) end
+
   function net.HTTPClient()
-    return {
-      request = function(_,url,options)
-        copas.addthread(function()
-          local res, status = httpRequest(options.method,url,options.headers,options.data,options.timeout)
-          if res < 300 and options.success then options.success(res)
-          elseif options.error then options.error(status) end
-        end,0)
+    local self = {}
+    function self:request(url,options)
+      local call = function()
+        mobdebug.on()
+        local opts = options.options or {}
+        local res, status, headers = httpRequest(opts.method,url,opts.headers,opts.data,opts.timeout)
+        if status < 300 and options.success then
+          local stat,data = pcall(json.decode,res)
+          if not stat then data = res end 
+          options.success({status=status,data=data,headers=headers})
+        elseif options.error then options.error(status) end
       end
-    }
+      async(call)
+    end
+    return self
   end
   
   function net.TCPSocket(opts)
-    local self = { opts = opts or {} }
+    local opts = opts or {}
+    local self = { opts = opts }
     self.sock = copas.wrap(socket.tcp())
     if tonumber(opts.timeout) then
       self.sock:settimeout(opts.timeout/1000) -- timeout in ms
@@ -398,55 +407,28 @@ function MODULE.net()
     function self:connect(ip, port, opts)
       for k,v in pairs(self.opts) do opts[k]=v end
       local _, err = self.sock:connect(ip,port)
-      if err==nil and opts and opts.success then opts.success()
-      elseif opts and opts.error then opts.error(err) end
+      if err==nil and opts and opts.success then async(opts.success)
+      elseif opts and opts.error then async(opts.error,err) end
     end
     function self:read(opts) -- I interpret this as reading as much as is available...?
       local data,res = {},nil
-      local b,err = self.sock:receive(1)
-      if not err then
+      local b,err = self.sock:receive()
+      while b and b~="" and not err do
         data[#data+1]=b
-        while socket.select({self.sock.socket},nil,0.1)[1] do
-          b,err = self.sock:receive(1)
-          if b then data[#data+1]=b else break end
-        end
-        res = table.concat(data)
+        b,err = self.sock:receive()
       end
-      if res and opts and opts.success then opts.success(res)
-      elseif res==nil and opts and opts.error then opts.error(err) end
-    end
-    local function check(data,del)
-      local n = #del
-      for i=1,#del do if data[#data-n+i]~=del:sub(i,i) then return false end end
-      return true
+      if #data>0 and opts and opts.success then async(opts.success,(table.concat(data,"\n")))
+      elseif opts and opts.error then async(opts.error,err) end
     end
     function self:readUntil(delimiter, opts) -- Read un..til the cows come home, or closed
-      local data,ok,res = {},true,nil
-      local b,err = self.sock:receive(self.sock,1)
-      if not err then
-        data[#data+1]=b
-        if not check(data,delimiter) then
-          ok = false
-          while true do
-            b,err = self.sock:receive(self.sock,1)
-            if b then
-              data[#data+1]=b
-              if check(data,delimiter) then ok=true break end
-            else break end
-          end 
-        end
-        if ok then
-          for i=1,#delimiter do table.remove(data,#data) end
-          res = table.concat(data)
-        end
-      end
-      if res and opts and opts.success then opts.success(res)
-      elseif res==nil and opts and opts.error then opts.error(err) end
+      local res,err = self.sock:receive(delimiter)
+      if res and not err and opts and opts.success then async(opts.success,res)
+      elseif err and opts and opts.error then async(opts.error,err) end
     end
     function self:write(data, opts)
       local res,err = self.sock:send(data)
-      if res and opts and opts.success then opts.success(res)
-      elseif res==nil and opts and opts.error then opts.error(err) end
+      if res and opts and opts.success then async(opts.success,res)
+      elseif res==nil and opts and opts.error then async(opts.error,err) end
     end
     function self:close() self.sock:close() end
     local pstr = "TCPSocket object: "..tostring(self):match("%s(.*)")
@@ -466,18 +448,18 @@ function MODULE.net()
     function self:sendTo(datagram, ip,port, callbacks)
       local stat, res = self.sock:sendto(datagram, ip, port)
       if stat and callbacks.success then
-        pcall(callbacks.success,1)
+        async(callbacks.success,1)
       elseif stat==nil and callbacks.error then
-        pcall(callbacks.error,res)
+        async(callbacks.error,res)
       end
     end
     function self:bind(ip,port) self.sock:setsockname(ip,port) end
     function self:receive(callbacks)
       local stat, res = self.sock:receivefrom()
       if stat and callbacks.success then
-        pcall(callbacks.success,stat, res)
+        async(callbacks.success,stat, res)
       elseif stat==nil and callbacks.error then
-        pcall(callbacks.error,res)
+        async(callbacks.error,res)
       end
     end
     function self:close() self.sock:close() end

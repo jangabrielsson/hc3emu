@@ -1,6 +1,6 @@
 ---@diagnostic disable: undefined-global, duplicate-set-field
---if require and not QuickApp then dofile("hc3emu.lua") end
-if require and not QuickApp then require("hc3emu") end
+if require and not QuickApp then dofile("hc3emu.lua") end
+-- if require and not QuickApp then require("hc3emu") end
 
 --fibaro.USER = "admin" -- set creds in TQ_cfg.lua instead
 --fibaro.PASSWORD = "admin"
@@ -22,12 +22,13 @@ local function printf(...) print(string.format(...)) end
 
 function QuickApp:onInit()
   self:debug(self.name,self.id,self.type)
-  self:testBasic()
+  --self:testBasic()
   if fibaro.hc3emu.proxyId then 
     self:testChildren() -- Only works with proxy
   end
+  self:testTCP()
   --self:testMQTT()
-  self:listFuns()
+  --self:listFuns()
   print("Done!")
 end
 
@@ -147,6 +148,40 @@ function QuickApp:testMQTT()
   end)
   self.client:addEventListener('connected', handleConnect)
   self.client:addEventListener('connected', handleConnect)
+end
+
+function QuickApp:testTCP()
+  local url = "http://www.google.com"
+  local http = net.HTTPClient():request(url, {
+    options = {
+      method = "GET",
+      headers = {["User-Agent"] = "Mozilla/5.0"},
+    },
+    success = function(response)
+      self:debug("HTTP response: "..response.status)
+    end,
+    error = function(err)
+      self:error("HTTP error: "..err)
+    end
+  })
+
+  local tcp = net.TCPSocket()
+  tcp:connect("www.google.com",80,{
+    success = function() 
+      self:debug("TCP connected")
+      tcp:write("GET / HTTP/1.1\r\nHost: www.google.com\r\n\r\n",{
+        success = function() 
+          self:debug("TCP sent") 
+          tcp:read({
+            success = function(data) self:debug("TCP received: "..data:match("(.-)\n")) end,
+            error = function(err) self:error("TCP receive error: "..err) end
+          })
+          end,
+        error = function(err) self:error("TCP send error: "..err) end
+      })
+    end,
+    error = function(err) self:error("TCP error: "..err) end,
+  })
 end
 
 function QuickApp:listFuns()

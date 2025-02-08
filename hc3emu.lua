@@ -38,9 +38,14 @@ end
 local HOME = os.getenv("HOME")
 local homeCfg = readFile{file=HOME.."/.hc3emu.lua",eval=function(f) print("[SYS] Loading "..f) end} or {}
 
+local _,websock = pcall(require,"hc3emu.ws")
+if not _ then
+  _,websock = pcall(dofile,"lib/LuWS.lua")
+end
 local socket = require("socket")
 local ltn12 = require("ltn12")
 local copas = require("copas")
+copas.https = require("ssl.https")
 require("copas.timer")
 require("copas.http")
 local luamqtt = require("mqtt")
@@ -333,7 +338,9 @@ function MODULE.net()
     else
       req.headers["Content-Length"] = 0
     end
-    local r,status,h = copas.http.request(req)
+    local r,status,h
+    if url:starts("https") then r,status,h = copas.https.request(req)
+    else r,status,h = copas.http.request(req) end
     if tonumber(status) and status < 300 then
       return resp[1] and table.concat(resp) or nil, status, h
     else
@@ -378,7 +385,8 @@ function MODULE.net()
   function api.delete(path,data) return HC3Call("DELETE",path,data) end
   
   local function async(call,...) return copas.addthread(function(...) mobdebug.on() call(...) end,...) end
-
+  
+  -------------- HTTPClient ----------------------------------
   function net.HTTPClient()
     local self = {}
     function self:request(url,options)
@@ -386,10 +394,8 @@ function MODULE.net()
         mobdebug.on()
         local opts = options.options or {}
         local res, status, headers = httpRequest(opts.method,url,opts.headers,opts.data,opts.timeout)
-        if status < 300 and options.success then
-          local stat,data = pcall(json.decode,res)
-          if not stat then data = res end 
-          options.success({status=status,data=data,headers=headers})
+        if status and tostring(status) < "300" and options.success then
+          options.success({status=status,data=res,headers=headers})
         elseif options.error then options.error(status) end
       end
       async(call)
@@ -397,6 +403,7 @@ function MODULE.net()
     return self
   end
   
+    -------------- UDPSocket ----------------------------------
   function net.TCPSocket(opts)
     local opts = opts or {}
     local self = { opts = opts }
@@ -463,11 +470,62 @@ function MODULE.net()
       end
     end
     function self:close() self.sock:close() end
+    
     local pstr = "UDPSocket object: "..tostring(self):match("%s(.*)")
     setmetatable(self,{__tostring = function(_) return pstr end})
     return self
   end
   
+  -------------- WebSocket ----------------------------------
+  net._LuWS_VERSION = websock.version
+  function net.WebSocketClientTls()
+    local POLLINTERVAL = 1
+    local conn,err,lt = nil,nil,nil
+    local self = { }
+    local handlers = {}
+    local function dispatch(h,...)
+      if handlers[h] then async(handlers[h],...) end
+    end
+    local function listen()
+      if not conn then return end
+      lt = copas.addthread(function() mobdebug.on()
+        while true do
+          websock.wsreceive(conn)
+          copas.pause(POLLINTERVAL)
+        end
+      end)
+    end
+    local function stopListen() if lt then copas.removethread(lt) lt = nil end end
+    local function disconnected() websock.wsclose(conn) conn=nil; stopListen(); dispatch("disconnected") end
+    local function connected() self.co = true; listen();  dispatch("connected") end
+    local function dataReceived(data) dispatch("dataReceived",data) end
+    local function error(err2) dispatch("error",err2) end
+    local function message_handler( conn2, opcode, data, ... )
+      if not opcode then error(data) disconnected()
+      else dataReceived(data) end
+    end
+    function self:addEventListener(h,f) handlers[h]=f end
+    function self:connect(url,headers)
+      if conn then return false end
+      conn, err = websock.wsopen( url, message_handler, {upgrade_headers=headers} ) --options )
+      if not err then connected(); return true
+      else return false,err end
+    end
+    function self:send(data)
+      if not conn then return false end
+      if not websock.wssend(conn,1,data) then return disconnected() end
+      return true
+    end
+    function self:isOpen() return conn and true end
+    function self:close() if conn then disconnected() return true end end
+
+    local pstr = "WebSocket object: "..tostring(self):match("%s(.*)")
+    setmetatable(self,{__tostring = function(_) return pstr end})
+    return self
+  end
+  net.WebSocketClient = net.WebSocketClientTls
+
+  -------------- MQTT ----------------------------------
   mqtt = { interval = 1000, Client = {}, QoS = { EXACTLY_ONCE = 1 } }
   
   mqtt.MSGT = { 

@@ -1,6 +1,6 @@
 ---@diagnostic disable: duplicate-set-field
--- if require and not QuickApp then dofile("hc3emu.lua") end
-if require and not QuickApp then require("hc3emu") end
+if require and not QuickApp then dofile("hc3emu.lua") end
+-- if require and not QuickApp then require("hc3emu") end
 
 --fibaro.USER = "admin" -- set creds in hc3emu_cfg.lua instead
 --fibaro.PASSWORD = "admin"
@@ -151,19 +151,15 @@ function QuickApp:testMQTT()
 end
 
 function QuickApp:testTCP()
-  local url = "http://www.google.com"
-  local http = net.HTTPClient():request(url, {
-    options = {
-      method = "GET",
-      headers = {["User-Agent"] = "Mozilla/5.0"},
-    },
-    success = function(response)
-      self:debug("HTTP response: "..response.status)
-    end,
-    error = function(err)
-      self:error("HTTP error: "..err)
-    end
-  })
+    net.HTTPClient():request("https://timeapi.io/api/time/current/zone?timeZone=Europe/Amsterdam",{
+        options = {
+            method = "GET",
+            headers = { ["Accept"] = "application/json" }
+        },
+        success = function(response) self:debug("Response",response.data) end,
+        error = function(err) self:error(err) end
+    })
+    print("HTTP called") -- async, so we get answer later
 
   local tcp = net.TCPSocket()
   tcp:connect("www.google.com",80,{

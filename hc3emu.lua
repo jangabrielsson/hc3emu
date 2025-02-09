@@ -21,17 +21,15 @@ TQ.EMUVAR = "TQEMU" -- HC3 GV with connection data for HC3 proxy
 TQ.emuPort = 8264   -- Port for HC3 proxy to connect to
 TQ.emuIP = nil      -- IP of host running the emulator
 
-local _type,_print = type,print
+local _type = type
 local __TAG = "INIT"
-local print = print
 
 local fibaro = { hc3emu = TQ, HC3EMU_VERSION = VERSION }
 local api,plugin = {},{}
 local exports = { hub = fibaro } -- Collect all functions that should be exported to the QA environment
-local __assert_type,urlencode,getHierarchy
+local __assert_type,urlencode,readFile
 local class,quickApp
 local flags,DBG = {},{ info=true }
-QuickAppBase,QuickApp,QuickAppChild = {},{},{}
 
 --  Default directives/flags from main lua file (--%%key=value)
 flags={
@@ -40,43 +38,27 @@ flags={
 }
 
 local fmt = string.format
-local function DEBUG(f,...) _print("[SYS]",fmt(f,...)) end
+local function DEBUG(f,...) print("[SYS]",fmt(f,...)) end
 local function DEBUGF(flag,f,...) if DBG[flag] then DEBUG(f,...) end end
-local function WARNINGF(f,...) _print("[SYSWARN]",fmt(f,...)) end
-local function ERRORF(f,...) _print("[SYSERR]",fmt(f,...)) end
+local function WARNINGF(f,...) print("[SYSWARN]",fmt(f,...)) end
+local function ERRORF(f,...) print("[SYSERR]",fmt(f,...)) end
 local function pcall2(f,...) local res = {pcall(f,...)} if res[1] then return table.unpack(res,2) else return nil end end
-
-local startTime = os.clock() -- Time execution
+local function ll(fn) local f,e = loadfile(fn) if f then return f() else return not tostring(e):match("such file") and error(e) or nil end end
 
 -- Get main lua file
-local info = debug.getinfo(3)
-mainFileName = info.source:match("@*(.*)")
+mainFileName = debug.getinfo(3).source:match("@*(.*)")
 local f = io.open(mainFileName)
-if f then
-  mainSrc = f:read("*all")
-  f:close()
-end
-
-local function readFile(args)
-  local file,eval,env,silent = args.file,args.eval,args.env,args.silent~=false
-  local f,err,res = io.open(file, "rb")
-  if f==nil then if not silent then error(err) end end
-  assert(f)
-  local content = f:read("*all")
-  f:close()
-  if eval then
-    if type(eval)=='function' then eval(file) end
-    local code,err = load(content,file,"t",env or _G)
-    if code == nil then error(err) end
-    err,res = pcall(code)
-    if err == false then error(content) end
-  end
-  return res,content
-end
+if f then mainSrc = f:read("*all") f:close()
+else error("Could not read main file") end
 
 -- Get home project file, defaults to {}
+DEBUGF('info',"Loading home config file %s",homeCfgFileName)
 local HOME = os.getenv("HOME") or ""
-local homeCfg = readFile{file=HOME.."/"..homeCfgFileName,eval=function(f) DEBUG("Loading home config file %s",f) end} or {}
+local homeCfg =ll(HOME.."/"..homeCfgFileName) or {}
+
+-- Get project config file, defaults to {}
+DEBUGF('info',"Loading project config file ./%s",cfgFileName)
+local cfgFlags = ll(cfgFileName) or {}
 
 local socket = require("socket")
 local ltn12 = require("ltn12")
@@ -95,8 +77,14 @@ local MODULE = setmetatable({},{__newindex = function(t,k,v)
   modules[#modules+1]={name=k,fun=v}
 end })
 
--- Get project config file, defualts to {}
-local cfgFlags = readFile{file=cfgFileName,eval=function(f) DEBUGF('info',"Loading project config file ./%s",f) end} or {}
+local tasks = {}
+local function addthread(call,...) 
+  local task = 42
+  task = copas.addthread(function(...) mobdebug.on() call(...) tasks[task]=nil end,...)
+  tasks[task] = true
+  return task
+end
+function TQ.cancelTasks() for t,_ in pairs(tasks) do copas.removethread(t) end end
 
 function MODULE.lib()
   function urlencode(str) -- very useful
@@ -116,7 +104,7 @@ function MODULE.lib()
     end
     return a
   end
-
+  
   function table.copy(obj)
     if _type(obj) == 'table' then
       local res = {} for k,v in pairs(obj) do res[k] = table.copy(v) end
@@ -127,27 +115,45 @@ function MODULE.lib()
   function table.member(key,tab)
     for i,elm in ipairs(tab) do if key==elm then return i end end
   end
-
+  
   function string.starts(str, start) return str:sub(1,#start)==start end
-
+  
   function string.split(inputstr, sep)
     local t={}
     for str in string.gmatch(inputstr, "([^"..(sep or "%s").."]+)") do t[#t+1] = str end
     return t
   end
-
+  
   function __assert_type(param, typ)
     if type(param) ~= typ then
       error(fmt("Wrong parameter type, %s required. Provided param '%s' is type of %s",typ, tostring(param), type(param)), 3)
     end
   end
+  
+  function readFile(args)
+    local file,eval,env,silent = args.file,args.eval,args.env,args.silent~=false
+    local f,err,res = io.open(file, "rb")
+    if f==nil then if not silent then error(err) end end
+    assert(f)
+    local content = f:read("*all")
+    f:close()
+    if eval then
+      if type(eval)=='function' then eval(file) end
+      local code,err = load(content,file,"t",env or _G)
+      if code == nil then error(err) end
+      err,res = pcall(code)
+      if err == false then error(content) end
+    end
+    return res,content
+  end
+  
 end
 
 function MODULE.directives()
   DEBUGF('info',"Reading %s directives...",mainFileName)
   
   cfgFlags = table.merge(homeCfg,cfgFlags) -- merge with home config
-
+  
   local function eval(str)
     local stat, res = pcall(function() return load("return " .. str, nil, "t", { config = cfgFlags })() end)
     if stat then return res end
@@ -221,13 +227,13 @@ function MODULE.log()
     str = str:gsub("<br>", "\n")     -- transform break line
     if DBG.color==false then
       str = str:gsub("(</?font.->)", "") -- Remove color tags
-      _print(fmt("%s[%s][%s]: %s", os.date("[%d.%m.%Y][%H:%M:%S]"), typ:upper(), tag, str))
+      print(fmt("%s[%s][%s]: %s", os.date("[%d.%m.%Y][%H:%M:%S]"), typ:upper(), tag, str))
     else
       local fstr = "<font color='%s'>%s[<font color='%s'>%-6s</font>][%-7s]: %s</font>"
       local txtColor = TQ.SYSCOLORS.text
       local typColor = TQ.SYSCOLORS[typ:lower()] or txtColor
       local outstr = fmt(fstr,txtColor,os.date("[%d.%m.%Y][%H:%M:%S]"),typColor,typ:upper(),tag,str)
-      _print(html2ansiColor(outstr,TQ.SYSCOLORS.text))
+      print(html2ansiColor(outstr,TQ.SYSCOLORS.text))
     end
   end
   
@@ -353,7 +359,7 @@ function MODULE.net()
     local t1 = socket.gettime()
     local jf,data = pcall(json.decode,res)
     local t2 = socket.gettime()
-    if DBG.http then print(fmt("API: %s %.4fs (decode %.4fs)",path,t1-t0,t2-t1)) end
+    if DBG.http then DEBUGF('http',"API: %s %.4fs (decode %.4fs)",path,t1-t0,t2-t1) end
     if _type(data)=='table' then hackInts(data,0) end -- HACK! ToDo
     return (jf and data or res),stat
   end
@@ -363,7 +369,7 @@ function MODULE.net()
   function api.put(path,data) return HC3Call("PUT",path, data) end
   function api.delete(path,data) return HC3Call("DELETE",path,data) end
   
-  local function async(call,...) return copas.addthread(function(...) mobdebug.on() call(...) end,...) end
+  local async = addthread
   
   -------------- HTTPClient ----------------------------------
   function net.HTTPClient()
@@ -397,12 +403,13 @@ function MODULE.net()
       elseif opts and opts.error then async(opts.error,err) end
     end
     function self:read(opts) -- I interpret this as reading as much as is available...?
-      local data,res = {},nil
+      local data = {}
       local b,err = self.sock:receive()
-      while b and b~="" and not err do
-        data[#data+1]=b
-        b,err = self.sock:receive()
-      end
+      if b and not err then data[#data+1]=b end -- ToDO: This is not correct...?
+      -- while b and b~="" and not err do
+      --   data[#data+1]=b
+      --   b,err = self.sock:receive()
+      -- end
       if #data>0 and opts and opts.success then async(opts.success,(table.concat(data,"\n")))
       elseif opts and opts.error then async(opts.error,err) end
     end
@@ -459,7 +466,7 @@ function MODULE.net()
   local websock = require("hc3emu.ws")
   if websock then
     net._LuWS_VERSION = websock.version or "unknown"
-    function net.WebSocketClientTls()
+    function net.WebSocketClientTls(options)
       local POLLINTERVAL = 1
       local conn,err,lt = nil,nil,nil
       local self = { }
@@ -469,7 +476,7 @@ function MODULE.net()
       end
       local function listen()
         if not conn then return end
-        lt = copas.addthread(function() mobdebug.on()
+        lt = addthread(function() mobdebug.on()
           while true do
             websock.wsreceive(conn)
             copas.pause(POLLINTERVAL)
@@ -477,24 +484,47 @@ function MODULE.net()
         end)
       end
       local function stopListen() if lt then copas.removethread(lt) lt = nil end end
-      local function disconnected() websock.wsclose(conn) conn=nil; stopListen(); dispatch("disconnected") end
-      local function connected() self.co = true; listen();  dispatch("connected") end
+      local function disconnected() 
+        websock.wsclose(conn) 
+        conn=nil; 
+        stopListen(); 
+        dispatch("disconnected")
+      end
+      local function connected() listen();  dispatch("connected") end
       local function dataReceived(data) dispatch("dataReceived",data) end
       local function error(err2) dispatch("error",err2) end
       local function message_handler( conn2, opcode, data, ... )
-        if not opcode then error(data) disconnected()
+        if not opcode then 
+          error(data) disconnected()
         else dataReceived(data) end
       end
-      function self:addEventListener(h,f) handlers[h]=f end
+      function self:addEventListener(h,f) handlers[h]=f end 
       function self:connect(url,headers)
         if conn then return false end
-        conn, err = websock.wsopen( url, message_handler, {upgrade_headers=headers} ) --options )
-        if not err then connected(); return true
+        local wopts = {upgrade_headers=headers, } 
+        if url:match("^wss:") then
+          function wopts.connect(ip,port)
+            local sock = copas.wrap(socket.tcp(),{wrap={protocol='any',mode='client',verify='none'}})
+            --sock:settimeout(5)
+            local res,err = sock:connect(ip,port)
+            if not res then return nil,err end
+            return sock
+          end
+          wopts.ssl_mode = "client"
+          wopts.ssl_protocol = "tlsv1_2"
+          --wopts.ssl_protocol = "any"
+          wopts.ssl_verify = "none"
+        end
+        conn, err = websock.wsopen( url, message_handler,  wopts) 
+        if not err then async(connected); return true
         else return false,err end
       end
+      
       function self:send(data)
         if not conn then return false end
-        if not websock.wssend(conn,1,data) then return disconnected() end
+        if not websock.wssend(conn,1,data) then 
+          return disconnected() 
+        end
         return true
       end
       function self:isOpen() return conn and true end
@@ -583,7 +613,7 @@ function MODULE.net()
       return client:disconnect(nil, { callback = (options or {}).callback })
     end
     
-    copas.addthread(function() mobdebug.on() luamqtt.run_sync(client) end)
+    addthread(function() mobdebug.on() luamqtt.run_sync(client) end)
     
     local pstr = "MQTT object: " .. tostring(mqttClient):match("%s(.*)")
     setmetatable(mqttClient, { __tostring = function(_) return pstr end })
@@ -752,9 +782,12 @@ end
       ['GET/devices/(%d+)/properties/([%w_]+)$'] = getProp,
     }
     
-    paths[fmt('GET/devices/(%s)',id)] = getStruct
-    paths[fmt('PUT/devices/(%s)',id)] = putStruct
-    paths[fmt('DELETE/devices/(%s)',id)] = block
+    paths[fmt('GET/quickApp/export/%s',id)] = function() 
+      return true,TQ.getFQA(),200
+    end
+    paths[fmt('GET/devices/%s',id)] = getStruct
+    paths[fmt('PUT/devices/%s',id)] = putStruct
+    paths[fmt('DELETE/devices/%s',id)] = block
     paths['POST/plugins/updateView'] = blockDeviceId
     paths['POST/plugins/updateProperty'] = blockDeviceId
     paths['POST/plugins/createChildDevice'] = blockParentId
@@ -817,6 +850,7 @@ end
     local function handle(skt)
       mobdebug.on()
       local name = skt:getpeername() or "N/A"
+      TQ._client = skt
       DEBUGF("server","New connection: %s",name)
       while true do
         local reqdata = copas.receive(skt)
@@ -830,10 +864,12 @@ end
           else DEBUGF('server',"Unknown data %s",reqdata) end
         end
       end
+      TQ._client = nil
       DEBUGF("server","Connection closed: %s",name)
     end
     local server,err= socket.bind('*', TQ.emuPort)
     if not server then error(fmt("Failed open socket %s: %s",TQ.emuPort,tostring(err))) end
+    TQ._server = server
     copas.addserver(server, handle)
   end
 end
@@ -1161,18 +1197,22 @@ function MODULE.timers()
   local e = exports
   local ref,timers = 0,{}
   
-  local function callback(_,fun) mobdebug.on() fun() end
+  function TQ.cancelTimers() for _,t in pairs(timers) do t:cancel() end end
+  
+  local function callback(_,args) mobdebug.on() timers[args[2]] = nil args[1]() end
   local function _setTimeout(rec,fun,ms)
     ref = ref+1
+    local ref0 = not rec and ref or "n/a"
     timers[ref]= copas.timer.new({
       name = "setTimeout:"..ref,
       delay = ms / 1000.0,
       recurring = rec,
       initial_delay = rec and ms / 1000.0 or nil,
       callback = callback,
-      params = fun,
+      params = {fun,ref0},
       errorhandler = function(err, coro, skt)
         fibaro.error(tostring(__TAG),fmt("setTimeout:%s",tostring(err)))
+        timers[ref]=nil
         copas.seterrorhandler()
       end
     })
@@ -1182,28 +1222,48 @@ function MODULE.timers()
   function e.setTimeout(fun,ms) return _setTimeout(false,fun,ms) end
   function e.setInterval(fun,ms) return _setTimeout(true,fun,ms) end
   function e.clearTimeout(ref)
-    if timers[ref] then timers[ref]:cancel() end
+    if timers[ref] then 
+      timers[ref]:cancel()
+    end
     timers[ref]=nil
+    copas.pause(0)
   end
   e.clearInterval = e.clearTimeout
 end
 
 function MODULE.QuickApp()
   
+  function TQ.shutdown()
+    if TQ._server then copas.removeserver(TQ._server) end
+    if TQ._client then copas.close(TQ._client) end
+    TQ.cancelTimers() 
+    TQ.cancelTasks() 
+  end
   function plugin.getDevice(deviceId) return api.get("/devices/"..deviceId) end
   function plugin.deleteDevice(deviceId) return api.delete("/devices/"..deviceId) end
   function plugin.getProperty(deviceId, propertyName) return api.get("/devices/"..deviceId).properties[propertyName] end
   function plugin.getChildDevices(deviceId) return api.get("/devices?parentId="..deviceId) end
   function plugin.createChildDevice(opts) return api.post("/plugins/createChildDevice", opts) end
-  function plugin.restart() os.exit() end
-
+  function plugin.restart() 
+    DEBUG("Restarting QuickApp in 5 seconds")
+    TQ.shutdown()
+    TQ._shouldExit = false
+    copas.pause(5)
+  end
+  function os.shutdown(code) 
+    DEBUG("Exit %s",code or 0)
+    if code == -1 then os.exit(-1) end -- Hard exit...
+    TQ._shouldExit = true
+    TQ.shutdown()  
+    copas.pause(0)  
+  end
+  
   class 'QuickAppBase'
   
   function QuickAppBase:__init(dev)
     plugin._dev = self
     if _type(arg) == 'number' then dev = api.get("/devices/" .. dev)
     elseif not _type(arg) == 'table' then error('expected number or table') end
-    
     self.id = dev.id
     self.type = dev.type
     self.name = dev.name
@@ -1310,9 +1370,10 @@ function MODULE.QuickApp()
   
   function QuickAppBase:callAction(name, ...)
     if (type(self[name]) == 'function') then return self[name](self, ...)
-    else _print(fmt("[WARNING] Class does not have '%s' function defined - action ignored",tostring(name))) end
+    else print(fmt("[WARNING] Class does not have '%s' function defined - action ignored",tostring(name))) end
   end
   
+  local function getHierarchy() return {} end
   function QuickAppBase:isTypeOf(baseType) return getHierarchy():isTypeOf(baseType, self.type) end
   
   -- Internal storage only stored in the emulator and is not copied to the HC3 proxy
@@ -1453,11 +1514,12 @@ if flags.sdk then -- Try to hide functions from debugger - may work...
 end
 
 -- Load main file
+local os2 = { time = os.time, clock = os.clock, difftime = os.difftime, date = os.date, exit = os.shutdown }
 local env = {
   fibaro = fibaro, api = api, plugin = plugin, 
   QuickAppBase = QuickAppBase,QuickApp = QuickApp, QuickAppChild = QuickAppChild,
-  __assert_type = __assert_type, __TAG = __TAG, quickApp = quickApp, 
-  collectgarbage = collectgarbage, json = json, os = os, math = math, string = string, table = table, 
+  __assert_type = __assert_type, __TAG = __TAG, quickApp = quickApp, json = json,
+  collectgarbage = collectgarbage, os = os2, math = math, string = string, table = table, 
   getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring, 
   type = type, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack, 
   error = error, assert = assert, print = userPrint, pcall = pcall, xpcall = xpcall, 
@@ -1514,9 +1576,9 @@ local function init() -- The rest is run in a copas tasks...
     
     plugin._dev = deviceStruct            -- Now we have an device structure
     plugin.mainDeviceId = deviceStruct.id -- Now we have an deviceId
-
-    if flags.save then
-      local files,fileName = {},flags.save
+    
+    function TQ.getFQA() -- Move to module
+      local files = {}
       for _,f in ipairs(flags.file) do
         files[#files+1] = {name=f.lib, isMain=false, isOpen=false, type='lua', content=f.src} 
       end
@@ -1526,15 +1588,20 @@ local function init() -- The rest is run in a copas tasks...
         "uiCallbacks","quickAppVariables","uiView","viewLayout","apiVersion","useEmbededView","manufacturer","useUiView",
         "model","buildNumber","supportedDeviceRoles"
       }
-      for _,k in ipairs(savedProps) do initProps[k]=deviceStruct.properties[k] end
-      local fqa = {
+      for _,k in ipairs(savedProps) do initProps[k]=plugin._dev.properties[k] end
+      return {
         apiVersion = "1.3",
-        name = deviceStruct.name,
-        type = deviceStruct.type,
+        name = plugin._dev.name,
+        type = plugin._dev.type,
         initialProperties = initProps,
-        initialInterfaces = deviceStruct.interfaces,
+        initialInterfaces = plugin._dev.interfaces,
         file = files
       }
+    end
+    
+    if flags.save then
+      local fileName = flags.save
+      local fqa = TQ.getFQA()
       local f = io.open(fileName,"w")
       assert(f,"Can't open file "..fileName)
       f:write(json.encode(fqa))
@@ -1543,11 +1610,16 @@ local function init() -- The rest is run in a copas tasks...
     end
     
     TQ.setupInterceptors(plugin.mainDeviceId) -- Setup interceptors for some API calls
-    quickApp = QuickApp(deviceStruct) -- quickApp defined first when we return from :onInit()...
+    quickApp = QuickApp(plugin._dev) -- quickApp defined first when we return from :onInit()...
   end
 end
 
-copas(init)
-DEBUG("Runtime %.3f sec",os.clock()-startTime)
-os.exit(0)
+while true do
+  local startTime = os.clock()
+  TQ._shouldExit = true
+  copas(function() addthread(init) end)
+  DEBUG("Runtime %.3f sec",os.clock()-startTime)
+  if TQ._shouldExit then os.exit(0) end
+end
+
 

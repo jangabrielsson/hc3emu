@@ -1,3 +1,5 @@
 --Save or (upload) finished QA to HC3 - done
---Save state between runs (internalStorage)
+--Save state between runs (internalStorage) - done
 --Including multiple QA files - done
+--Make websocket wss work...
+--plugin.restart() -- Done

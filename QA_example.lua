@@ -8,7 +8,7 @@ if require and not QuickApp then dofile("hc3emu.lua") end
 
 --%%name="Test"
 --%%type="com.fibaro.multilevelSwitch"
---%% proxy="MyProxy"
+--%%proxy="MyProxy"
 --%%dark=true
 --%%id=5001
 --%%state="state.db"
@@ -22,12 +22,16 @@ local function printf(...) print(string.format(...)) end
 
 function QuickApp:onInit()
   self:debug(self.name,self.id,self.type)
+  local fqa = api.get("/quickApp/export/"..self.id) -- Get my own fqa struct
+  printf("Size of fqa: %s bytes",#json.encode(fqa))
   self:testBasic()
   if fibaro.hc3emu.proxyId then 
-    self:testChildren() -- Only works with proxy
+    --self:testChildren() -- Only works with proxy
   end
-  --self:testTCP()
+  plugin.restart()
+  self:testTCP()
   self:testMQTT()
+  --self:testWebSocket() -- don't work with wss
   --self:listFuns()
   print("Done!")
 end
@@ -159,7 +163,7 @@ function QuickApp:testTCP()
         success = function(response) self:debug("Response",response.data) end,
         error = function(err) self:error(err) end
     })
-    print("HTTP called") -- async, so we get answer later
+    print("HTTP called (can take a while zzzz)") -- async, so we get answer later
 
   local tcp = net.TCPSocket()
   tcp:connect("www.google.com",80,{
@@ -168,8 +172,10 @@ function QuickApp:testTCP()
       tcp:write("GET / HTTP/1.1\r\nHost: www.google.com\r\n\r\n",{
         success = function() 
           self:debug("TCP sent") 
-          tcp:read({
-            success = function(data) self:debug("TCP received: "..data:match("(.-)\n")) end,
+          tcp:readUntil("*l",{
+            success = function(data) 
+              self:debug("TCP received: "..(data:match("(.-)\n") or data))
+              end,
             error = function(err) self:error("TCP receive error: "..err) end
           })
           end,
@@ -178,6 +184,26 @@ function QuickApp:testTCP()
     end,
     error = function(err) self:error("TCP error: "..err) end,
   })
+end
+
+function QuickApp:testWebSocket()
+  local sock = net.WebSocketClient()
+  
+  local function handleConnected()
+    self:debug("connected")
+    sock:send("Hello from hc3emu\n")
+  end
+  
+  local function handleDisconnected() self:warning("handleDisconnected") end
+  local function handleError(error) self:error("handleError:", error) end
+  local function handleDataReceived(data) self:trace("dataReceived:", data) end
+  
+  sock:addEventListener("connected", function() handleConnected() end)
+  sock:addEventListener("disconnected", function() handleDisconnected() end)
+  sock:addEventListener("error", function(error) handleError(error) end)
+  sock:addEventListener("dataReceived", function(data) handleDataReceived(data) end)
+  --sock:connect("wss://echo.websocket.events/")
+  sock:connect("wss://ws.postman-echo.com/raw")
 end
 
 function QuickApp:listFuns()

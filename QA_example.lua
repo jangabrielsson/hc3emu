@@ -1,6 +1,6 @@
 ---@diagnostic disable: duplicate-set-field
-if require and not QuickApp then dofile("hc3emu.lua") end
--- if require and not QuickApp then require("hc3emu") end
+_DEVELOP = true
+if require and not QuickApp then require("hc3emu") end
 
 --fibaro.USER = "admin" -- set creds in ./hc3emu_cfg.lua or ~/.hc3emu.lua
 --fibaro.PASSWORD = "admin"
@@ -14,14 +14,14 @@ if require and not QuickApp then dofile("hc3emu.lua") end
 --%%state="state.db"
 --%%save="MyQA.fqa"
 --%%var=foo:config.secret
---%%debug=sdk:false,info:false,proxyAPI:true,server:true,onAction:true,onUIEvent:true
+--%%debug=sdk:false,info:true,proxyAPI:true,server:true,onAction:true,onUIEvent:true
 --%%debug=http:true,color:true,blockAPI:true
 --%%file=lib_example.lua:lib
 
 local function printf(...) print(string.format(...)) end
 
 if fibaro.hc3emu then
-  dofile("lib/colors.lua")(fibaro) -- We can load extra colors working in vscode
+  _require("hc3emu.colors")(fibaro) -- We can load extra colors working in vscode
   print("<font color='salmon'>Salmon</font> <font=color=green>Green</font> <font color=\"blue\">Blue</font>")
 
   fibaro.hc3emu.logFilter = {"DevicePropertyUpdatedEvent"} -- We can filter out some log messages containing string
@@ -154,7 +154,7 @@ function QuickApp:testMQTT()
   self.client:addEventListener('published', function(event) self:debug("published: "..json.encode(event)) end)  
   self.client:addEventListener('message', function(event)
     if event.topic == "test/blah" then 
-      self:debug("Got message: "..event.payload)
+      self:debug("MQTT Got message: "..event.payload)
       clearTimeout(ref)
       self.client:disconnect()
     end
@@ -200,7 +200,7 @@ function QuickApp:testWebSocket()
   
   local function handleConnected()
     self:debug("connected")
-    sock:send("Hello from hc3emu\n")
+    sock:send("WebSocket: Hello from hc3emu\n")
   end
   
   local function handleDisconnected() self:warning("handleDisconnected") end

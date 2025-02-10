@@ -50,6 +50,7 @@ mainFileName = debug.getinfo(3).source:match("@*(.*)")
 local f = io.open(mainFileName)
 if f then mainSrc = f:read("*all") f:close()
 else error("Could not read main file") end
+if mainSrc:match("info:false") then DBG.info = false end
 
 -- Get home project file, defaults to {}
 DEBUGF('info',"Loading home config file %s",homeCfgFileName)
@@ -66,7 +67,9 @@ local copas = require("copas")
 copas.https = require("ssl.https")
 require("copas.timer")
 require("copas.http")
-local json = require("cjson")
+local json = require("rapidjson")
+
+local a = package.searchpath('hc3emu.ws', package.path)
 
 local mobdebug = pcall2(require, 'mobdebug') or { on = function() end, start = function(_,_) end } 
 mobdebug.start('127.0.0.1', 8818)
@@ -150,7 +153,7 @@ function MODULE.lib()
 end
 
 function MODULE.directives()
-  DEBUGF('info',"Reading %s directives...",mainFileName)
+  DEBUGF('info',"Parsing %s directives...",mainFileName)
   
   cfgFlags = table.merge(homeCfg,cfgFlags) -- merge with home config
   
@@ -175,18 +178,18 @@ function MODULE.directives()
     else WARNINGF("Unknown directive: %s",tostring(f)) end
   end)
   
-  for _,d in ipairs(flags.debug) do local n,v = d:match("(.-):(.*)") DBG[n] = eval(v) end
+  for _,d in ipairs(flags.debug) do local n,v = d:match("(.-):(.*)") assert(n and v,"Bad debug directive: "..d) DBG[n] = eval(v) end
   local var = {}
-  for _,d in ipairs(flags.var) do local n,v = d:match("(.-):(.*)") var[n] = eval(v) end
+  for _,d in ipairs(flags.var) do local n,v = d:match("(.-):(.*)") assert(n and v,"Bad var directive: "..d) var[n] = eval(v) end
   flags.var = var
-  for i,f in ipairs(flags.file) do local n,v = f:match("(.-):(.*)") flags.file[i] = {name=v,file=n} end
+  for i,f in ipairs(flags.file) do local n,v = f:match("(.-):(.*)") assert(n and v,"Bad file directive: "..f) flags.file[i] = {name=v,file=n} end
   
   flags.debug = DBG
   flags = table.merge(cfgFlags,flags)
   
-  fibaro.USER = flags.creds.user -- Set credentials here
-  fibaro.PASSWORD = flags.creds.password
-  fibaro.URL = flags.creds.url
+  fibaro.USER = (flags.creds or {}).user -- Get credentials, if available
+  fibaro.PASSWORD = (flags.creds or {}).password
+  fibaro.URL = (flags.creds or {}).url
 end
 
 function MODULE.log()
@@ -206,7 +209,8 @@ function MODULE.log()
   
   local function html2ansiColor(str, dfltColor) -- Allows for nested font tags and resets color to dfltColor
     local COLORMAP = TQ.COLORMAP
-    dfltColor = COLORMAP[dfltColor]
+    local EXTRA = TQ.extraColors or {}
+    dfltColor = COLORMAP[dfltColor] or EXTRA[dfltColor]
     local st, p = { dfltColor }, 1
     return dfltColor..str:gsub("(</?font.->)", function(s)
       if s == "</font>" then
@@ -214,7 +218,7 @@ function MODULE.log()
       else
         local color = s:match("color=\"?([#%w]+)\"?") or s:match("color='([#%w]+)'")
         if color then color = color:lower() end
-        color = COLORMAP[color] or COLORMAP[dfltColor]
+        color = COLORMAP[color] or EXTRA[color] or dfltColor
         p = p + 1; st[p] = color
         return color
       end
@@ -222,6 +226,7 @@ function MODULE.log()
   end
   
   function TQ.debugOutput(tag, str, typ)
+    for _,p in ipairs(TQ.logFilter or {}) do if str:find(p) then return end end
     str = str:gsub("(&nbsp;)", " ")  -- transform html space
     str = str:gsub("</br>", "\n")    -- transform break line
     str = str:gsub("<br>", "\n")     -- transform break line
@@ -236,7 +241,7 @@ function MODULE.log()
       print(html2ansiColor(outstr,TQ.SYSCOLORS.text))
     end
   end
-  
+
   local someRandomIP = "192.168.1.122" --This address you make up
   local someRandomPort = "3102" --This port you make up
   local mySocket = socket.udp() --Create a UDP socket like normal
@@ -333,17 +338,7 @@ function MODULE.net()
     end
   end
   
-  local function hackInts(t,d)
-    if type(t)~='table' then return
-    else
-      for k,v in pairs(t) do
-        if k=='id' and math.type(v)=='float' and v==math.floor(v) then t[k] = math.floor(v) end
-        if d < 2 and type(v)=='table' then hackInts(v,d+1) end
-      end
-    end
-  end
-  
-  local function HC3Call(method,path,data)
+  local function HC3Call(method,path,data,silent)
     assert(fibaro.URL,"Missing fibaro.URL")
     assert(fibaro.USER,"Missing fibaro.USER")
     assert(fibaro.PASSWORD,"Missing fibaro.PASSSWORD")
@@ -359,11 +354,11 @@ function MODULE.net()
     local t1 = socket.gettime()
     local jf,data = pcall(json.decode,res)
     local t2 = socket.gettime()
-    if DBG.http then DEBUGF('http',"API: %s %.4fs (decode %.4fs)",path,t1-t0,t2-t1) end
-    if _type(data)=='table' then hackInts(data,0) end -- HACK! ToDo
+    if not silent and DBG.http then DEBUGF('http',"API: %s %.4fs (decode %.4fs)",path,t1-t0,t2-t1) end
     return (jf and data or res),stat
   end
-  
+  TQ.HC3Call = HC3Call
+
   function api.get(path) return HC3Call("GET",path) end
   function api.post(path,data) return HC3Call("POST",path,data) end
   function api.put(path,data) return HC3Call("PUT",path, data) end
@@ -1261,12 +1256,12 @@ function MODULE.QuickApp()
   class 'QuickAppBase'
   
   function QuickAppBase:__init(dev)
-    plugin._dev = self
     if _type(arg) == 'number' then dev = api.get("/devices/" .. dev)
     elseif not _type(arg) == 'table' then error('expected number or table') end
     self.id = dev.id
     self.type = dev.type
     self.name = dev.name
+    self.enabled = dev.enabled
     self.parentId = dev.parentId
     self.properties = dev.properties
     self.interfaces = dev.interfaces
@@ -1486,6 +1481,76 @@ function MODULE.QuickApp()
       fibaro.warning(__TAG,fmt("UI callback for element:%s not found.", event.elementName))
     end
   end
+  
+  class 'RefreshStateSubscriber'
+  local refreshStatePoller
+  
+  function RefreshStateSubscriber:subscribe(filter, handler)
+    return self.subject:filter(function(event) return filter(event) end):subscribe(function(event) handler(event) end)
+  end
+  
+  function RefreshStateSubscriber:__init()
+    self.subscribers = {}
+    function self.handle(event)
+      for sub,_ in pairs(self.subscribers) do
+        if sub.filter(event) then sub.handler(event) end
+      end
+    end
+  end
+  
+  local MTsub = { __tostring = function(self) return "Subscription" end }
+  
+  local SUBTYPE = '%SUBSCRIPTION%'
+  function RefreshStateSubscriber:subscribe(filter, handler)
+    local sub = setmetatable({ type=SUBTYPE, filter = filter, handler = handler },MTsub)
+    self.subscribers[sub]=true
+    return sub
+  end
+  
+  function RefreshStateSubscriber:unsubscribe(subscription)
+    if type(subscription)=='table' and subscription.type==SUBTYPE then 
+      self.subscribers[subscription]=nil
+    end
+  end
+  
+  function RefreshStateSubscriber:run()
+    if not self.running then 
+      self.running = addthread(refreshStatePoller,self)
+    end
+  end
+  
+  function RefreshStateSubscriber:stop()
+    if self.running then copas.removethread(self.running) self.running = nil end
+  end
+  
+  function refreshStatePoller(robj)
+    local path = "/refreshStates"
+    local last
+    while robj.running do
+      local data, status = TQ.HC3Call("GET", last and path..("?last="..last) or path, nil, true)
+      if status ~= 200 then
+        ERRORF("Failed to get refresh state: %s",status)
+        robj.running = false
+        return
+      end
+      assert(data, "No data received")
+      last = math.floor(data.last) or last
+      if data.events ~= nil then
+        for _, event in pairs(data.events) do
+          robj.handle(event)
+        end
+      end
+      copas.pause(TQ._refreshInterval or 2)
+    end
+  end
+  
+  exports.RefreshStateSubscriber = RefreshStateSubscriber
+  
+  function exports.__onAction(id, actionName, args)
+    print("__onAction", id, actionName, args)
+    exports.onAction(id, { deviceId = id, actionName = actionName, args = json.decode(args).args })
+  end
+  
 end
 
 -- Load modules
@@ -1523,7 +1588,7 @@ local env = {
   getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring, 
   type = type, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack, 
   error = error, assert = assert, print = userPrint, pcall = pcall, xpcall = xpcall, 
-  dofile = dofile, package = package,
+  dofile = dofile, package = package, bit32 = require("bit32")
 }
 for name,fun in pairs(exports) do env[name]=fun end -- export functions to environment
 function env.class(name,...) -- Needs special class to place global in right environment
@@ -1548,6 +1613,8 @@ local function init() -- The rest is run in a copas tasks...
       id=tonumber(flags.id) or 5000,
       type=flags.type or 'com.fibaro.binarySwitch',
       name=flags.name or 'MyQA',
+      enabled = true,
+      visible = true,
       properties = { quickAppVariables = qvs },
       interfaces = {"quickApp"},
       created = os.time(),

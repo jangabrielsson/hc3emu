@@ -8,27 +8,31 @@ if require and not QuickApp then dofile("hc3emu.lua") end
 
 --%%name="Test"
 --%%type="com.fibaro.multilevelSwitch"
---%%proxy="MyProxy"
+--%% roxy="MyProxy"
 --%%dark=true
 --%%id=5001
 --%%state="state.db"
 --%%save="MyQA.fqa"
 --%%var=foo:config.secret
---%%debug=sdk:false,info:true,proxyAPI:true,server:true,onAction:true,onUIEvent:true
+--%%debug=sdk:false,info:false,proxyAPI:true,server:true,onAction:true,onUIEvent:true
 --%%debug=http:true,color:true,blockAPI:true
 --%%file=lib_example.lua:lib
 
 local function printf(...) print(string.format(...)) end
 
+dofile("lib/colors.lua")(fibaro)
+
+print("<font color='salmon'>Red</font> <font=color=green>Green</font> <font=color=blue>Blue</font>")
+
+fibaro.hc3emu.logFilter = {"DevicePropertyUpdatedEvent"}
+
 function QuickApp:onInit()
   self:debug(self.name,self.id,self.type)
   local fqa = api.get("/quickApp/export/"..self.id) -- Get my own fqa struct
   printf("Size of fqa: %s bytes",#json.encode(fqa))
+  self:testRefreshStates()
   self:testBasic()
-  if fibaro.hc3emu.proxyId then 
-    --self:testChildren() -- Only works with proxy
-  end
-  plugin.restart()
+  self:testChildren() -- Only works with proxy
   self:testTCP()
   self:testMQTT()
   --self:testWebSocket() -- don't work with wss
@@ -104,6 +108,10 @@ class 'MyChild'(QuickAppChild)
 function MyChild:__init(dev) QuickAppChild.__init(self,dev) end
 
 function QuickApp:testChildren()
+  if not fibaro.hc3emu.proxyId then 
+    self:debug("testChildren only works with proxy")
+    return
+  end
   self:initChildDevices({["com.fibaro.binarySwitch"]=MyChild})
   local children = api.get("/devices?parentId="..self.id)
   if #children == 0 then 
@@ -204,6 +212,15 @@ function QuickApp:testWebSocket()
   sock:addEventListener("dataReceived", function(data) handleDataReceived(data) end)
   --sock:connect("wss://echo.websocket.events/")
   sock:connect("wss://ws.postman-echo.com/raw")
+end
+
+function QuickApp:testRefreshStates()
+  local refresh = RefreshStateSubscriber()
+  refresh:subscribe(function() return true end,
+    function(event) 
+      printf("RefreshState: %s %s",event.type,json.encode(event.data))
+    end)
+  refresh:run()
 end
 
 function QuickApp:listFuns()

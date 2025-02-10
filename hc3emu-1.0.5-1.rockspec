@@ -22,7 +22,8 @@ dependencies = {
    "copas >= 4.7.1-1",
    "luamqtt >= 3.4.3-1",
    --"lua-cjson-219 >= 2.1.0.9-1",
-   "rapidjson >= 0.7.1-1",
+   --"rapidjson >= 0.7.1-1",
+   "lua-json >= 1.0.0-1",
    "bit32 >= 5.3.5.1-1",
    "mobdebug >= 0.80-1",
 }

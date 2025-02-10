@@ -67,9 +67,29 @@ local copas = require("copas")
 copas.https = require("ssl.https")
 require("copas.timer")
 require("copas.http")
-local json = require("rapidjson")
+--local json = require("rapidjson") -- Can be difficult to buil?
+local json = require("json") -- Reasonable fast json parser, not to complicated to build...
+do
+  local mt 
+  local function copy(t)
+    local r = {}
+    for k, v in pairs(t) do if type(v) == 'table' then setmetatable(v,mt) end r[k] = v end
+    return r
+  end
+  mt = { __toJSON = function (t) local t = copy(t) if t[1] then t.__array=true end return t end }
+  local encode,decode = json.encode,json.decode
+  function json.encode(obj,_)
+    local omt = getmetatable(obj)
+    setmetatable(obj,mt)
+    local r = encode(obj,'__toJSON')
+    setmetatable(obj,omt)
+    return r
+  end
+  local function handler(t) if t.__array then t.__array = nil end return t end
+  function json.decode(str,_,_) return decode(str,nil,handler) end
+end
 
-local a = package.searchpath('hc3emu.ws', package.path)
+--local a = package.searchpath('hc3emu.ws', package.path)
 
 local mobdebug = pcall2(require, 'mobdebug') or { on = function() end, start = function(_,_) end } 
 mobdebug.start('127.0.0.1', 8818)
@@ -1595,16 +1615,17 @@ function env.class(name,...) -- Needs special class to place global in right env
   local r = class(name,...) env[name] = _G[name] _G[name]=nil return r
 end
 
-for _,lf in ipairs(flags.file) do
-  DEBUGF('info',"Loading user library %s",lf.file)
-  _,lf.src = readFile{file=lf.file,eval=true,env=env,silent=false}
-end
-DEBUGF('info',"Loading user main file %s",mainFileName)
-load(mainSrc,mainFileName,"t",env)()
-assert(fibaro.URL, fibaro.USER and fibaro.PASSWORD,"Please define URL, USER, and PASSWORD")
-
 local function init() -- The rest is run in a copas tasks...
   mobdebug.on()
+
+  for _,lf in ipairs(flags.file) do
+    DEBUGF('info',"Loading user library %s",lf.file)
+    _,lf.src = readFile{file=lf.file,eval=true,env=env,silent=false}
+  end
+  DEBUGF('info',"Loading user main file %s",mainFileName)
+  load(mainSrc,mainFileName,"t",env)()
+  assert(fibaro.URL, fibaro.USER and fibaro.PASSWORD,"Please define URL, USER, and PASSWORD")
+
   if QuickApp.onInit then   -- Start QuickApp if defined
     local qvs = {}
     for k,v in pairs(flags.var or {}) do qvs[#qvs+1]={name=k,value=v} end

@@ -8,7 +8,7 @@ if require and not QuickApp then dofile("hc3emu.lua") end
 
 --%%name="Test"
 --%%type="com.fibaro.multilevelSwitch"
---%% roxy="MyProxy"
+--%%proxy="MyProxy"
 --%%dark=true
 --%%id=5001
 --%%state="state.db"
@@ -20,11 +20,12 @@ if require and not QuickApp then dofile("hc3emu.lua") end
 
 local function printf(...) print(string.format(...)) end
 
-dofile("lib/colors.lua")(fibaro)
+if fibaro.hc3emu then
+  dofile("lib/colors.lua")(fibaro) -- We can load extra colors working in vscode
+  print("<font color='salmon'>Salmon</font> <font=color=green>Green</font> <font color=\"blue\">Blue</font>")
 
-print("<font color='salmon'>Red</font> <font=color=green>Green</font> <font=color=blue>Blue</font>")
-
-fibaro.hc3emu.logFilter = {"DevicePropertyUpdatedEvent"}
+  fibaro.hc3emu.logFilter = {"DevicePropertyUpdatedEvent"} -- We can filter out some log messages containing string
+end
 
 function QuickApp:onInit()
   self:debug(self.name,self.id,self.type)
@@ -56,7 +57,7 @@ function QuickApp:testBasic()
   setTimeout(function() 
     self:debug("End",delay,"sec later") 
   end,delay*1000)
-
+  
   local i,iref = 0,nil
   iref = setInterval(function() 
     i=i+1 
@@ -163,16 +164,16 @@ function QuickApp:testMQTT()
 end
 
 function QuickApp:testTCP()
-    net.HTTPClient():request("https://timeapi.io/api/time/current/zone?timeZone=Europe/Amsterdam",{
-        options = {
-            method = "GET",
-            headers = { ["Accept"] = "application/json" }
-        },
-        success = function(response) self:debug("Response",response.data) end,
-        error = function(err) self:error(err) end
-    })
-    print("HTTP called (can take a while zzzz)") -- async, so we get answer later
-
+  net.HTTPClient():request("https://timeapi.io/api/time/current/zone?timeZone=Europe/Amsterdam",{
+    options = {
+      method = "GET",
+      headers = { ["Accept"] = "application/json" }
+    },
+    success = function(response) self:debug("Response",response.data) end,
+    error = function(err) self:error(err) end
+  })
+  print("HTTP called (can take a while zzzz)") -- async, so we get answer later
+  
   local tcp = net.TCPSocket()
   tcp:connect("www.google.com",80,{
     success = function() 
@@ -183,10 +184,10 @@ function QuickApp:testTCP()
           tcp:readUntil("*l",{
             success = function(data) 
               self:debug("TCP received: "..(data:match("(.-)\n") or data))
-              end,
+            end,
             error = function(err) self:error("TCP receive error: "..err) end
           })
-          end,
+        end,
         error = function(err) self:error("TCP send error: "..err) end
       })
     end,
@@ -217,9 +218,9 @@ end
 function QuickApp:testRefreshStates()
   local refresh = RefreshStateSubscriber()
   refresh:subscribe(function() return true end,
-    function(event) 
-      printf("RefreshState: %s %s",event.type,json.encode(event.data))
-    end)
+  function(event) 
+    printf("RefreshState: %s %s",event.type,json.encode(event.data))
+  end)
   refresh:run()
 end
 

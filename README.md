@@ -10,13 +10,14 @@ HC3Emu is a Lua-based emulator designed to simulate the behavior of Fibaro Home 
 - Supports running UI front-end of QA on HC3 for UI testing (proxy)
 - Works both in Zerobrane and VSCode, and most other environments supporting mobdebug
 
-## Requirements
+## Dependencies (installed by luarocks)
 
 - Lua 5.3 or higher
 - luasocket >= 2.0, <= 2.2
 - copas >= 4.7.1-1 (+ timer and timerwheel)
 - luamqtt >= 3.4.3-1
-- lua-cjson-219 >= 2.1.0.9-1
+- lua-json >= 1.0.0-1  (will use rapidjson if installed)
+- bit32 >= 5.3.5.1-1
 - mobdebug >= 0.80-1
 
 ## Installation
@@ -24,6 +25,10 @@ HC3Emu is a Lua-based emulator designed to simulate the behavior of Fibaro Home 
 1. Install with luarocks
     ```bash
     luarocks install hc3emu
+    ```
+    Update is just install again. To instal a specific version (ex. previous version if bugs are introduced...)
+    ```bash
+    luarocks install hc3emu <version>
     ```
 
 ## Usage
@@ -57,9 +62,9 @@ The header is ignored when we move the code to the HC3 as the function 'require'
 
 ## Directives
 Comments in the main file starting with --%% are interpreted as configuration directives to the emulator.
-- name=string, The name of the QuickApp
-- type=string, the fibaro type
-- proxy="string", If defined is the name of the proxy on the HC3. If it doesn't exist it will be created. If the name is preceeded with a dash ,ex. "-MyProxy", a QA with that name will be deleted on the HC3 if it exists and the proxy directive is set to nil...
+- name=&lt;string>, The name of the QuickApp
+- type=&lt;string>, the fibaro type
+- proxy=&lt;string>, If defined is the name of the proxy on the HC3. If it doesn't exist it will be created. If the name is preceeded with a dash ,ex. "-MyProxy", a QA with that name will be deleted on the HC3 if it exists and the proxy directive is set to nil...
 - dark=boolean, Sets dark mode. Affects what colors are used in the log console.
 - var=name:value, defines a quickAppVariable for the QA with the name and the value. The value is an evaluated lua value. The lua table 'config' is the values read from the config files and can be used as values. In the example above, we set a quickVar 'foo' to the value in config.secret. This is a great way to initialize the QA with credentials without including them in plain sight in the code...
 - debug=flag:"value", Sets various debug flags, affecting what is logged in the console.

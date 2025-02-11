@@ -1,4 +1,3 @@
-
 ---@diagnostic disable: cast-local-type
 --[[
 hc3emu - Tiny QuickApp emulator for the Fibaro Home Center 3
@@ -11,7 +10,7 @@ Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
 Everyone is permitted to copy and distribute verbatim copies
 of this license document, but changing it is not allowed.
 --]]
-local VERSION = "1.0"
+local VERSION = "1.0.6"
 print("HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..VERSION)
 
 local cfgFileName = "hc3emu_cfg.lua"   -- Config file in current directory
@@ -277,7 +276,6 @@ function MODULE.log()
 end
 
 function MODULE.net()
-  local net = {}
   local function httpRequest(method,url,headers,data,timeout,user,pwd)
     local resp, req = {}, {}
     req.url = url
@@ -306,7 +304,9 @@ function MODULE.net()
     end
   end
 
+  local BLOCK = false
   local function HC3Call(method,path,data,silent)
+    if BLOCK then ERRORF("HC3 authentication failed again, Access blocked") return nil, 401, "Blocked" end
     assert(fibaro.URL,"Missing fibaro.URL")
     assert(fibaro.USER,"Missing fibaro.USER")
     assert(fibaro.PASSWORD,"Missing fibaro.PASSSWORD")
@@ -319,6 +319,7 @@ function MODULE.net()
       ["Fibaro-User-PIN"] = fibaro.PIN,
     },
     data,15000,fibaro.USER,fibaro.PASSWORD)
+    if stat == 401 then ERRORF("HC3 authentication failed, Access blocked") BLOCKED = true end
     local t1 = socket.gettime()
     local jf,data = pcall(json.decode,res)
     local t2 = socket.gettime()
@@ -356,7 +357,8 @@ function MODULE.timers()
       callback = callback,
       params = {fun,ref0},
       errorhandler = function(err, coro, skt)
-        fibaro.error(tostring(__TAG),fmt("setTimeout:%s",tostring(err)))
+        local qa = TQ.getQA()
+        fibaro.error(tostring(qa.env.__TAG),fmt("setTimeout:%s",tostring(err)))
         timers[ref]=nil
         copas.seterrorhandler()
       end
@@ -387,7 +389,6 @@ local luaType = function(obj) -- We need to recognize our class objects as 'user
   return t == 'table' and rawget(obj,'__USERDATA') and 'userdata' or t
 end
 type = skip(luaType)
-local function userPrint(...) fibaro.debug(__TAG,...) end
 
 if flags.sdk then -- Try to hide functions from debugger - may work...
   local e = exports
@@ -410,9 +411,11 @@ local env = {
   collectgarbage = collectgarbage, os = os2, math = math, string = string, table = table,
   getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring,
   type = type, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
-  error = error, assert = assert, print = userPrint, pcall = pcall, xpcall = xpcall, bit32 = require("bit32"),
+  error = error, assert = assert, pcall = pcall, xpcall = xpcall, bit32 = require("bit32"),
   dofile = dofile, package = package, _require = require, _coroutine = coroutine, io = io, rawset = rawset, rawget = rawget,
+  _DEVELOP = _DEVELOP, _loadfile = loadfile
 }
+function env.print(...) env.fibaro.debug(env.__TAG,...) end
 for name,fun in pairs(exports) do env[name]=fun end -- export functions to environment
 env._G = env
 

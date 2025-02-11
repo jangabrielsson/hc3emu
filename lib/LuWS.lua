@@ -12,6 +12,9 @@
 --luacheck: std lua51,module,read globals luup,ignore 542 611 612 614 111/_,no max line length
 
 --module("luws", package.seeall)
+local TQ = ...
+local copas = TQ.copas
+
 local wsopen, wslastping, wsreset, wsreceive, wshandleincoming, wsclose, wssend, debug_mode, luup
 
 local _VERSION = 20358
@@ -248,13 +251,16 @@ function wsopen( url, handler, options )
 			, options=split( default( options.ssl_options, 'all' ) )
 		}
 		D("wsopen() wrap %1 %2", wsconn.socket, opts)
+		--sock = copas.wrap( wsconn.socket)
 		sock = ssl.wrap( wsconn.socket, opts )
+		if not sock then return false, "Failed ssl.wrap" end
 		D("wsopen() starting handshake");
-		if sock and sock:dohandshake() then
+		local st,err = sock:dohandshake()
+		if st then
 			D("wsopen() successful SSL/TLS negotiation")
 			wsconn.socket = sock -- save wrapped socket
 		else
-			D("wsopen() failed SSL negotation")
+			D("wsopen() failed SSL negotation: "..tostring(err))
 			wsconn.socket:close()
 			wsconn.socket = nil
 			return false, "Failed SSL negotation"

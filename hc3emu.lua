@@ -8,7 +8,6 @@ for i=1,20 do -- We do a search up the stack just in case that different debugge
     break 
   end
   if inf.source:match("hc3emu%.lua$") then flag=true end
-  print(i,inf.currentline,inf.source)
 end
 assert(MAINFILE,"Cannot find main lua file")
 local path = "hc3emu.emu"

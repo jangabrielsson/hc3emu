@@ -12,7 +12,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%dark=true
 --%%id=5001
 --%%state="state.db"
---%%save="MyQA.fqa"
+--%% save="MyQA.fqa"
 --%%var=foo:config.secret
 --%%debug=sdk:false,info:true,proxyAPI:true,server:true,onAction:true,onUIEvent:true
 --%%debug=http:true,color:true,blockAPI:true
@@ -21,7 +21,7 @@ if require and not QuickApp then require("hc3emu") end
 local function printf(...) print(string.format(...)) end
 
 if fibaro.hc3emu then
-  _require("hc3emu.colors")(fibaro) -- We can load extra colors working in vscode
+  _require("hc3emu.colors")(fibaro) -- We can load extra colors working in vscode, don't work in zbs
   print("<font color='salmon'>Salmon</font> <font=color=green>Green</font> <font color=\"blue\">Blue</font>")
 
   fibaro.hc3emu.logFilter = {"DevicePropertyUpdatedEvent"} -- We can filter out some log messages containing string
@@ -30,13 +30,13 @@ end
 function QuickApp:onInit()
   self:debug(self.name,self.id,self.type)
   local fqa = api.get("/quickApp/export/"..self.id) -- Get my own fqa struct
-  printf("Size of fqa: %s bytes",#json.encode(fqa))
+  printf("Size of '%s' fqa: %s bytes",self.name,#json.encode(fqa))
   self:testRefreshStates()
   self:testBasic()
   self:testChildren() -- Only works with proxy
   self:testTCP()
   self:testMQTT()
-  --self:testWebSocket() -- don't work with wss
+  --self:testWebSocket() -- have problem with work with wss
   --self:listFuns()
   print("Done!")
 end
@@ -62,7 +62,10 @@ function QuickApp:testBasic()
   iref = setInterval(function() 
     i=i+1 
     print("This is a repeating message nr:",i) 
-    if i >= 5 then clearInterval(iref) end
+    if i >= 5 then 
+      os.exit(0) -- This exits the emulator imidiatly
+      -- clearInterval(iref) -- This just stops the loop
+    end
   end,3000)
   
   self:debug("This is a debug statement")
@@ -154,7 +157,7 @@ function QuickApp:testMQTT()
   self.client:addEventListener('published', function(event) self:debug("published: "..json.encode(event)) end)  
   self.client:addEventListener('message', function(event)
     if event.topic == "test/blah" then 
-      self:debug("MQTT Got message: "..event.payload)
+      self:debug("MQTT Got message from test.mosquitto.org: "..event.payload)
       clearTimeout(ref)
       self.client:disconnect()
     end
@@ -172,7 +175,7 @@ function QuickApp:testTCP()
     success = function(response) self:debug("Response",response.data) end,
     error = function(err) self:error(err) end
   })
-  print("HTTP called (can take a while zzzz)") -- async, so we get answer later
+  print("HTTP call to https://timeapi.io (can take a while zzzz...)") -- async, so we get answer later
   
   local tcp = net.TCPSocket()
   tcp:connect("www.google.com",80,{
@@ -183,7 +186,7 @@ function QuickApp:testTCP()
           self:debug("TCP sent") 
           tcp:readUntil("*l",{
             success = function(data) 
-              self:debug("TCP received: "..(data:match("(.-)\n") or data))
+              self:debug("TCP received from www.google.com: "..(data:match("(.-)\n") or data))
             end,
             error = function(err) self:error("TCP receive error: "..err) end
           })
@@ -211,8 +214,8 @@ function QuickApp:testWebSocket()
   sock:addEventListener("disconnected", function() handleDisconnected() end)
   sock:addEventListener("error", function(error) handleError(error) end)
   sock:addEventListener("dataReceived", function(data) handleDataReceived(data) end)
-  --sock:connect("wss://echo.websocket.events/")
-  sock:connect("wss://ws.postman-echo.com/raw")
+  sock:connect("wss://echo.websocket.events")
+  --sock:connect("wss://ws.postman-echo.com/raw")
 end
 
 function QuickApp:testRefreshStates()

@@ -97,7 +97,12 @@ function net.UDPSocket(opts)
 end
 
 -------------- WebSocket ----------------------------------
-local websock = _require("hc3emu.ws")
+local websock
+if _DEVELOP then
+  websock = _loadfile("lib/LuWS.lua")(TQ)
+else
+  websock = _require("hc3emu.ws")
+end
 if websock then
   net._LuWS_VERSION = websock.version or "unknown"
   function net.WebSocketClientTls(options)
@@ -137,17 +142,18 @@ if websock then
       if conn then return false end
       local wopts = {upgrade_headers=headers, } 
       if url:match("^wss:") then
-        function wopts.connect(ip,port)
-          local sock = copas.wrap(socket.tcp(),{wrap={protocol='any',mode='client',verify='none'}})
-          --sock:settimeout(5)
-          local res,err = sock:connect(ip,port)
+        
+        function wopts.connect2(ip,port)
+          local sock = copas.wrap(socket.tcp())--,{wrap={protocol="any",mode='client',verify='none'}})
+          local res,err = sock:connect(ip,port) -- Fails???
           if not res then return nil,err end
           return sock
         end
+        
         wopts.ssl_mode = "client"
         wopts.ssl_protocol = "tlsv1_2"
-        --wopts.ssl_protocol = "any"
-        wopts.ssl_verify = "none"
+        wopts.ssl_protocol = "any"
+        --wopts.ssl_verify = "none"
       end
       conn, err = websock.wsopen( url, message_handler,  wopts) 
       if not err then async(connected); return true

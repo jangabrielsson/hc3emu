@@ -6,9 +6,9 @@ if require and not QuickApp then require("hc3emu") end
 --fibaro.PASSWORD = "admin"
 --fibaro.URL = "http://192.168.1.57/"
 
---%%name="Test"
---%%type="com.fibaro.multilevelSwitch"
---%%proxy="MyProxy"
+--%%name=Test
+--%%type=com.fibaro.multilevelSwitch
+--%%proxy=MyProxy
 --%%dark=true
 --%%id=5001
 --%%state="state.db"
@@ -17,6 +17,9 @@ if require and not QuickApp then require("hc3emu") end
 --%%debug=sdk:false,info:true,proxyAPI:true,server:true,onAction:true,onUIEvent:true
 --%%debug=http:true,color:true,blockAPI:true
 --%%file=lib_example.lua:lib
+
+--%%u={name="MyButton",type="button",action="myButton"}
+--%%u={name="MySlider",type="slider",action="mySlider"}
 
 local function printf(...) print(string.format(...)) end
 
@@ -73,9 +76,12 @@ function QuickApp:testBasic()
   self:warning("This is a warning statement")
   self:error("This is an error statement")
   
-  self:setVariable("Foo",42)
-  if self:getVariable("Foo") == 42 then self:debug("setVar is OK")
+  local varName = "EmuTest"
+  api.post("/globalvariables",{name=varName,value=66})
+  self:setVariable(varName,42)
+  if self:getVariable(varName) == 42 then self:debug("setVar is OK")
   else self:error("setVar FAIL") end
+  api.delete("/globalVariables/"..varName)
   
   self:updateProperty("value",66)
   if fibaro.getValue(self.id,"value") == 66 then self:debug("updateProperty is OK")

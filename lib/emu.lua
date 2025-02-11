@@ -1,4 +1,3 @@
----@diagnostic disable: cast-local-type
 --[[
 hc3emu - Tiny QuickApp emulator for the Fibaro Home Center 3
 Copyright (c) 2025 Jan Gabrielsson
@@ -10,8 +9,11 @@ Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
 Everyone is permitted to copy and distribute verbatim copies
 of this license document, but changing it is not allowed.
 --]]
+---@diagnostic disable: cast-local-type
+---@diagnostic disable-next-line: undefined-global
+_DEVELOP = _DEVELOP
+
 local VERSION = "1.0.6"
-print("HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..VERSION)
 
 local cfgFileName = "hc3emu_cfg.lua"   -- Config file in current directory
 local homeCfgFileName = ".hc3emu.lua"  -- Config file in home directory
@@ -20,6 +22,7 @@ TQ = {}
 TQ.EMUVAR = "TQEMU" -- HC3 GV with connection data for HC3 proxy
 TQ.emuPort = 8264   -- Port for HC3 proxy to connect to
 TQ.emuIP = nil      -- IP of host running the emulator
+
 
 local _type = type
 local __TAG = "INIT"
@@ -34,7 +37,7 @@ local quickApp,json
 --  Default directives/flags from main lua file (--%%key=value)
 flags={
   name='MyQA', type='com.fibaro.binarySwitch', debug={}, dark = false, id = 5001,
-  var = {}, gv = {}, file = {}, proxy=false, creds = {}, state=false, save=false,
+  var = {}, gv = {}, file = {}, creds = {}, u={}
 }
 
 local fmt = string.format
@@ -50,7 +53,8 @@ TQ.fibaro, TQ.api, TQ.plugin = fibaro, api, plugin
 local f = io.open(mainFileName)
 if f then mainSrc = f:read("*all") f:close()
 else error("Could not read main file") end
-if mainSrc:match("info:false") then DBG.info = false end
+if mainSrc:match("info:false") then DBG.info = false end -- Peek 
+if mainSrc:match("dark=true") then DBG.dark = true end
 
 -- Get home project file, defaults to {}
 DEBUGF('info',"Loading home config file %s",homeCfgFileName)
@@ -181,34 +185,54 @@ function MODULE.directives()
 
   cfgFlags = table.merge(homeCfg,cfgFlags) -- merge with home config
 
-  local function eval(str)
+  local function eval(str,d)
     local stat, res = pcall(function() return load("return " .. str, nil, "t", { config = cfgFlags })() end)
     if stat then return res end
-    ERRORF("directive '%s' %s",tostring(str),res)
+    ERRORF("directive '%s' %s",tostring(d),res)
     error()
   end
 
-  mainSrc:gsub("%-%-%%%%(%w+)=(.-)%s*\n",function(f,v)
-    if flags[f]~=nil then
-      if type(flags[f])=='table' then
-        local tab = flags[f]
-        assert(type(tab)=='table',"Expected table")
-        for _,vs in ipairs(v:split(',')) do
-          table.insert(tab,1,vs)
-        end
-      else
-        flags[f]=eval(v)
-      end
+  local directive = {}
+  function directive.name(d,val) flags.name = val end
+  function directive.type(d,val) flags.type = val end
+  function directive.id(d,val) flags.id = eval(val,d) assert(flags.id,"Bad id directive:"..d) end
+  function directive.var(d,val) 
+    local vs = val:split(",")
+    for _,v in ipairs(vs) do
+      local name,expr = v:match("(.-):(.*)")
+      assert(name and expr,"Bad var directive: "..d) 
+      local e = eval(expr,d)
+      if e then flags.var[#flags.var+1] = {name=name,expr=e} end
+    end
+  end
+  function directive.file(d,val) 
+    local path,m = val:match("(.-):(.*)")
+    assert(path and m,"Bad file directive: "..d)
+    flags.file[#flags.file+1] = {fname=path,lib=m}
+  end
+  function directive.debug(d,val) 
+    local vs = val:split(",")
+    for _,v in ipairs(vs) do
+      local name,expr = v:match("(.-):(.*)")
+      assert(name and expr,"Bad debug directive: "..d) 
+      local e = eval(expr,d)
+      if e then flags.debug[name] = e end
+    end
+  end
+  function directive.u(d,val) flags.u[#flags.u+1] = val end
+  function directive.save(d,val) flags.save = tostring(val) assert(flags.save:match("%.fqa$"),"Bad save directive:"..d)end
+  function directive.proxy(d,val) flags.proxy = tostring(val) end
+  function directive.dark(d,val) flags.dark = eval(val,d) end
+  function directive.state(d,val) flags.state = tostring(val) end
+
+  mainSrc:gsub("%-%-%%%%(%w+=.-)%s*\n",function(p)
+    local f,v = p:match("(%w+)=(.*)")
+    if directive[f] then
+      directive[f](p,v)
     else WARNINGF("Unknown directive: %s",tostring(f)) end
   end)
 
-  for _,d in ipairs(flags.debug) do local n,v = d:match("(.-):(.*)") assert(n and v,"Bad debug directive: "..d) DBG[n] = eval(v) end
-  local var = {}
-  for _,d in ipairs(flags.var) do local n,v = d:match("(.-):(.*)") assert(n and v,"Bad var directive: "..d) var[n] = eval(v) end
-  flags.var = var
-  for i,f in ipairs(flags.file) do local n,v = f:match("(.-):(.*)") assert(n and v,"Bad file directive: "..f) flags.file[i] = {name=v,file=n} end
-
-  flags.debug = DBG
+  DBG = flags.debug
   flags = table.merge(cfgFlags,flags)
 
   fibaro.USER = (flags.creds or {}).user -- Get credentials, if available
@@ -225,8 +249,8 @@ function MODULE.log()
     cyan="\027[36;1m",white="\027[37;1m",darkgrey="\027[30;1m",
   }
 
-  TQ.SYSCOLORS = { debug='green', trace='blue', warning='orange', ['error']='red', text='black' }
-  if flags.dark then TQ.SYSCOLORS.text='gray' TQ.SYSCOLORS.trace='cyan' end
+  TQ.SYSCOLORS = { debug='green', trace='blue', warning='orange', ['error']='red', text='black', sys='navy' }
+  if flags.dark then TQ.SYSCOLORS.text='gray' TQ.SYSCOLORS.trace='cyan' TQ.SYSCOLORS.sys='yellow'  end
 
   TQ.COLORMAP = ANSICOLORMAP
   local colorEnd = '\027[0m'
@@ -266,6 +290,8 @@ function MODULE.log()
     end
   end
 
+  function TQ.colorStr(color,str) return fmt("%s%s%s",TQ.COLORMAP[color] or TQ.extraColors [color],str,colorEnd) end
+  
   local someRandomIP = "192.168.1.122" --This address you make up
   local someRandomPort = "3102" --This port you make up
   local mySocket = socket.udp() --Create a UDP socket like normal
@@ -431,17 +457,19 @@ local function init() -- The rest is run in a copas tasks...
   mobdebug.on()
 
   for _,lf in ipairs(flags.file) do
-    DEBUGF('info',"Loading user file %s",lf.file)
-    _,lf.src = readFile{file=lf.file,eval=true,env=env,silent=false}
+    DEBUGF('info',"Loading user file %s",lf.fname)
+    _,lf.src = readFile{file=lf.fname,eval=true,env=env,silent=false}
   end
   DEBUGF('info',"Loading user main file %s",mainFileName)
   load(mainSrc,mainFileName,"t",env)()
   assert(fibaro.URL, fibaro.USER and fibaro.PASSWORD,"Please define URL, USER, and PASSWORD")
 
   if env.QuickApp.onInit then   -- Start QuickApp if defined
-    local qvs = {}
-    for k,v in pairs(flags.var or {}) do qvs[#qvs+1]={name=k,value=v} end
+    local qvs = flags.var
 
+    if flags.u and #flags.u > 0 then
+      
+    end
     local deviceStruct = {
       id=tonumber(flags.id) or 5000,
       type=flags.type or 'com.fibaro.binarySwitch',
@@ -512,6 +540,7 @@ local function init() -- The rest is run in a copas tasks...
 
     TQ.setupInterceptors(plugin.mainDeviceId) -- Setup interceptors for some API calls
     DEBUGF('info',"Starting QuickApp %s",plugin._dev.name)
+    print(TQ.colorStr('orange',"HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..VERSION))
     quickApp = env.QuickApp(plugin._dev) -- quickApp defined first when we return from :onInit()...
   end
 end

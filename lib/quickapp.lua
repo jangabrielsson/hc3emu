@@ -258,6 +258,16 @@ function onUIEvent(id, event)
   end
 end
 
+function QuickAppBase:UIAction(eventType, elementName, arg)
+  local event = {
+      deviceId = self.id, 
+      eventType = eventType,
+      elementName = elementName
+  }
+  event.values = arg ~= nil and  { arg } or json.util.InitArray({})
+  onUIEvent(self.id, event)
+end
+
 class 'RefreshStateSubscriber'
 local refreshStatePoller
 

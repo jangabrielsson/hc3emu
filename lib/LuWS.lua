@@ -12,7 +12,6 @@
 --luacheck: std lua51,module,read globals luup,ignore 542 611 612 614 111/_,no max line length
 
 --module("luws", package.seeall)
-local TQ = ...
 local copas = TQ.copas
 
 local wsopen, wslastping, wsreset, wsreceive, wshandleincoming, wsclose, wssend, debug_mode, luup

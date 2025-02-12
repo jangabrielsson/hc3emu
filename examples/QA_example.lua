@@ -12,14 +12,14 @@ if require and not QuickApp then require("hc3emu") end
 --%%dark=true
 --%%id=5001
 --%%state="state.db"
---%% save="MyQA.fqa"
+--%%save=MyQA.fqa
 --%%var=foo:config.secret
 --%%debug=sdk:false,info:true,proxyAPI:true,server:true,onAction:true,onUIEvent:true
 --%%debug=http:true,color:true,blockAPI:true
---%%file=lib_example.lua:lib
+--%%file=src/include_example.lua:lib
 
---%%u={name="MyButton",type="button",action="myButton"}
---%%u={name="MySlider",type="slider",action="mySlider"}
+--%%u={button='bt1',text="MyButton",onReleased="myButton"}
+--%%u={slider='s1',text="MySlider",onChanged="mySlider"}
 
 local function printf(...) print(string.format(...)) end
 
@@ -66,8 +66,8 @@ function QuickApp:testBasic()
     i=i+1 
     print("This is a repeating message nr:",i) 
     if i >= 5 then 
-      os.exit(0) -- This exits the emulator imidiatly
-      -- clearInterval(iref) -- This just stops the loop
+      -- os.exit(0) -- This exits the emulator imidiatly
+      clearInterval(iref) -- This just stops the loop
     end
   end,3000)
   

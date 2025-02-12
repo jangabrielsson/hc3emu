@@ -101,10 +101,11 @@ end
 
   local props = {
     apiVersion = "1.3",
-    --quickAppVariables = devTempl.quickAppVariables or {},
-    --viewLayout = {},
-    --uiView = {},
-    useUiView=false,
+    quickAppVariables = devTempl.properties.quickAppVariables or {},
+    viewLayout = devTempl.properties.viewLayout,
+    uiView = devTempl.properties.uiView,
+    uiCallbacks = devTempl.properties.uiCallbacks,
+    useUiView=true,
     typeTemplateInitialized = true,
   }
   local fqa = {
@@ -112,9 +113,10 @@ end
     name = name,
     type = devTempl.type,
     initialProperties = props,
-    --initialInterfaces = devTempl.interfaces,
+    initialInterfaces = devTempl.interfaces,
     files = {{name="main", isMain=true, isOpen=false, type='lua', content=code}},
   }
+  print(json.encode(fqa))
   local res,code2 = api.post("/quickApp/", fqa)
   return res
 end

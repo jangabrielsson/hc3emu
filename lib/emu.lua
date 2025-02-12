@@ -31,14 +31,17 @@ local flags,DBG = {},{ info=true }
 local fibaro = { hc3emu = TQ, HC3EMU_VERSION = VERSION, flags = flags, DBG = DBG }
 local api,plugin,net = {},{},{}
 local exports = { fibaro = fibaro, api = api, net = net, plugin = plugin, hub = fibaro } -- Collect all functions that should be exported to the QA environment
-local __assert_type,urlencode,readFile
-local quickApp,json
+local quickApp
 
 --  Default directives/flags from main lua file (--%%key=value)
 flags={
   name='MyQA', type='com.fibaro.binarySwitch', debug={}, dark = false, id = 5001,
   var = {}, gv = {}, file = {}, creds = {}, u={}
 }
+
+local util = REQUIRE("hc3emu.util")
+local __assert_type,urlencode,readFile,json = util.__assert_type,util.urlencode,util.readFile,util.json
+TQ.json, TQ.urlencode = json,urlencode
 
 local fmt = string.format
 local function DEBUG(f,...) print("[SYS]",fmt(f,...)) end
@@ -93,93 +96,6 @@ local function addthread(call,...)
 end
 function TQ.cancelTasks() for t,_ in pairs(tasks) do copas.removethread(t) end end
 
-function MODULE.lib()
-  _,json =  pcall(require, "rapidjson") -- Use if available
-  if not _ then
-    json = require("json") -- Reasonable fast json parser, not to complicated to build...
-    local mt
-    local function copy(t)
-      local r = {}
-      for k, v in pairs(t) do if type(v) == 'table' then setmetatable(v,mt) end r[k] = v end
-      return r
-    end
-    mt = { __toJSON = function (t) local t = copy(t) if t[1] then t.__array=true end return t end }
-    local encode,decode = json.encode,json.decode
-    function json.encode(obj,_)
-      local omt = getmetatable(obj)
-      setmetatable(obj,mt)
-      local r = encode(obj,'__toJSON')
-      setmetatable(obj,omt)
-      return r
-    end
-    local function handler(t) if t.__array then t.__array = nil end return t end
-    function json.decode(str,_,_) return decode(str,nil,handler) end
-  end
-  TQ.json = json 
-
-  function urlencode(str) -- very useful
-    if str then
-      str = str:gsub("\n", "\r\n")
-      str = str:gsub("([^%w %-%_%.%~])", function(c)
-        return ("%%%02X"):format(string.byte(c))
-      end)
-      str = str:gsub(" ", "%%20")
-    end
-    return str
-  end
-  TQ.urlencode = urlencode
-
-  function table.merge(a, b)
-    if type(a) == 'table' and type(b) == 'table' then
-      for k,v in pairs(b) do if type(v)=='table' and type(a[k] or false)=='table' then table.merge(a[k],v) else a[k]=v end end
-    end
-    return a
-  end
-
-  function table.copy(obj)
-    if _type(obj) == 'table' then
-      local res = {} for k,v in pairs(obj) do res[k] = table.copy(v) end
-      return res
-    else return obj end
-  end
-
-  function table.member(key,tab)
-    for i,elm in ipairs(tab) do if key==elm then return i end end
-  end
-
-  function string.starts(str, start) return str:sub(1,#start)==start end
-
-  function string.split(inputstr, sep)
-    local t={}
-    for str in string.gmatch(inputstr, "([^"..(sep or "%s").."]+)") do t[#t+1] = str end
-    return t
-  end
-
-  function __assert_type(param, typ)
-    if type(param) ~= typ then
-      error(fmt("Wrong parameter type, %s required. Provided param '%s' is type of %s",typ, tostring(param), type(param)), 3)
-    end
-  end
-
-  function readFile(args)
-    local file,eval,env,silent = args.file,args.eval,args.env,args.silent~=false
-    local f,err,res = io.open(file, "rb")
-    if f==nil then if not silent then error(err) end end
-    assert(f)
-    local content = f:read("*all")
-    f:close()
-    if eval then
-      if type(eval)=='function' then eval(file) end
-      local code,err = load(content,file,"t",env or _G)
-      if code == nil then error(err) end
-      err,res = pcall(code)
-      if err == false then error(content) end
-    end
-    return res,content
-  end
-
-end
-
 function MODULE.directives()
   DEBUGF('info',"Parsing %s directives...",mainFileName)
 
@@ -219,7 +135,7 @@ function MODULE.directives()
       if e then flags.debug[name] = e end
     end
   end
-  function directive.u(d,val) flags.u[#flags.u+1] = val end
+  function directive.u(d,val) flags.u[#flags.u+1] = eval(val,d) end
   function directive.save(d,val) flags.save = tostring(val) assert(flags.save:match("%.fqa$"),"Bad save directive:"..d)end
   function directive.proxy(d,val) flags.proxy = tostring(val) end
   function directive.dark(d,val) flags.dark = eval(val,d) end
@@ -358,12 +274,11 @@ function MODULE.net()
   function api.post(path,data) return HC3Call("POST",path,data) end
   function api.put(path,data) return HC3Call("PUT",path, data) end
   function api.delete(path,data) return HC3Call("DELETE",path,data) end
-
 end
 
-function MODULE.proxy()
-  loadfile("lib/proxy.lua","t",_G)()
-end
+function MODULE.proxy() REQUIRE("hc3emu.proxy") end
+
+function MODULE.ui() REQUIRE("hc3emu.ui") end
 
 function MODULE.timers()
   local e = exports
@@ -433,13 +348,13 @@ end
 -- Load main file
 local os2 = { time = os.time, clock = os.clock, difftime = os.difftime, date = os.date, exit = nil }
 local env = {
-  __assert_type = __assert_type, __TAG = __TAG, quickApp = quickApp, json = json,
+  __assert_type = __assert_type, __TAG = __TAG, quickApp = quickApp, json = json, urlencode = urlencode,
   collectgarbage = collectgarbage, os = os2, math = math, string = string, table = table,
   getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring,
   type = type, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
   error = error, assert = assert, pcall = pcall, xpcall = xpcall, bit32 = require("bit32"),
-  dofile = dofile, package = package, _require = require, _coroutine = coroutine, io = io, rawset = rawset, rawget = rawget,
-  _DEVELOP = _DEVELOP, _loadfile = loadfile
+  dofile = dofile, package = package, _coroutine = coroutine, io = io, rawset = rawset, rawget = rawget,
+  REQUIRE = REQUIRE, _loadfile = loadfile, _require = require,
 }
 function env.print(...) env.fibaro.debug(env.__TAG,...) end
 for name,fun in pairs(exports) do env[name]=fun end -- export functions to environment
@@ -467,8 +382,9 @@ local function init() -- The rest is run in a copas tasks...
   if env.QuickApp.onInit then   -- Start QuickApp if defined
     local qvs = flags.var
 
+    local uiCallbacks,viewLayout,uiView
     if flags.u and #flags.u > 0 then
-      
+      uiCallbacks,viewLayout,uiView = TQ.compileUI(flags.u)
     end
     local deviceStruct = {
       id=tonumber(flags.id) or 5000,
@@ -476,12 +392,12 @@ local function init() -- The rest is run in a copas tasks...
       name=flags.name or 'MyQA',
       enabled = true,
       visible = true,
-      properties = { quickAppVariables = qvs },
+      properties = { quickAppVariables = qvs, uiCallbacks = uiCallbacks, viewLayout = viewLayout, uiView = uiView },
+      useUiView = false,
       interfaces = {"quickApp"},
       created = os.time(),
       modified = os.time()
     }
-
     -- Find or create proxy if specified
     if flags.proxy then
       local pname = tostring(flags.proxy)
@@ -546,9 +462,9 @@ local function init() -- The rest is run in a copas tasks...
 end
 
 while true do
-  local startTime = os.clock()
+  local startTime,t0 = os.clock(),os.time()
   TQ._shouldExit = true
   copas(function() addthread(init) end)
-  DEBUG("Runtime %.3f sec",os.clock()-startTime)
+  DEBUG("Runtime %.3f sec (%s sec absolute time)",os.clock()-startTime,os.time()-t0)
   if TQ._shouldExit then os.exit(0) end
 end

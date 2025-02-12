@@ -1,8 +1,8 @@
 package = "hc3emu"
-version = "1.0.7-1"
+version = "1.0.8-1"
 source = {
    url = "git://github.com/jangabrielsson/hc3emu",
-   tag = "v1.0.7",
+   tag = "v1.0.8",
 }
 description = {
    summary = "hc3emu is a emulator for developing Fibaro HC3 QuickApps offline.",
@@ -41,5 +41,6 @@ build = {
       ["hc3emu.proxy"] = "lib/proxy.lua",
       ["HC3EMU.ui"] = "lib/ui.lua",
       ["hc3emu.util"] = "lib/util.lua",
+      ["hc3emu.offline"] = "lib/offline.lua",
   }
 }

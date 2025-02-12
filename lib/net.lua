@@ -97,12 +97,8 @@ function net.UDPSocket(opts)
 end
 
 -------------- WebSocket ----------------------------------
-local websock
-if _DEVELOP then
-  websock = _loadfile("lib/LuWS.lua")(TQ)
-else
-  websock = _require("hc3emu.ws")
-end
+local websock = REQUIRE("hc3emu.LuWS")
+
 if websock then
   net._LuWS_VERSION = websock.version or "unknown"
   function net.WebSocketClientTls(options)

@@ -4,7 +4,7 @@ local copas = TQ.copas
 local socket = TQ.socket
 local httpRequest = TQ.httpRequest
 local mobdebug = TQ.mobdebug
-  
+
 -------------- HTTPClient ----------------------------------
 function net.HTTPClient()
   local self = {}
@@ -97,72 +97,88 @@ function net.UDPSocket(opts)
 end
 
 -------------- WebSocket ----------------------------------
-local websock = REQUIRE("hc3emu.LuWS")
+local websock = TQ.require("websocket")
 
 if websock then
-  net._LuWS_VERSION = websock.version or "unknown"
+  
+  -- ws:connect('wss://ws.postman-echo.com/raw', {
+  --   protocols = {"echo"},
+  --   verify = "none"
+  -- })
+  
   function net.WebSocketClientTls(options)
     local POLLINTERVAL = 1
     local conn,err,lt = nil,nil,nil
     local self = { }
     local handlers = {}
+    local ws_client = TQ.require('websocket.client').copas()
+    self.ws_client = ws_client
+    local listen,connected,disconnected
+    
     local function dispatch(h,...)
       if handlers[h] then async(handlers[h],...) end
     end
-    local function listen()
-      if not conn then return end
-      lt = async(function() mobdebug.on()
-        while true do
-          websock.wsreceive(conn)
-          copas.pause(POLLINTERVAL)
-        end
-      end)
-    end
-    local function stopListen() if lt then copas.removethread(lt) lt = nil end end
-    local function disconnected() 
-      websock.wsclose(conn) 
-      conn=nil; 
-      stopListen(); 
-      dispatch("disconnected")
-    end
-    local function connected() listen();  dispatch("connected") end
-    local function dataReceived(data) dispatch("dataReceived",data) end
-    local function error(err2) dispatch("error",err2) end
-    local function message_handler( conn2, opcode, data, ... )
-      if not opcode then 
-        error(data) disconnected()
-      else dataReceived(data) end
-    end
-    function self:addEventListener(h,f) handlers[h]=f end 
-    function self:connect(url,headers)
+    
+    function self:connect(url,headers,ssl_params,protocols)
       if conn then return false end
-      local wopts = {upgrade_headers=headers, } 
-      if url:match("^wss:") then
-        
-        function wopts.connect2(ip,port)
-          local sock = copas.wrap(socket.tcp())--,{wrap={protocol="any",mode='client',verify='none'}})
-          local res,err = sock:connect(ip,port) -- Fails???
-          if not res then return nil,err end
-          return sock
-        end
-        
-        wopts.ssl_mode = "client"
-        wopts.ssl_protocol = "tlsv1_2"
-        wopts.ssl_protocol = "any"
-        --wopts.ssl_verify = "none"
-      end
-      conn, err = websock.wsopen( url, message_handler,  wopts) 
-      if not err then async(connected); return true
+      protocols = protocols or {"echo"}
+      ssl_params = ssl_params or { verify = "none", protocol='any', mode='client', options = {"all", "no_sslv3"} }
+      conn, err =  ws_client:connect(url, protocols, ssl_params)
+      ws_client.sock = TQ.copas.wrap(ws_client.sock)
+      if not err then async(connected) return true
       else return false,err end
     end
     
+    function connected() 
+      listen()  
+      dispatch("connected") 
+    end
+    
+    function disconnected() 
+      ws_client:close() 
+      conn=nil 
+      if lt then copas.removethread(lt) lt = nil end 
+      dispatch("disconnected")
+    end
+    
+    function ws_client.on_close() 
+      disconnected()
+    end
+    function listen()
+      if not conn then return end
+      lt = async(function() 
+        mobdebug.on()
+        while true do
+          --copas.pause(POLLINTERVAL)
+          --while TQ.socket.select({self.sock.socket},nil,0.1)[1] do
+          local msg,code = ws_client:receive()
+          if msg then dispatch("dataReceived",msg,code)
+          else
+            dispatch("error",code)
+            disconnected()
+          end
+          
+        end
+      end)
+    end
+    
+    function self:addEventListener(h,f) handlers[h]=f end 
+    
+    function self:listen() listen() end
+    
     function self:send(data)
       if not conn then return false end
-      if not websock.wssend(conn,1,data) then 
-        return disconnected() 
-      end
+      --async(function()
+        local b,err = ws_client:send(data)
+        if not b then
+          dispatch("error",err)
+          disconnected() 
+          return false
+        end
+      --end)
       return true
     end
+    
     function self:isOpen() return conn and true end
     function self:close() if conn then disconnected() return true end end
     
@@ -173,7 +189,7 @@ if websock then
   net.WebSocketClient = net.WebSocketClientTls
 end
 -------------- MQTT ----------------------------------
-local luamqtt = _require("mqtt")
+local luamqtt = TQ.require("mqtt")
 mqtt = { interval = 1000, Client = {}, QoS = { EXACTLY_ONCE = 1 } }
 
 mqtt.MSGT = { 
@@ -204,7 +220,7 @@ function mqtt.Client.connect(uri, options)
     keep_alive = options.keepAlivePeriod,
     id = options.clientId,
     secure = secure,
-    connector = _require("mqtt.luasocket-copas"),
+    connector = TQ.require("mqtt.luasocket-copas"),
   }
   
   local callbacks = {}

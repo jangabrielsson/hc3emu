@@ -17,8 +17,10 @@ for i=1,20 do -- We do a search up the stack just in case that different debugge
 end
 assert(MAINFILE,"Cannot find main lua file")
 
-function REQUIRE(path)
+TQ = {}
+function TQ.require(path)
   if _DEVELOP then
+    if not path:match("^hc3emu") then return require(path) end
     path = "lib/"..path:match(".-%.(.*)")..".lua" -- If developing, we pick it up from our own directory
     return dofile(path)
   else 
@@ -26,4 +28,13 @@ function REQUIRE(path)
   end
 end
 
-REQUIRE("hc3emu.emu") -- This is the main emulator that we load and that will emulate the main file for us.
+function TQ.pathto(module)
+  if _DEVELOP then
+    if not module:match("^hc3emu") then return package.searchpath(module,package.path) end
+    return "lib/"..module:match(".-%.(.*)")..".lua" -- If developing, we pick it up from our own directory
+  else 
+    return package.searchpath(module,package.path)  
+  end
+end
+
+TQ.require("hc3emu.emu") -- This is the main emulator that we load and that will emulate the main file for us.

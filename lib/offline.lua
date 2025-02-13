@@ -30,15 +30,13 @@ GET/alarms/v1/partitions
 POST/customEvents/<name>
 --]]
 
-local Route = REQUIRE('hc3emu.route')
+local Route = TQ.require('hc3emu.route')
 
-local stdStructsPath,info,home,location,device1
+local info,home,location,device1
 local json = TQ.json
-if _DEVELOP then stdStructsPath = "rsrcs/stdStructs.lua"
-else 
-  stdStructsPath = package.searchpath("hc3emu.stdStructs",package.path) 
-end
+
 do
+  local stdStructsPath = TQ.pathto("hc3emu.stdStructs")
   local f = io.open(stdStructsPath,"r")
   if not f then error("Cannot open "..stdStructsPath) end
   local data = f:read("*a")
@@ -94,7 +92,8 @@ end
 local function getDeviceProp(p,id,property) return {value=DEVICE(id).properties[property]},200 end 
 local function putDeviceKey(p,id,data) for k,v in pairs(data) do DB.devices[id][k] = v end return true,200 end
 local function callAction(p,id,name,data)
-  QA(tonumber(id)).callAction(name,table.unpack(data.args)) return 'OK',200
+  local qa = TQ.getQA(tonumber(id))
+  qa.qa:callAction(name,table.unpack(data.args)) return 'OK',200
 end
 local function deleteDevice(p,id) if not DB.devices[id] then return nil,404 end 
 DB.devices[id] = nil return true,200
@@ -143,7 +142,7 @@ function TQ.setupOfflineRoutes(id)
   
   route:add('POST/plugins/updateProperty',putDeviceProp) -- data = {key="value"}
   route:add('POST/plugins/updateView',updateDeviceView) -- data = {key="value"}
-  route:add('POST/plugins/publishEvent',publishEvent) -- data = {type="type",source="source",data={}}
+  route:add('POST/plugins/publishEvent',publishEvent) -- data 
   
   route:add('POST/plugins/createChildDevice data',blocked)
   route:add('DELETE/plugins/removeChildDevice/<id>',blocked)

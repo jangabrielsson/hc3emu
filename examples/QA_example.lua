@@ -1,5 +1,5 @@
 ---@diagnostic disable: duplicate-set-field
---_DEVELOP = true
+_DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
 --fibaro.USER = "admin" -- set creds in ./hc3emu_cfg.lua or ~/.hc3emu.lua
@@ -24,7 +24,7 @@ if require and not QuickApp then require("hc3emu") end
 local function printf(...) print(string.format(...)) end
 
 if fibaro.hc3emu then
-  _require("hc3emu.colors")(fibaro) -- We can load extra colors working in vscode, don't work in zbs
+  fibaro.hc3emu.require("hc3emu.colors")(fibaro) -- We can load extra colors working in vscode, don't work in zbs
   print("<font color='salmon'>Salmon</font> <font=color=green>Green</font> <font color=\"blue\">Blue</font>")
 
   fibaro.hc3emu.logFilter = {"DevicePropertyUpdatedEvent"} -- We can filter out some log messages containing string
@@ -35,11 +35,11 @@ function QuickApp:onInit()
   -- local fqa = api.get("/quickApp/export/"..self.id) -- Get my own fqa struct
   -- printf("Size of '%s' fqa: %s bytes",self.name,#json.encode(fqa))
   -- self:testRefreshStates()
-  self:testBasic()
-  self:testChildren() -- Only works with proxy
+  -- self:testBasic()
+  -- self:testChildren() -- Only works with proxy
   -- self:testTCP()
   -- self:testMQTT()
-  --self:testWebSocket() -- have problem with work with wss
+  self:testWebSocket() -- have problem with work with wss
   --self:listFuns()
   print("Done!")
 end
@@ -207,11 +207,14 @@ function QuickApp:testTCP()
 end
 
 function QuickApp:testWebSocket()
-  local sock = net.WebSocketClient()
-  
+  local sock = net.WebSocketClientTls()
+  local n=0
   local function handleConnected()
     self:debug("connected")
-    sock:send("WebSocket: Hello from hc3emu\n")
+    setInterval(function()
+        n=n+1
+        sock:send("WebSocket: Hello from hc3emu "..n.."\n")
+    end,2000)
   end
   
   local function handleDisconnected() self:warning("handleDisconnected") end
@@ -222,8 +225,7 @@ function QuickApp:testWebSocket()
   sock:addEventListener("disconnected", function() handleDisconnected() end)
   sock:addEventListener("error", function(error) handleError(error) end)
   sock:addEventListener("dataReceived", function(data) handleDataReceived(data) end)
-  sock:connect("wss://echo.websocket.events")
-  --sock:connect("wss://ws.postman-echo.com/raw")
+  sock:connect("wss://ws.postman-echo.com/raw")
 end
 
 function QuickApp:testRefreshStates()

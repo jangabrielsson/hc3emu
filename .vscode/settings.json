@@ -45,7 +45,6 @@
     "sourceTrigger",
     "RefreshStateSubscriber",
     "_sceneId",
-    "_require",
     "onAction",
     "onUIEvent",
     "__onAction"

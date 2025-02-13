@@ -4,4 +4,7 @@
 test.lua
 *.log
 *.out
+test/
+tmp/
+
 

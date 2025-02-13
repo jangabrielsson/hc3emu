@@ -18,7 +18,8 @@ local VERSION = "1.0.6"
 local cfgFileName = "hc3emu_cfg.lua"   -- Config file in current directory
 local homeCfgFileName = ".hc3emu.lua"  -- Config file in home directory
 local mainFileName, mainSrc = MAINFILE, nil -- Main file name and source
-TQ = { QA={} }
+-- TQ defined in src/hc3emu.lua
+TQ.QA={} 
 TQ.EMUVAR = "TQEMU" -- HC3 GV with connection data for HC3 proxy
 TQ.emuPort = 8264   -- Port for HC3 proxy to connect to
 TQ.emuIP = nil      -- IP of host running the emulator
@@ -38,7 +39,7 @@ flags={
   var = {}, gv = {}, file = {}, creds = {}, u={}
 }
 
-local util = REQUIRE("hc3emu.util")
+local util = TQ.require("hc3emu.util")
 local __assert_type,urlencode,readFile,json = util.__assert_type,util.urlencode,util.readFile,util.json
 TQ.json, TQ.urlencode, TQ.util = json,urlencode, util
 
@@ -51,6 +52,8 @@ local function pcall2(f,...) local res = {pcall(f,...)} if res[1] then return ta
 local function ll(fn) local f,e = loadfile(fn) if f then return f() else return not tostring(e):match("such file") and error(e) or nil end end
 TQ.DBG, TQ.DEBUG, TQ.DEBUGF, TQ.WARNINGF, TQ.ERRORF = DBG, DEBUG,DEBUGF, WARNINGF, ERRORF
 TQ.fibaro, TQ.api, TQ.plugin = fibaro, api, plugin
+
+DEBUGF('info',"Main QA file %s",mainFileName)
 
 local f = io.open(mainFileName)
 if f then mainSrc = f:read("*all") f:close()
@@ -276,9 +279,9 @@ function MODULE.net()
   function api.delete(path,data) return TQ.route:call("DELETE",path,data) end
 end
 
-function MODULE.proxy() REQUIRE("hc3emu.proxy") end
-function MODULE.offline() REQUIRE("hc3emu.offline") end
-function MODULE.ui() REQUIRE("hc3emu.ui") end
+function MODULE.proxy() TQ.require("hc3emu.proxy") end
+function MODULE.offline() TQ.require("hc3emu.offline") end
+function MODULE.ui() TQ.require("hc3emu.ui") end
 
 function MODULE.qa_manager()
   function TQ.getFQA() -- Move to module
@@ -389,7 +392,7 @@ local env = {
   type = type, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
   error = error, assert = assert, pcall = pcall, xpcall = xpcall, bit32 = require("bit32"),
   dofile = dofile, package = package, _coroutine = coroutine, io = io, rawset = rawset, rawget = rawget,
-  REQUIRE = REQUIRE, _loadfile = loadfile, _require = require,
+  _loadfile = loadfile
 }
 function env.print(...) env.fibaro.debug(env.__TAG,...) end
 for name,fun in pairs(exports) do env[name]=fun end -- export functions to environment

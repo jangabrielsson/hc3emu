@@ -1,8 +1,8 @@
 package = "hc3emu"
-version = "1.0.8-2"
+version = "1.0.9-1"
 source = {
    url = "git://github.com/jangabrielsson/hc3emu",
-   tag = "v1.0.8",
+   tag = "v1.0.9",
 }
 description = {
    summary = "hc3emu is a emulator for developing Fibaro HC3 QuickApps offline.",
@@ -21,7 +21,6 @@ dependencies = {
    --"luasocket >= 2.0, <= 2.2",
    "copas >= 4.7.1-1",
    "luamqtt >= 3.4.3-1",
-   --"lua-cjson-219 >= 2.1.0.9-1",
    --"rapidjson >= 0.7.1-1", -- if already installed, will be used
    "lua-json >= 1.0.0-1",
    "bit32 >= 5.3.5.1-1",

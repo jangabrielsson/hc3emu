@@ -1,5 +1,5 @@
 ---@diagnostic disable: duplicate-set-field
---_DEVELOP = true
+_DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
 --%%name=OfflineQA
@@ -15,6 +15,10 @@ if require and not QuickApp then require("hc3emu") end
 
 local function printf(...) print(string.format(...)) end
 
+function QuickApp:myFun(a,b)
+  printf("myFun called %s+%s=%s",a,b,a+b)
+end
+
 function QuickApp:onInit()
   print("Offline QA started",self.name,self.id)
   
@@ -29,6 +33,8 @@ function QuickApp:onInit()
   self:check("setGlobalVariable",fibaro.getGlobalVariable("TestVar"),"43")
   api.delete("/globalVariables/TestVar")
   self:check("deleteGlobalVariable",fibaro.getGlobalVariable("TestVar"),nil)
+
+  fibaro.call(self.id,"myFun",7,8)
 
   local qas = api.get("/devices?interface=quickApp")
   self:checkType("Get QuickApps",qas,function(r) return type(r) and next(r) and r[1].id end)

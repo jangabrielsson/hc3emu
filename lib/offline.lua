@@ -34,8 +34,10 @@ local Route = REQUIRE('hc3emu.route')
 
 local stdStructsPath,info,home,location,device1
 local json = TQ.json
-if _DEVELOP then stdStructsPath = "lib/stdStructs.json"
-else stdStructsPath = package.searchpath("hc3emu.stdStructs",package.path) end
+if _DEVELOP then stdStructsPath = "rsrcs/stdStructs.lua"
+else 
+  stdStructsPath = package.searchpath("hc3emu.stdStructs",package.path) 
+end
 do
   local f = io.open(stdStructsPath,"r")
   if not f then error("Cannot open "..stdStructsPath) end

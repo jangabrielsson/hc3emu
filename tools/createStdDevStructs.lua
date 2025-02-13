@@ -38,10 +38,10 @@ function QuickApp:onInit()
     return v
   end)
 
-  local f = io.open("lib/stdStructs.json", "w")
+  local f = io.open("rsrcs/stdStructs.lua", "w")
   assert(f)
   f:write(json.encode(data))
   f:close()
-  
+
   print("Done")
 end

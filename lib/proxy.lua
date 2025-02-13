@@ -194,6 +194,7 @@ function TQ.setupRemoteRoutes(id) -- Proxy routes updates both local QA data and
 end
 
 function TQ.getProxy(name,devTempl)
+  TQ.route = REQUIRE('hc3emu.route')(TQ.HC3Call) -- Setup standard route to HC3, needed to do api.* to install proxy
   local devStruct = api.get("/devices?name="..urlencode(name))
   assert(type(devStruct)=='table',"API error")
   if next(devStruct)==nil then

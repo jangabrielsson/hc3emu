@@ -23,7 +23,6 @@ TQ.EMUVAR = "TQEMU" -- HC3 GV with connection data for HC3 proxy
 TQ.emuPort = 8264   -- Port for HC3 proxy to connect to
 TQ.emuIP = nil      -- IP of host running the emulator
 
-
 local _type = type
 local __TAG = "INIT"
 

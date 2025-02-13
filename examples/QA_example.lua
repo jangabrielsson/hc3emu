@@ -1,5 +1,5 @@
 ---@diagnostic disable: duplicate-set-field
-_DEVELOP = true
+--_DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
 --fibaro.USER = "admin" -- set creds in ./hc3emu_cfg.lua or ~/.hc3emu.lua
@@ -8,7 +8,7 @@ if require and not QuickApp then require("hc3emu") end
 
 --%%name=Test
 --%%type=com.fibaro.multilevelSwitch
---%% proxy=MyProxy
+--%%proxy=MyProxy
 --%%dark=true
 --%%id=5001
 --%%state="state.db"
@@ -16,7 +16,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%var=foo:config.secret
 --%%debug=sdk:false,info:true,proxyAPI:true,server:true,onAction:true,onUIEvent:true
 --%%debug=http:true,color:true,blockAPI:true
---%%file=src/include_example.lua:lib
+--%%file=examples/include_example.lua:lib
 
 --%%u={button='bt1',text="MyButton",onReleased="myButton"}
 --%%u={slider='s1',text="MySlider",onChanged="mySlider"}

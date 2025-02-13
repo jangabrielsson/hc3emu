@@ -1,5 +1,5 @@
 package = "hc3emu"
-version = "1.0.8-1"
+version = "1.0.8-2"
 source = {
    url = "git://github.com/jangabrielsson/hc3emu",
    tag = "v1.0.8",
@@ -43,6 +43,7 @@ build = {
       ["hc3emu.util"] = "lib/util.lua",
       ["hc3emu.offline"] = "lib/offline.lua",
       ["hc3emu.route"] = "lib/route.lua",
+      ["hc3emu.stdStructs"] = "rsrcs/stdStructs.lua",
   },
   copy_directories = { "doc", "rsrcs" }
 }

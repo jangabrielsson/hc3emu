@@ -43,6 +43,7 @@ function QuickAppBase:__init(dev)
   self.interfaces = dev.interfaces
   self.uiCallbacks = {}
   self.childDevices = {}
+  TQ.registerQA(dev.id, _G, dev, self)
 end
 
 function QuickAppBase:debug(...) fibaro.debug(__TAG, ...) end
@@ -215,7 +216,7 @@ end
 function QuickApp:initChildDevices(map)
   map = map or {}
   local children = api.get("/devices?parentId="..self.id)
-  assert(type(children)=='table')
+  assert(type(children)=='table',"get children failed")
   local childDevices = self.childDevices
   for _, c in pairs(children) do
     if childDevices[c.id] == nil and map[c.type] then
@@ -309,9 +310,9 @@ function RefreshStateSubscriber:stop()
   if self.running then copas.removethread(self.running) self.running = nil end
 end
 
-function refreshStatePoller(robj)
+function refreshStatePoller(robj) -- Running offline we need a new version of this...
   local path = "/refreshStates"
-  local last
+  local last,events
   while robj.running do
     local data, status = TQ.HC3Call("GET", last and path..("?last="..last) or path, nil, true)
     if status ~= 200 then
@@ -320,9 +321,12 @@ function refreshStatePoller(robj)
       return
     end
     assert(data, "No data received")
+---@diagnostic disable-next-line: undefined-field
     last = math.floor(data.last) or last
-    if data.events ~= nil then
-      for _, event in pairs(data.events) do
+---@diagnostic disable-next-line: undefined-field
+    events = data.events
+    if events ~= nil then
+      for _, event in pairs(events) do
         robj.handle(event)
       end
     end

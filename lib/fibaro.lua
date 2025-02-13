@@ -88,8 +88,8 @@ function fibaro.call(deviceId, action, ...)
   else
     __assert_type(deviceId, "number")
     local arg = {...}
-    arg = #arg>0 and arg or nil
-    return api.post("/devices/"..deviceId.."/action/"..action, { args = arg })
+    local arg2 = #arg>0 and arg or nil
+    return api.post("/devices/"..deviceId.."/action/"..action, { args = arg2 })
   end
 end
 

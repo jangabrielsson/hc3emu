@@ -1,3 +1,4 @@
+local TQ = fibaro.hc3emu
 local DEBUGF = TQ.DEBUGF
 local DEBUG = TQ.DEBUG
 local fibaro = TQ.fibaro
@@ -14,15 +15,15 @@ local fmt = string.format
 function TQ.createProxy(name,devTempl)
   local code = [[
 local fmt = string.format
-
+  
 function QuickApp:onInit()
 self:debug("Started", self.name, self.id)
 quickApp = self
-
+  
 local send
-
+  
 local IGNORE={ MEMORYWATCH=true,APIFUN=true}
-
+  
 function quickApp:actionHandler(action)
   if IGNORE[action.actionName] then
     print(action.actionName)
@@ -30,18 +31,18 @@ function quickApp:actionHandler(action)
   end
   send({type='action',value=action})
 end
-
+  
 function quickApp:UIHandler(ev) send({type='ui',value=ev}) end
-
+  
 function QuickApp:APIFUN(id,method,path,data)
   local stat,res,code = pcall(api[method:lower()],path,data)
   send({type='resp',id=id,value={stat,res,code}})
 end
-
+  
 function QuickApp:initChildDevices(_) end
-
+  
 local ip,port = nil,nil
-
+  
 local function getAddress() -- continously poll for new address from emulator
   local var = __fibaro_get_global_variable("TQEMU") or {}
   local success,values = pcall(json.decode,var.value)
@@ -52,20 +53,20 @@ local function getAddress() -- continously poll for new address from emulator
   setTimeout(getAddress,5000)
 end
 getAddress()
-
+  
 local queue = {}
 local sender = nil
 local connected = false
 local sock = nil
 local runSender
-
+  
 local function retry()
   if sock then sock:close() end
   connected = false
   queue = {}
   sender = setTimeout(runSender,1500)
 end
-
+  
 function runSender()
   if connected then
     if #queue>0 then
@@ -89,16 +90,16 @@ function runSender()
     })
   end
 end
-
+  
 function send(msg)
   msg = json.encode(msg).."\n"
   queue[#queue+1]=msg
   if not sender then print("Starting") sender=setTimeout(runSender,0) end
 end
-
+  
 end
 ]]
-
+  
   local props = {
     apiVersion = "1.3",
     quickAppVariables = devTempl.properties.quickAppVariables or {},
@@ -121,80 +122,75 @@ end
   return res
 end
 
-function TQ.interceptAPI(method,path,data) end
+local Route = REQUIRE('hc3emu.route')
 
-function TQ.setupInterceptors(id)
-  local patterns,paths = {},{}
-  local function block(m,p,data)
+function TQ.setupRemoteRoutes(id) -- Proxy routes updates both local QA data and rome Proxy data
+  local route = Route(TQ.HC3Call)
+  local proxy = TQ.proxyId
+  
+  local function block(p,data)
     DEBUGF('blockAPI',"Blocked API: %s",p)
-    return true,nil,403
+    return nil,501
   end
-  local function proxyAPI(m,p,data)
+
+  local function proxyAPI(p,data)
     DEBUGF('proxyAPI',"proxyAPI: %s",p)
-    if TQ.proxyId then
-      local res = TQ.callAPIFUN(m,p,data)
-      local _,d,c = table.unpack(res,1)
-      if type(d)=='function' then d = nil end
-      return true,d,c
-    else return block(m,p,data) end
-  end
-  local function blockDeviceId(m,p,data)
-    if data.deviceId == plugin.mainDeviceId and not TQ.proxyId then
-      DEBUGF('blockAPI',"Blocked API: %s, (only proxy)",p)
-      return true,nil,200
-    end
-  end
-  local function call(m,p,data)
-    if not TQ.proxyId then
-      return block(m,p,data)
-    end
-  end
-  local function blockParentId(m,p,data)
-    if data.parentId == plugin.mainDeviceId and not TQ.proxyId then return block(m,p,data) end
-  end
-  local function getStruct(m,p,d) if not TQ.proxyId then return true,plugin._dev,200 end end
-  local function putStruct(m,p,d)
-    for k,v in pairs(d) do plugin._dev[k] = v end
-    if not TQ.proxyId then return true,d,200 end
-  end
-  local function getProp(m,p,d,id,prop)
-    if not TQ.proxyId  or true then
-      local value = plugin._dev.properties[prop]
-      return true,{value=value,modified = plugin._dev.modified},200
-    end
+    if not proxy then return nil,501 end
+    local method,path = p:match("(.-)(/.+)") -- split method and path
+    local res = TQ.callAPIFUN(method:lower(),path,data)
+    local _,d,c = table.unpack(res,1)
+    if type(d)=='function' then d = nil end
+    return d,c
   end
 
-  patterns["(%w+)/devices/"..id.."/?"] = {
-    ['POST/devices/(%d+)/action'] = call,
-    ['GET/devices/(%d+)/properties/([%w_]+)$'] = getProp,
-  }
-
-  paths[fmt('GET/quickApp/export/%s',id)] = function()
-    return true,TQ.getFQA(),200
+  local function call(p,data)
+    if not TQ.proxyId then return block(p,data) end
+    return nil,301
   end
-  paths[fmt('GET/devices/%s',id)] = getStruct
-  paths[fmt('PUT/devices/%s',id)] = putStruct
-  paths[fmt('DELETE/devices/%s',id)] = block
-  paths['POST/plugins/updateView'] = blockDeviceId
-  paths['POST/plugins/updateProperty'] = blockDeviceId
-  paths['POST/plugins/createChildDevice'] = blockParentId
-  paths['POST/plugins/publishEvent'] = proxyAPI
-  paths['POST/plugins/interfaces'] = proxyAPI
 
-  function TQ.interceptAPI(method,path,data)
-    local key = method..path
-    if paths[key] then return paths[key](method,path,data)
-    else
-      for p,ps in pairs(patterns) do
-        if key:match(p) then
-          for p0,f in pairs(ps) do
-            local m = {key:match(p0)}
-            if #m>0 then return f(method,path,data,table.unpack(m)) end
-          end
-        end
-      end
+  local function putProp(p,data)
+    if data.deviceId == plugin.mainDeviceId then
+      plugin._dev.properties[data.propertyName] = data.value
     end
+    if proxy then return nil,301
+    else return data,200 end
   end
+
+  local function blockParentId(p,data)
+    if data.parentId == plugin.mainDeviceId and not proxy then return block(p,data) end
+    return nil,301
+  end
+
+  local function updateView(p,data)
+    if data.parentId == plugin.mainDeviceId and proxy then return nil,301 end
+    return data,200
+  end
+
+  local function putStruct(p,d)
+    for k,v in pairs(d) do plugin._dev[k] = v end -- update local properties
+    if proxy then return nil,301 -- and update the HC3 proxy 
+    else return d,200 end
+  end
+
+  local function getProp(p,prop) -- fetch local properties
+    local value = plugin._dev.properties[prop]
+    return {value=value,modified = plugin._dev.modified},200
+  end
+  
+  route:add(fmt('GET/devices/%s',id),function(p,d) return plugin._dev,200 end) -- Fetch our local device structure
+  route:add(fmt('POST/devices/%s/action/<name>',id),call)       -- Call to the our ourself
+  route:add(fmt('GET/devices/%s/properties/<name>',id),getProp) -- Get properties from ourselves, fetch it locally
+  
+  route:add(fmt('GET/quickApp/export/%s',id),function() return TQ.getFQA(),200 end) -- Get our local QA
+  route:add(fmt('PUT/devices/%s',id),putStruct)
+  route:add(fmt('DELETE/devices/%s',id),block)              -- Block delete
+  route:add('POST/plugins/updateView',updateView)           -- Update local and remote view
+  route:add('POST/plugins/updateProperty',putProp)          -- Update local and remote properties
+  route:add('POST/plugins/createChildDevice',blockParentId) -- Block if it is for local QA and we don't have a proxy
+  route:add('POST/plugins/publishEvent',proxyAPI)           -- Proxy if we have a proxy
+  route:add('POST/plugins/interfaces',proxyAPI)             -- Proxy if we have a proxy
+
+  return route
 end
 
 function TQ.getProxy(name,devTempl)
@@ -211,7 +207,7 @@ function TQ.getProxy(name,devTempl)
     DEBUG("Proxy found: %s %s",devStruct.id,name)
   end
   TQ.proxyId = devStruct.id
-
+  
   return devStruct
 end
 
@@ -233,7 +229,7 @@ function TQ.startServer()
   api.post("/globalVariables", {name=TQ.EMUVAR, value=emuval})
   api.put("/globalVariables/"..TQ.EMUVAR, {name=TQ.EMUVAR, value=emuval})
   DEBUGF('info',"Server started at %s:%s",TQ.emuIP,TQ.emuPort)
-
+  
   local function handle(skt)
     mobdebug.on()
     local name = skt:getpeername() or "N/A"

@@ -42,5 +42,7 @@ build = {
       ["HC3EMU.ui"] = "lib/ui.lua",
       ["hc3emu.util"] = "lib/util.lua",
       ["hc3emu.offline"] = "lib/offline.lua",
+      ["hc3emu.route"] = "lib/route.lua",
+      ["hc3emu.stdStructs"] = "lib/stdStructs.json",
   }
 }

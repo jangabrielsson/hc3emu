@@ -8,7 +8,7 @@ if require and not QuickApp then require("hc3emu") end
 
 --%%name=Test
 --%%type=com.fibaro.multilevelSwitch
---%%proxy=MyProxy
+--%% proxy=MyProxy
 --%%dark=true
 --%%id=5001
 --%%state="state.db"
@@ -31,14 +31,14 @@ if fibaro.hc3emu then
 end
 
 function QuickApp:onInit()
-  self:debug(self.name,self.id,self.type)
-  local fqa = api.get("/quickApp/export/"..self.id) -- Get my own fqa struct
-  printf("Size of '%s' fqa: %s bytes",self.name,#json.encode(fqa))
-  self:testRefreshStates()
+  -- self:debug(self.name,self.id,self.type)
+  -- local fqa = api.get("/quickApp/export/"..self.id) -- Get my own fqa struct
+  -- printf("Size of '%s' fqa: %s bytes",self.name,#json.encode(fqa))
+  -- self:testRefreshStates()
   self:testBasic()
   self:testChildren() -- Only works with proxy
-  self:testTCP()
-  self:testMQTT()
+  -- self:testTCP()
+  -- self:testMQTT()
   --self:testWebSocket() -- have problem with work with wss
   --self:listFuns()
   print("Done!")
@@ -83,8 +83,8 @@ function QuickApp:testBasic()
   else self:error("setVar FAIL") end
   api.delete("/globalVariables/"..varName)
   
-  self:updateProperty("value",66)
-  if fibaro.getValue(self.id,"value") == 66 then self:debug("updateProperty is OK")
+  self:updateProperty("value",77)
+  if fibaro.getValue(self.id,"value") == 77 then self:debug("updateProperty is OK")
   else self:error("updateProperty FAIL") end
   
   --  self:setName("MyNewName") -- This should restart the QA...
@@ -111,7 +111,9 @@ function QuickApp:testBasic()
   if b==200 then self:debug("publishEvent OK") 
   else self:error("publishEvent FAIL",a,b) end
   
-  setTimeout(function() error("This is an intentional error in a setTimeout function") end,0)
+  setTimeout(function() 
+    error("This is an intentional error in a setTimeout function") 
+  end,0)
 end
 
 class 'MyChild'(QuickAppChild)

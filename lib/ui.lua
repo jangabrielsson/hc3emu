@@ -1,5 +1,5 @@
 
-local fmt = string.fotmat
+local fmt = string.format
 
 -- arrayify table. Ensures that empty array is json encoded as "[]"
 local function arrayify(t) 

@@ -120,7 +120,7 @@ function MODULE.directives()
       local name,expr = v:match("(.-):(.*)")
       assert(name and expr,"Bad var directive: "..d) 
       local e = eval(expr,d)
-      if e then flags.var[#flags.var+1] = {name=name,expr=e} end
+      if e then flags.var[#flags.var+1] = {name=name,value=e} end
     end
   end
   function directive.file(d,val) 

@@ -17,7 +17,7 @@ function QuickApp:onInit()
     setInterval(function()
         n=n+1
         sock:send("WebSocket: Hello from hc3emu "..n.."\n")
-    end,2000)
+    end,100)
   end
   
   local function handleDisconnected() self:warning("handleDisconnected") end
@@ -28,5 +28,7 @@ function QuickApp:onInit()
   sock:addEventListener("disconnected", function() handleDisconnected() end)
   sock:addEventListener("error", function(error) handleError(error) end)
   sock:addEventListener("dataReceived", function(data) handleDataReceived(data) end)
+  --sock:connect("wss://echo.websocket.events/")
   sock:connect("wss://ws.postman-echo.com/raw")
+  --sock:connect("wss://echo.websocket.org/") -- ssl handshake results in connection closed(!)
 end

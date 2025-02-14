@@ -1,5 +1,5 @@
 package = "hc3emu"
-version = "1.0.9-1"
+version = "1.0.9-2"
 source = {
    url = "git://github.com/jangabrielsson/hc3emu",
    tag = "v1.0.9",

@@ -106,7 +106,7 @@ if websock then
   --   verify = "none"
   -- })
   
-  function net.WebSocketClientTls(options)
+  function net.WebSocketClientTls(goptions)
     local POLLINTERVAL = 1
     local conn,err,lt = nil,nil,nil
     local self = { }
@@ -114,6 +114,7 @@ if websock then
     local ws_client = TQ.require('websocket.client').copas()
     self.ws_client = ws_client
     local listen,connected,disconnected
+    goptions = goptions or {}
     
     local function dispatch(h,...)
       if handlers[h] then async(handlers[h],...) end
@@ -121,12 +122,53 @@ if websock then
     
     function self:connect(url,headers,ssl_params,protocols)
       if conn then return false end
-      protocols = protocols or {"echo"}
-      ssl_params = ssl_params or { verify = "none", protocol='any', mode='client', options = {"all", "no_sslv3"} }
-      conn, err =  ws_client:connect(url, protocols, ssl_params)
+      protocols = protocols or goptions.protocols or {}
+      headers = headers or {}
+      if headers['Sec-WebSocket-Protocol'] then 
+        table.insert(protocols,1,headers['Sec-WebSocket-Protocol'])
+        headers['Sec-WebSocket-Protocol'] = nil
+      end
+      --protocols = next(protocols)==nil and {"echo"} or protocols --{"echo"}
+      local options = {
+        --"all",
+        -- "cipher_server_preference",
+        -- "cookie_exchange",
+        "dont_insert_empty_fragments",
+        "ephemeral_rsa",
+        -- "microsoft_big_sslv3_buffer",
+        -- "microsoft_sess_id_bug",
+        -- "msie_sslv2_rsa_padding",
+        -- "netscape_ca_dn_bug",
+        -- "netscape_challenge_bug",
+        -- "netscape_demo_cipher_change_bug",
+        -- "netscape_reuse_cipher_change_bug",
+        "no_query_mtu",
+        "no_session_resumption_on_renegotiation",
+        "no_sslv2",
+        -- "no_sslv3",
+        "no_ticket",
+        -- "no_tlsv1",
+        -- "pkcs1_check_1",
+        -- "pkcs1_check_2",
+        "single_dh_use",
+        "single_ecdh_use",
+        "ssleay_080_client_dh_bug",
+        "sslref2_reuse_cert_type_bug",
+        "tls_block_padding_bug",
+        "tls_d5_bug",
+        "tls_rollback_bug",
+        "allow_unsafe_legacy_renegotiation",
+        "legacy_server_connect",
+        -- "cisco_anyconnect",
+        -- "cryptopro_tlsext_bug",
+        "no_compression",
+      }
+      --{ verify = "none", cafile = "/etc/ssl/cert.pem", protocol="tlsv1_2", mode='client', options = {'all',"no_sslv3"} }
+      ssl_params = ssl_params or goptions.ssl_params or { verify = "none", protocol="any", mode='client', options = {'all',"no_sslv3"} }
+      conn, err =  ws_client:connect(url, protocols, ssl_params, headers, self.debug)
       ws_client.sock = TQ.copas.wrap(ws_client.sock)
-      if not err then async(connected) return true
-      else return false,err end
+      if conn then async(connected) return true
+      else dispatch("error",err) return false,err end
     end
     
     function connected() 
@@ -135,29 +177,26 @@ if websock then
     end
     
     function disconnected() 
-      ws_client:close() 
+      if not conn then return end
       conn=nil 
+      ws_client:close() 
       if lt then copas.removethread(lt) lt = nil end 
       dispatch("disconnected")
     end
     
-    function ws_client.on_close() 
-      disconnected()
-    end
+    function ws_client.on_close() disconnected() end
+
     function listen()
       if not conn then return end
       lt = async(function() 
         mobdebug.on()
-        while true do
-          --copas.pause(POLLINTERVAL)
-          --while TQ.socket.select({self.sock.socket},nil,0.1)[1] do
+        while conn do
           local msg,code = ws_client:receive()
-          if msg then dispatch("dataReceived",msg,code)
+          if msg and msg ~="" then dispatch("dataReceived",msg,code)
           else
             dispatch("error",code)
             disconnected()
           end
-          
         end
       end)
     end
@@ -168,14 +207,12 @@ if websock then
     
     function self:send(data)
       if not conn then return false end
-      --async(function()
         local b,err = ws_client:send(data)
         if not b then
           dispatch("error",err)
           disconnected() 
           return false
         end
-      --end)
       return true
     end
     

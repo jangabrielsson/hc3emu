@@ -34,13 +34,10 @@ local Route = TQ.require('hc3emu.route')
 
 local info,home,location,device1
 local json = TQ.json
+local plugin = TQ.plugin
 
 do
-  local stdStructsPath = TQ.pathto("hc3emu.stdStructs")
-  local f = io.open(stdStructsPath,"r")
-  if not f then error("Cannot open "..stdStructsPath) end
-  local data = f:read("*a")
-  f:close()
+  local data = TQ.require("hc3emu.stdStructs")
   local stdStructs = json.decode(data)
   info,home,location,device1 = stdStructs.info,stdStructs.home,stdStructs.location,stdStructs.device1
 end
@@ -75,13 +72,23 @@ local DB = { devices={}, globalVariables={}, rooms={}, sections={} }
 local fmt = string.format
 local function valueList(t) local r = {} for _,v in pairs(t) do r[#r+1]=v end return r end
 local function DEVICE(id) id = tonumber(id) if DB.devices[id] then return DB.devices[id],200 else error({nil,404}) end end
-local function QA(id) local qa = TQ.getQA(tonumber(id)) if qa then return qa else error({nil,404}) end end
 
 local function CHK(x,v,e) if x==nil then return nil,e else return x,v end end
 local function getGlobals(p,name) if name then return CHK(DB.globalVariables[name],200,404) else return valueList(DB.globalVariables),200 end end
-local function createGlobal(p,data) DB.globalVariables[data.name]=data return data,200 end
-local function setGlobal(p,name,data) if not DB.globalVariables[name] then return nil,404 else  DB.globalVariables[name].value = data.value return true,200 end end
-local function deleteGlobal(p,name) if not DB.globalVariables[name] then return nil,404 else  DB.globalVariables[name].value = nil return true,200 end end
+local function createGlobal(p,data)
+  local d = {name=data.name,value=data.value,created=os.time(),modified=os.time(),readOnly=false,isEnum=false,enumValues={}}
+  DB.globalVariables[data.name]=d 
+  return d,201
+end
+local function setGlobal(p,name,data)
+  local d = DB.globalVariables[name]
+  if not d then return nil,404 
+  else  
+    d.value = data.value 
+    return d,200 
+  end
+end
+local function deleteGlobal(p,name) if not DB.globalVariables[name] then return nil,404 else  DB.globalVariables[name].value = nil return nil,200 end end
 local function getDevices(p,id,query) 
   if id then return DEVICE(id) 
   else
@@ -91,10 +98,12 @@ local function getDevices(p,id,query)
 end
 local function getDeviceProp(p,id,property) return {value=DEVICE(id).properties[property]},200 end 
 local function putDeviceKey(p,id,data) for k,v in pairs(data) do DB.devices[id][k] = v end return true,200 end
+
 local function callAction(p,id,name,data)
   local qa = TQ.getQA(tonumber(id))
   qa.qa:callAction(name,table.unpack(data.args)) return 'OK',200
 end
+
 local function deleteDevice(p,id) if not DB.devices[id] then return nil,404 end 
 DB.devices[id] = nil return true,200
 end
@@ -104,18 +113,20 @@ local function putDeviceProp(p,data)
   local d = data.deviceId if not d  then return nil,404 end
   local dev = DB.devices[d] if not dev then return nil,404 end
   dev.properties[data.propertyName] = data.value
-  return data.value,200
+  return nil,200
 end
 local function updateDeviceView(p,data) for k,v in pairs(data) do DB.devices[plugin.mainDeviceId].view[k] = v end end
-local function publishEvent(p,data) return DB.devices[data.source].events[data.type](data.data) end
 local function blocked(p) return nil,501 end
 local function refreshState(p) return {},200 end
 
-function TQ.setupOfflineRoutes(id)
+function TQ.setupOfflineRoutes()
+  local id = plugin.mainDeviceId
   local route = Route(); route:setLocal(true)
   local qa = TQ.getQA(id)
-  DB.devices[id] = qa.device
+  if qa then DB.devices[id] = qa.device end
   
+  TQ.addStandardAPIRoutes(route)
+
   route:add('GET/globalVariables',getGlobals)
   route:add('GET/globalVariables/<name>',getGlobals)
   route:add('POST/globalVariables',createGlobal) -- data = {name="name",value="value"}
@@ -142,7 +153,6 @@ function TQ.setupOfflineRoutes(id)
   
   route:add('POST/plugins/updateProperty',putDeviceProp) -- data = {key="value"}
   route:add('POST/plugins/updateView',updateDeviceView) -- data = {key="value"}
-  route:add('POST/plugins/publishEvent',publishEvent) -- data 
   
   route:add('POST/plugins/createChildDevice data',blocked)
   route:add('DELETE/plugins/removeChildDevice/<id>',blocked)

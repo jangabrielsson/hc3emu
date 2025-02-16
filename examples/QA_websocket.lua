@@ -10,14 +10,15 @@ if require and not QuickApp then require("hc3emu") end
 
 
 function QuickApp:onInit()
-  local sock = net.WebSocketClientTls()
+  local sock = net.WebSocketClientTls() --/opt/homebrew/Cellar/luarocks/3.9.2/share/lua/5.4/websocket/sync.lua
   local n=0
   local function handleConnected()
     self:debug("connected")
     setInterval(function()
         n=n+1
-        sock:send("WebSocket: Hello from hc3emu "..n.."\n")
-    end,100)
+        print("Waiting",n)
+        --sock:send("WebSocket: Hello from hc3emu "..n.."\n")
+    end,1000)
   end
   
   local function handleDisconnected() self:warning("handleDisconnected") end

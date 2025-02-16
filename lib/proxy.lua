@@ -109,6 +109,8 @@ end
     useUiView=true,
     typeTemplateInitialized = true,
   }
+  if props.quickAppVariables then json.util.InitArray(props.quickAppVariables) end
+  if props.uiCallbacks then json.util.InitArray(props.uiCallbacks) end
   local fqa = {
     apiVersion = "1.3",
     name = name,
@@ -117,14 +119,15 @@ end
     initialInterfaces = devTempl.interfaces,
     files = {{name="main", isMain=true, isOpen=false, type='lua', content=code}},
   }
-  print(json.encode(fqa))
+  --print(json.encode(fqa))
   local res,code2 = api.post("/quickApp/", fqa)
   return res
 end
 
 local Route = TQ.require('hc3emu.route')
 
-function TQ.setupRemoteRoutes(id) -- Proxy routes updates both local QA data and rome Proxy data
+function TQ.setupRemoteRoutes() -- Proxy routes updates both local QA data and remote Proxy data
+  local id = plugin.mainDeviceId
   local route = Route(TQ.HC3Call)
   local proxy = TQ.proxyId
   
@@ -141,11 +144,6 @@ function TQ.setupRemoteRoutes(id) -- Proxy routes updates both local QA data and
     local _,d,c = table.unpack(res,1)
     if type(d)=='function' then d = nil end
     return d,c
-  end
-
-  local function call(p,data)
-    if not TQ.proxyId then return block(p,data) end
-    return nil,301
   end
 
   local function putProp(p,data)
@@ -172,16 +170,8 @@ function TQ.setupRemoteRoutes(id) -- Proxy routes updates both local QA data and
     else return d,200 end
   end
 
-  local function getProp(p,prop) -- fetch local properties
-    local value = plugin._dev.properties[prop]
-    return {value=value,modified = plugin._dev.modified},200
-  end
-  
-  route:add(fmt('GET/devices/%s',id),function(p,d) return plugin._dev,200 end) -- Fetch our local device structure
-  route:add(fmt('POST/devices/%s/action/<name>',id),call)       -- Call to the our ourself
-  route:add(fmt('GET/devices/%s/properties/<name>',id),getProp) -- Get properties from ourselves, fetch it locally
-  
-  route:add(fmt('GET/quickApp/export/%s',id),function() return TQ.getFQA(),200 end) -- Get our local QA
+  TQ.addStandardAPIRoutes(route)
+
   route:add(fmt('PUT/devices/%s',id),putStruct)
   route:add(fmt('DELETE/devices/%s',id),block)              -- Block delete
   route:add('POST/plugins/updateView',updateView)           -- Update local and remote view
@@ -189,7 +179,7 @@ function TQ.setupRemoteRoutes(id) -- Proxy routes updates both local QA data and
   route:add('POST/plugins/createChildDevice',blockParentId) -- Block if it is for local QA and we don't have a proxy
   route:add('POST/plugins/publishEvent',proxyAPI)           -- Proxy if we have a proxy
   route:add('POST/plugins/interfaces',proxyAPI)             -- Proxy if we have a proxy
-
+  
   return route
 end
 
@@ -214,11 +204,13 @@ end
 
 local callRef = {}
 local ref = 0
-function TQ.callAPIFUN(...)
+function TQ.callAPIFUN(method,path,data)
   local id = ref; ref = ref+1
   local msg = {false,nil,'timeout'}
   local semaphore = copas.semaphore.new(10, 0, 100)
-  fibaro.call(plugin.mainDeviceId,"APIFUN",id,...)
+  local args = {id,method,path,data}
+  TQ.HC3Call("POST","/devices/"..plugin.mainDeviceId.."/action/APIFUN",{args=args})
+  copas.pause(0)
   callRef[id] = function(data) msg = data; semaphore:give(1) end
   semaphore:take(1)
   callRef[id] = nil

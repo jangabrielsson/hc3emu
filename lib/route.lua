@@ -78,6 +78,7 @@ function Route(passThroughHandler)   -- passThroughHandler is a function that ta
     else -- proxy or no proxy, use route if it exists, otherwise call through
       if handler then
         if handler then vars[#vars+1]=data vars[#vars+1]=query and parseQuery(query) or {} vars[#vars+1]=flags end
+        if not flags.silent and DBG.http then DEBUGF('http',"API: %s%s",method,orgPath) end
         local value,code = handler(method..path,table.unpack(vars))
         if code == 301 then -- handler didn't want to handle it, pass through
           return self.passThroughHandler(method,orgPath,data,flags)  -- redirect to hc3

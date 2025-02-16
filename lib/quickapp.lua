@@ -114,6 +114,8 @@ function QuickAppBase:setupUICallbacks()
   end
 end
 
+QuickAppBase.registerUICallbacks = QuickAppBase.setupUICallbacks
+
 function QuickAppBase:getVariable(name)
   __assert_type(name, 'string')
   for _, v in ipairs(self.properties.quickAppVariables or {}) do if v.name == name then return v.value end end
@@ -145,37 +147,36 @@ function QuickAppBase:callAction(name, ...)
   else print(fmt("[WARNING] Class does not have '%s' function defined - action ignored",tostring(name))) end
 end
 
-local function getHierarchy() return {} end
-function QuickAppBase:isTypeOf(baseType) return getHierarchy():isTypeOf(baseType, self.type) end
-
--- Internal storage only stored in the emulator and is not copied to the HC3 proxy
-local store = {}
-if type(flags.state)=='string' then 
-  local f = io.open(flags.state,"r")
-  if f then store = json.decode(f:read("*a")) f:close() end
-end
-local function flushStore()
-  if type(flags.state)~='string' then return end
-  local f = io.open(flags.state,"w")
-  if f then f:write(json.encode(store)) f:close() end
-end
-function QuickAppBase:internalStorageSet(key, value, isHidden)
-  local data = { name = key, value = value, isHidden = isHidden }
-  store[key] = data
-  flushStore()
-end
-
-function QuickAppBase:internalStorageGet(key)
-  if key ~= nil then return store[key] and store[key].value or nil
-  else 
-    local r = {}
-    for _, v in pairs(store) do r[v.name] = v.value end
-    return r
+function QuickAppBase:internalStorageSet(key, val, hidden)
+  __assert_type(key, 'string')
+  local data = { name = key, value = val, isHidden = hidden }
+  local _, stat = api.put("/plugins/" .. self.id .. "/variables/" .. key, data)
+  --print(key,stat)
+  if stat > 206 then
+    local _, stat = api.post("/plugins/" .. self.id .. "/variables", data)
+    --print(key,stat)
+    return stat
   end
 end
 
-function QuickAppBase:internalStorageRemove(key) store[key] = nil flushStore() end
-function QuickAppBase:internalStorageClear() store = {} flushStore() end
+function QuickAppBase:internalStorageGet(key)
+  __assert_type(key, 'string')
+  if key then
+    local res, stat = api.get("/plugins/" .. self.id .. "/variables/" .. key)
+    if stat ~= 200 then return nil end
+    return res.value
+  else
+    local res, stat = api.get("/plugins/" .. self.id .. "/variables")
+    if stat ~= 200 then return nil end
+    local values = {}
+    for _, v in pairs(res) do values[v.name] = v.value end
+    return values
+  end
+end
+
+function QuickAppBase:internalStorageRemove(key) return api.delete("/plugins/" .. self.id .. "/variables/" .. key) end
+
+function QuickAppBase:internalStorageClear() return api.delete("/plugins/" .. self.id .. "/variables") end
 
 class 'QuickApp'(QuickAppBase)
 function QuickApp:__init(dev)

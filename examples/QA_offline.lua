@@ -9,6 +9,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%id=5001
 --%%offline=true
 --%%debug=info:true,http:true,onAction:true,onUIEvent:true
+--%%var=debug:"main,wsc,child,color,battery,speaker,send,late"
 
 -- This QA is not allowed to calll the HC3 at all. Other http calls are allowed.
 -- It can be used to test the QA logic without access to the HC3.

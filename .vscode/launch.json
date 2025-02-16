@@ -35,7 +35,7 @@
       "workingDirectory": "${workspaceFolder}",
       "sourceBasePath": "${workspaceFolder}",
       "listenPort": 8172,
-      //"stopOnEntry": true,
+      "stopOnEntry": false,
       "sourceEncoding": "UTF-8",
       "interpreter": "lua",
       "arguments": [

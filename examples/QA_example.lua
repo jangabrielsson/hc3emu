@@ -31,11 +31,11 @@ if fibaro.hc3emu then
 end
 
 function QuickApp:onInit()
-  -- self:debug(self.name,self.id,self.type)
-  -- local fqa = api.get("/quickApp/export/"..self.id) -- Get my own fqa struct
-  -- printf("Size of '%s' fqa: %s bytes",self.name,#json.encode(fqa))
-  -- self:testRefreshStates()
-  -- self:testBasic()
+  self:debug(self.name,self.id,self.type)
+  local fqa = api.get("/quickApp/export/"..self.id) -- Get my own fqa struct
+  printf("Size of '%s' fqa: %s bytes",self.name,#json.encode(fqa))
+  self:testRefreshStates()
+  self:testBasic()
   -- self:testChildren() -- Only works with proxy
   -- self:testTCP()
   -- self:testMQTT()

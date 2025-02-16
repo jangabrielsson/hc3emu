@@ -1,4 +1,4 @@
-
+local json = TQ.json
 local fmt = string.format
 
 -- arrayify table. Ensures that empty array is json encoded as "[]"
@@ -73,7 +73,7 @@ local function mkRow(elms,weight)
     local c = {}
     local width = fmt("%.2f",1/#elms)
     if width:match("%.00") then width=width:match("^(%d+)") end
-    for _,e in ipairs(elms) do c[#c+1]=ELMS[e.type](e,width) end
+    for _,e in ipairs(elms) do c[#c+1]=ELMS[typeOf(e)](e,width) end
     if #elms > 1 then comp[#comp+1]={components=c,style={weight="1.2"},type='horizontal'}
     else comp[#comp+1]=c[1] end
     comp[#comp+1]=ELMS['space']({},"0.5")

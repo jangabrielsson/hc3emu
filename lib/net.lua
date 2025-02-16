@@ -4,6 +4,7 @@ local copas = TQ.copas
 local socket = TQ.socket
 local httpRequest = TQ.httpRequest
 local mobdebug = TQ.mobdebug
+local json = TQ.json
 
 -------------- HTTPClient ----------------------------------
 function net.HTTPClient()

@@ -115,13 +115,14 @@ function MODULE.directives()
   function directive.type(d,val) flags.type = val end
   function directive.id(d,val) flags.id = eval(val,d) assert(flags.id,"Bad id directive:"..d) end
   function directive.var(d,val) 
-    local vs = val:split(",")
-    for _,v in ipairs(vs) do
-      local name,expr = v:match("(.-):(.*)")
-      assert(name and expr,"Bad var directive: "..d) 
-      local e = eval(expr,d)
-      if e then flags.var[#flags.var+1] = {name=name,value=e} end
-    end
+    ---local vs = val:split(",")
+    --for _,v in ipairs(vs) do
+    local v = val
+    local name,expr = v:match("(.-):(.*)")
+    assert(name and expr,"Bad var directive: "..d) 
+    local e = eval(expr,d)
+    if e then flags.var[#flags.var+1] = {name=name,value=e} end
+    --end
   end
   function directive.file(d,val) 
     local path,m = val:match("(.-):(.*)")
@@ -272,15 +273,16 @@ function MODULE.net()
     return (jf and data or res),stat
   end
   TQ.HC3Call,TQ.httpRequest = HC3Call,httpRequest
-
+  
   function api.get(path) return TQ.route:call("GET",path) end
   function api.post(path,data) return TQ.route:call("POST",path,data) end
   function api.put(path,data) return TQ.route:call("PUT",path, data) end
   function api.delete(path,data) return TQ.route:call("DELETE",path,data) end
 end
 
-function MODULE.proxy() TQ.require("hc3emu.proxy") end
-function MODULE.offline() TQ.require("hc3emu.offline") end
+function MODULE.qapi() TQ.require("hc3emu.qapi") end    -- Standard API routes
+function MODULE.proxy() TQ.require("hc3emu.proxy") end     -- Proxy creation and Proxy API routes
+function MODULE.offline() TQ.require("hc3emu.offline") end -- Offline API routes
 function MODULE.ui() TQ.require("hc3emu.ui") end
 
 function MODULE.qa_manager()
@@ -307,7 +309,7 @@ function MODULE.qa_manager()
   end
   function TQ.registerQA(id,env,dev,qa) TQ.QA[id] = {id=id,env=env,device=dev,qa=qa} end
   function TQ.getQA(id) return TQ.QA[id or plugin.mainDeviceId] end
-
+  
   function TQ.setOffline(offline)
     flags.offline = offline
     if offline then
@@ -409,15 +411,22 @@ end
 local function init() -- The rest is run in a copas tasks...
   mobdebug.on()
   
-  for _,lf in ipairs(flags.file) do
-    DEBUGF('info',"Loading user file %s",lf.fname)
-    _,lf.src = readFile{file=lf.fname,eval=true,env=env,silent=false}
+  local function loadUserFiles()
+    TQ.offlineRoute = TQ.setupOfflineRoutes() -- Setup routes for offline API calls
+    TQ.remoteRoute = TQ.setupRemoteRoutes() -- Setup routes for remote API calls (incl proxy)
+    TQ.setOffline(flags.offline) -- We can do api.* calls first now...
+    
+    for _,lf in ipairs(flags.file) do
+      DEBUGF('info',"Loading user file %s",lf.fname)
+      _,lf.src = readFile{file=lf.fname,eval=true,env=env,silent=false}
+    end
+    DEBUGF('info',"Loading user main file %s",mainFileName)
+    load(mainSrc,mainFileName,"t",env)()
+    assert(fibaro.URL, fibaro.USER and fibaro.PASSWORD,"Please define URL, USER, and PASSWORD")
   end
-  DEBUGF('info',"Loading user main file %s",mainFileName)
-  load(mainSrc,mainFileName,"t",env)()
-  assert(fibaro.URL, fibaro.USER and fibaro.PASSWORD,"Please define URL, USER, and PASSWORD")
   
-  if env.QuickApp.onInit then   -- Start QuickApp if defined
+  local isQA = mainSrc:match("fun".."ction%s+QuickApp:onInit")
+  if env.QuickApp.onInit or isQA then   -- Start QuickApp if defined
     local qvs = flags.var
     
     local uiCallbacks,viewLayout,uiView
@@ -441,8 +450,9 @@ local function init() -- The rest is run in a copas tasks...
       flags.proxy = nil
       DEBUG("Offline mode, proxy directive ignored")
     end
-
+    
     if flags.proxy then
+      TQ.route = TQ.require("hc3emu.route")(TQ.HC3Call) -- Need this to do api.calls to setup proxy
       local pname = tostring(flags.proxy)
       if pname:starts("-") then -- delete proxy if name is preceeded with "-"
         pname = pname:sub(2)
@@ -464,7 +474,7 @@ local function init() -- The rest is run in a copas tasks...
     plugin._dev = deviceStruct            -- Now we have an device structure
     plugin.mainDeviceId = deviceStruct.id -- Now we have an deviceId
     TQ.registerQA(plugin.mainDeviceId,env,deviceStruct,nil)
-
+    
     if flags.save then
       local fileName = flags.save
       local fqa = TQ.getFQA()
@@ -475,13 +485,12 @@ local function init() -- The rest is run in a copas tasks...
       DEBUG("Saved QuickApp to %s",fileName)
     end
     
-    TQ.offlineRoute = TQ.setupOfflineRoutes(plugin.mainDeviceId) -- Setup routes for offline API calls
-    TQ.remoteRoute = TQ.setupRemoteRoutes(plugin.mainDeviceId) -- Setup routes for remote API calls (incl proxy)
-    TQ.setOffline(flags.offline) -- We can do api.* calls first now...
-
+    loadUserFiles()
     DEBUGF('info',"Starting QuickApp %s",plugin._dev.name)
     print(TQ.colorStr('orange',"HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..VERSION))
     quickApp = env.QuickApp(plugin._dev) -- quickApp defined first when we return from :onInit()...
+  else
+    loadUserFiles()
   end
 end
 

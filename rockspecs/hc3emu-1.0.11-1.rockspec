@@ -1,8 +1,8 @@
 package = "hc3emu"
-version = "1.0.8-2"
+version = "1.0.11-1"
 source = {
    url = "git://github.com/jangabrielsson/hc3emu",
-   tag = "v1.0.8",
+   tag = "v1.0.11",
 }
 description = {
    summary = "hc3emu is a emulator for developing Fibaro HC3 QuickApps offline.",
@@ -21,11 +21,10 @@ dependencies = {
    --"luasocket >= 2.0, <= 2.2",
    "copas >= 4.7.1-1",
    "luamqtt >= 3.4.3-1",
-   --"lua-cjson-219 >= 2.1.0.9-1",
    --"rapidjson >= 0.7.1-1", -- if already installed, will be used
    "lua-json >= 1.0.0-1",
    "bit32 >= 5.3.5.1-1",
-   "lua-websockets-bit32 >= 2.0.1-2",
+   "lua-websockets-bit32 >= 2.0.1-7",
    "mobdebug >= 0.80-1",
 }
 build = {
@@ -39,11 +38,12 @@ build = {
       ["hc3emu.quickapp"] = "lib/quickapp.lua",
       ["hc3emu.class"] = "lib/class.lua",
       ["hc3emu.net"] = "lib/net.lua",
-      ["hc3emu.proxy"] = "lib/proxy.lua",
       ["HC3EMU.ui"] = "lib/ui.lua",
       ["hc3emu.util"] = "lib/util.lua",
-      ["hc3emu.offline"] = "lib/offline.lua",
       ["hc3emu.route"] = "lib/route.lua",
+      ["hc3emu.proxy"] = "lib/proxy.lua",
+      ["hc3emu.offline"] = "lib/offline.lua",
+      ["hc3emu.qapi"] = "lib/qapi.lua",
       ["hc3emu.stdStructs"] = "lib/stdStructs.lua",
   },
   copy_directories = { "doc", "rsrcs" }

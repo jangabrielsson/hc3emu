@@ -5,7 +5,7 @@ local copy
 
 local mt = { __toJSON = function (t) 
   local isArray = nil
-  if t[1] then isArray=true 
+  if t[1]~=nil then isArray=true 
   elseif next(t)== nil and (getmetatable(t) or {}).__isARRAY then isArray=true end
   t = copy(t) 
   t.__array = isArray

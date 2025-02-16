@@ -159,9 +159,8 @@ function TQ.setupRemoteRoutes() -- Proxy routes updates both local QA data and r
     return nil,301
   end
 
-  local function updateView(p,data)
-    if data.parentId == plugin.mainDeviceId and proxy then return nil,301 end
-    return data,200
+  local function updateView(p,data) --ToDo, update local view
+    return nil,301
   end
 
   local function putStruct(p,d)

@@ -19,12 +19,25 @@ class 'MyChild'(QwikAppChild)
 function MyChild:__init(dev)
   QwikAppChild.__init(self,dev)
 end
+function MyChild:myButton1()
+  self:debug("myButton1 pressed")
+end
+function MyChild:mySlider(event)
+  self:debug("mySlider",event.values[1])
+end
+function MyChild:setValue(v)
+  self:debug("setValue",v)
+end
 
 local children = {
-  bar1 = {
+  bar13 = {
     name = "Bar1",
     type = "com.fibaro.multilevelSwitch",
-    className = "MyChild"
+    className = "MyChild",
+    UI = {
+      {button='b1',text='B1',onReleased='myButton1'},
+      {slider='s1',text='S1',onChanged='mySlider'}
+    },
   },
   bar22 = {
     name = "Bar2",

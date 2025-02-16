@@ -15,47 +15,6 @@ local function traverse(o,f)
   else f(o) end
 end
 
-local ELMS = {
-  button = function(d,w)
-    return {name=d.name,visible=true,style={weight=d.weight or w or "0.50"},text=d.text,type="button"}
-  end,
-  select = function(d,w)
-    arrayify(d.options)
-    if d.options then map(function(e) e.type='option' end,d.options) end
-    return {name=d.name,style={weight=d.weight or w or "0.50"},text=d.text,type="select", visible=true, selectionType='single',
-      options = d.options or arrayify({}),
-      values = arrayify(d.values) or arrayify({})
-    }
-  end,
-  multi = function(d,w)
-    arrayify(d.options)
-    if d.options then map(function(e) e.type='option' end,d.options) end
-    return {name=d.name,style={weight=d.weight or w or "0.50"},text=d.text,type="select",visible=true, selectionType='multi',
-      options = d.options or arrayify({}),
-      values = arrayify(d.values) or arrayify({})
-    }
-  end,
-  image = function(d,_)
-    return {name=d.name,style={dynamic="1"},type="image", url=d.url}
-  end,
-  switch = function(d,w)
-    d.value = d.value == nil and "false" or tostring(d.value)
-    return {name=d.name,visible=true,style={weight=w or d.weight or "0.50"},text=d.text,type="switch", value=d.value}
-  end,
-  option = function(d,_)
-    return {name=d.name, type="option", value=d.value or "Hupp"}
-  end,
-  slider = function(d,w)
-    return {name=d.name,visible=true,step=tostring(d.step or 1),value=tostring(d.value or 0),max=tostring(d.max or 100),min=tostring(d.min or 0),style={weight=d.weight or w or "1.2"},text=d.text,type="slider"}
-  end,
-  label = function(d,w)
-    return {name=d.name,visible=true,style={weight=d.weight or w or "1.2"},text=d.text,type="label"}
-  end,
-  space = function(_,w)
-    return {style={weight=w or "0.50"},type="space"}
-  end
-}
-
 local function typeOf(e)
   if e.button then return 'button'
   elseif e.slider then return 'slider'
@@ -66,6 +25,52 @@ local function typeOf(e)
   elseif e.image then return 'image'
   end
 end
+
+local function nameOf(e)
+  local t = typeOf(e)
+  return e[t]
+end
+
+local ELMS = {
+  button = function(d,w)
+    return {name=nameOf(d),visible=true,style={weight=d.weight or w or "0.50"},text=d.text,type="button"}
+  end,
+  select = function(d,w)
+    arrayify(d.options)
+    if d.options then map(function(e) e.type='option' end,d.options) end
+    return {name=nameOf(d),style={weight=d.weight or w or "0.50"},text=d.text,type="select", visible=true, selectionType='single',
+      options = d.options or arrayify({}),
+      values = arrayify(d.values) or arrayify({})
+    }
+  end,
+  multi = function(d,w)
+    arrayify(d.options)
+    if d.options then map(function(e) e.type='option' end,d.options) end
+    return {name=nameOf(d),style={weight=d.weight or w or "0.50"},text=d.text,type="select",visible=true, selectionType='multi',
+      options = d.options or arrayify({}),
+      values = arrayify(d.values) or arrayify({})
+    }
+  end,
+  image = function(d,_)
+    return {name=nameOf(d),style={dynamic="1"},type="image", url=d.url}
+  end,
+  switch = function(d,w)
+    d.value = d.value == nil and "false" or tostring(d.value)
+    return {name=nameOf(d),visible=true,style={weight=w or d.weight or "0.50"},text=d.text,type="switch", value=d.value}
+  end,
+  option = function(d,_)
+    return {name=nameOf(d), type="option", value=d.value or "Hupp"}
+  end,
+  slider = function(d,w)
+    return {name=nameOf(d),visible=true,step=tostring(d.step or 1),value=tostring(d.value or 0),max=tostring(d.max or 100),min=tostring(d.min or 0),style={weight=d.weight or w or "1.2"},text=d.text,type="slider"}
+  end,
+  label = function(d,w)
+    return {name=nameOf(d),visible=true,style={weight=d.weight or w or "1.2"},text=d.text,type="label"}
+  end,
+  space = function(_,w)
+    return {style={weight=w or "0.50"},type="space"}
+  end
+}
 
 local function mkRow(elms,weight)
   local comp = {}
@@ -124,7 +129,7 @@ local function UI2NewUiView(UI)
         local r = {
           params = {
             actionName = 'UIAction',
-            args = {action,name,'$event.value'}
+            args = {action,name,fun~=nil and fun or nil} --'$event.value'}
           },
           type = "deviceAction"
         }
@@ -144,7 +149,7 @@ local function UI2NewUiView(UI)
         name = el[typ],
         options = arrayify(el.options),
         values = arrayify(el.values) or ((typ=='select' or typ=='multi') and arrayify({})) or nil,
-        value = el.value,
+        value = el.value or (typ=='switch' and "false") or nil,
         style = { weight = weight},
         type = typ=='multi' and 'select' or typ,
         selectionType = (typ == 'multi' and 'multi') or (typ == 'select' and 'single') or nil,

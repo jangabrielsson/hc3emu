@@ -99,10 +99,10 @@ end
   
 end
 ]]
-  
+  local emptyArr = json.util.InitArray({})
   local props = {
     apiVersion = "1.3",
-    quickAppVariables = devTempl.properties.quickAppVariables or {},
+    quickAppVariables = devTempl.properties.quickAppVariables or emptyArr,
     viewLayout = devTempl.properties.viewLayout,
     uiView = devTempl.properties.uiView,
     uiCallbacks = devTempl.properties.uiCallbacks,

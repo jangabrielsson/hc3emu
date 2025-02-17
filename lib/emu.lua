@@ -13,6 +13,8 @@ of this license document, but changing it is not allowed.
 ---@diagnostic disable-next-line: undefined-global
 _DEVELOP = _DEVELOP
 
+--%%dark=true
+
 local VERSION = "1.0.6"
 
 local cfgFileName = "hc3emu_cfg.lua"   -- Config file in current directory

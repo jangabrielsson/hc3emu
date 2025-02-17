@@ -40,6 +40,7 @@ build = {
       ["hc3emu.net"] = "lib/net.lua",
       ["HC3EMU.ui"] = "lib/ui.lua",
       ["hc3emu.util"] = "lib/util.lua",
+      ["hc3emu.db"] = "lib/db.lua",
       ["hc3emu.route"] = "lib/route.lua",
       ["hc3emu.proxy"] = "lib/proxy.lua",
       ["hc3emu.offline"] = "lib/offline.lua",

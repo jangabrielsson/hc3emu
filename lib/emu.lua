@@ -280,6 +280,7 @@ function MODULE.net()
   function api.delete(path,data) return TQ.route:call("DELETE",path,data) end
 end
 
+function MODULE.db() TQ.require("hc3emu.db") end    -- Database for storing data
 function MODULE.qapi() TQ.require("hc3emu.qapi") end    -- Standard API routes
 function MODULE.proxy() TQ.require("hc3emu.proxy") end     -- Proxy creation and Proxy API routes
 function MODULE.offline() TQ.require("hc3emu.offline") end -- Offline API routes

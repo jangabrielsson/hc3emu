@@ -1,0 +1,19 @@
+{
+	"name" : "Lua HC3Emu",
+	"build": {
+			"dockerfile": "Dockerfile"
+	},
+	"features": {
+	},
+	"customizations": {
+			"vscode": {
+					"extensions": [
+						"sumneko.lua",
+						"AlexeyMelnichuk.lua-mobdebug"
+					]
+			}
+	},
+	"forwardPorts": [
+			8264
+	]
+}

@@ -24,9 +24,7 @@ if require and not QuickApp then require("hc3emu") end
 local function printf(...) print(string.format(...)) end
 
 if fibaro.hc3emu then
-  fibaro.hc3emu.require("hc3emu.colors")(fibaro) -- We can load extra colors working in vscode, don't work in zbs
   print("<font color='salmon'>Salmon</font> <font=color=green>Green</font> <font color=\"blue\">Blue</font>")
-
   fibaro.hc3emu.logFilter = {"DevicePropertyUpdatedEvent"} -- We can filter out some log messages containing string
 end
 

@@ -31,19 +31,8 @@ POST/customEvents/<name>
 --]]
 
 local Route = TQ.require('hc3emu.route')
-
-local info,home,location,device1
 local json = TQ.json
 local plugin = TQ.plugin
-
-do
-  local data = TQ.require("hc3emu.stdStructs")
-  local stdStructs = json.decode(data)
-  info,home,location,device1 = stdStructs.info,stdStructs.home,stdStructs.location,stdStructs.device1
-end
-
-if TQ.flags.latitude then location.latitude = TQ.flags.latitude end
-if TQ.flags.longitude then location.longitude = TQ.flags.longitude end
 
 local filterkeys = {
   parentId=function(d,v) return d.parentId == v end,
@@ -68,8 +57,18 @@ local function filter(q,ds)
   return r
 end
 
-local DB = { devices={}, globalVariables={}, rooms={}, sections={} }
+do
+  local store = TQ.store.DB
+  if not (store.settings.info or store.home or store.settings.location or store.devices[1]) then
+    local data = TQ.require("hc3emu.stdStructs")
+    local stdStructs = json.decode(data)
+    store.settings.info,store.home,store.settings.location,store.devices[1] = stdStructs.info,stdStructs.home,stdStructs.location,stdStructs.device1
+  end
+    if TQ.flags.latitude then store.settings.location.latitude = TQ.flags.latitude end
+    if TQ.flags.longitude then store.settings.location.longitude = TQ.flags.longitude end
+end
 
+local DB = TQ.store.DB
 local function valueList(t) local r = {} for _,v in pairs(t) do r[#r+1]=v end return r end
 local function DEVICE(id) id = tonumber(id) if DB.devices[id] then return DB.devices[id],200 else error({nil,404}) end end
 
@@ -122,8 +121,6 @@ local function refreshState(p) return {},200 end
 function TQ.setupOfflineRoutes()
   local id = plugin.mainDeviceId
   local route = Route(); route:setLocal(true)
-  local qa = TQ.getQA(id)
-  if qa then DB.devices[id] = qa.device end
   
   TQ.addStandardAPIRoutes(route)
 
@@ -136,14 +133,14 @@ function TQ.setupOfflineRoutes()
   -- filters ?parentId=<id> ?name=<name> ?type=<type>
   
   route:add('GET/devices',function(p,...) return getDevices(p,nil,...) end)
-  route:add('GET/devices/1',function() return device1,200 end)
+  route:add('GET/devices/1',function() return DB.devices[1],200 end)
   route:add('GET/devices/<id>',getDevices)
   route:add('GET/devices/<id>/properties/<name>',getDeviceProp)
   route:add('PUT/devices/<id>',putDeviceKey) --data = {key="value"}
   route:add('POST/devices/<id>/action/<name>',callAction) --data = {args={}}
   route:add('DELETE/devices/<id>',deleteDevice)
   route:add("GET/devices/1/properties/<name>",function(p,name) 
-    return {value=device1.properties[name]},200 
+    return {value=DB.devices[1].properties[name]},200 
   end)
   
   route:add('GET/rooms',function (p,...) return getRooms(p,nil,...) end)
@@ -160,9 +157,9 @@ function TQ.setupOfflineRoutes()
   route:add('GET/alarms/v1/partitions/<id>',blocked)
   route:add('GET/alarms/v1/partitions',blocked)
   
-  route:add('GET/settings/info',function() return info,200 end)
-  route:add('GET/settings/location',function() return location,200 end)
-  route:add('GET/home',function() return home,200 end)
+  route:add('GET/settings/info',function() return DB.settings.info,200 end)
+  route:add('GET/settings/location',function() return DB.settings.location,200 end)
+  route:add('GET/home',function() return DB.home,200 end)
 
   route:add('POST/customEvents/<name>',blocked)
 

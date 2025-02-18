@@ -38,7 +38,7 @@ function QuickApp:onInit()
   fibaro.call(self.id,"myFun",7,8)
 
   local qas = api.get("/devices?interface=quickApp")
-  self:checkType("Get QuickApps",qas,function(r) return type(r) and next(r) and r[1].id end)
+  self:checkType("Get QuickApps",qas,function(r) return type(r)=='table' and next(r) and r[1].id end)
 end
 
 function QuickApp:check(str,val1,val2)

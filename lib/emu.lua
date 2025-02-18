@@ -13,8 +13,6 @@ of this license document, but changing it is not allowed.
 ---@diagnostic disable-next-line: undefined-global
 _DEVELOP = _DEVELOP
 
---%%dark=true
-
 local VERSION = "1.0.6"
 
 local cfgFileName = "hc3emu_cfg.lua"   -- Config file in current directory
@@ -86,6 +84,10 @@ local mobdebug = pcall2(require, 'mobdebug') or { on = function() end, start = f
 mobdebug.start('127.0.0.1', 8818)
 TQ.mobdebug = mobdebug
 
+-- Try to guess where we are running
+local isVscode = package.path:lower():match("vscode")
+local isZerobrane = package.path:lower():match("zerobrane")
+
 local modules = {}
 local MODULE = setmetatable({},{__newindex = function(t,k,v)
   modules[#modules+1]={name=k,fun=v}
@@ -146,6 +148,7 @@ function MODULE.directives()
   function directive.dark(d,val) flags.dark = eval(val,d) end
   function directive.offline(d,val) flags.offline = eval(val,d) end
   function directive.state(d,val) flags.state = tostring(val) end
+  function directive.stateReadOnly(d,val) flags.stateReadOnly = eval(val,d) end
   function directive.latitude(d,val) flags.latitude = tonumber(val) end
   function directive.longitude(d,val) flags.longitude = tonumber(val) end
   
@@ -173,6 +176,10 @@ function MODULE.log()
     cyan="\027[36;1m",white="\027[37;1m",darkgrey="\027[30;1m",
   }
   
+  if isVscode then
+    TQ.require("hc3emu.colors")(fibaro) -- We can load extra colors working in vscode, don't work in zbs
+  end
+
   TQ.SYSCOLORS = { debug='green', trace='blue', warning='orange', ['error']='red', text='black', sys='navy' }
   if flags.dark then TQ.SYSCOLORS.text='gray' TQ.SYSCOLORS.trace='cyan' TQ.SYSCOLORS.sys='yellow'  end
   
@@ -310,7 +317,10 @@ function MODULE.qa_manager()
       file = files
     }
   end
-  function TQ.registerQA(id,env,dev,qa) TQ.QA[id] = {id=id,env=env,device=dev,qa=qa} end
+  function TQ.registerQA(id,env,dev,qa) 
+    TQ.QA[id] = {id=id,env=env,device=dev,qa=qa}
+    TQ.store.DB.devices[id] = dev
+  end
   function TQ.getQA(id) return TQ.QA[id or plugin.mainDeviceId] end
   
   function TQ.setOffline(offline)
@@ -389,35 +399,36 @@ if flags.sdk then -- Try to hide functions from debugger - may work...
 end
 
 -- Load main file
-local os2 = { time = os.time, clock = os.clock, difftime = os.difftime, date = os.date, exit = nil }
-local env = {
-  __assert_type = __assert_type, __TAG = __TAG, quickApp = quickApp, json = json, urlencode = urlencode,
-  collectgarbage = collectgarbage, os = os2, math = math, string = string, table = table,
-  getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring,
-  type = type, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
-  error = error, assert = assert, pcall = pcall, xpcall = xpcall, bit32 = require("bit32"),
-  dofile = dofile, package = package, _coroutine = coroutine, io = io, rawset = rawset, rawget = rawget,
-  _loadfile = loadfile
-}
-function env.print(...) env.fibaro.debug(env.__TAG,...) end
-for name,fun in pairs(exports) do env[name]=fun end -- export functions to environment
-env._G = env
-
-for _,path in ipairs({"hc3emu.class","hc3emu.fibaro","hc3emu.quickapp","hc3emu.net"}) do
-  DEBUGF('info',"Loading QA library %s",path)
-  if _DEVELOP then
-    path = "lib/"..path:match(".-%.(.*)")..".lua"
-  else  path = package.searchpath(path,package.path) end
-  loadfile(path,"t",env)()
-end
 
 local function init() -- The rest is run in a copas tasks...
   mobdebug.on()
   
-  local function loadUserFiles()
+  local function setupQA(env)
     TQ.offlineRoute = TQ.setupOfflineRoutes() -- Setup routes for offline API calls
     TQ.remoteRoute = TQ.setupRemoteRoutes() -- Setup routes for remote API calls (incl proxy)
     TQ.setOffline(flags.offline) -- We can do api.* calls first now...
+    
+    local os2 = { time = os.time, clock = os.clock, difftime = os.difftime, date = os.date, exit = nil }
+    for k,v in pairs({
+      __assert_type = __assert_type, __TAG = __TAG, quickApp = quickApp, json = json, urlencode = urlencode,
+      collectgarbage = collectgarbage, os = os2, math = math, string = string, table = table,
+      getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring,
+      type = type, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
+      error = error, assert = assert, pcall = pcall, xpcall = xpcall, bit32 = require("bit32"),
+      dofile = dofile, package = package, _coroutine = coroutine, io = io, rawset = rawset, rawget = rawget,
+      _loadfile = loadfile
+    }) do env[k] = v end
+    function env.print(...) env.fibaro.debug(env.__TAG,...) end
+    for name,fun in pairs(exports) do env[name]=fun end -- export functions to environment
+    env._G = env
+    
+    for _,path in ipairs({"hc3emu.class","hc3emu.fibaro","hc3emu.quickapp","hc3emu.net"}) do
+      DEBUGF('info',"Loading QA library %s",path)
+      if _DEVELOP then
+        path = "lib/"..path:match(".-%.(.*)")..".lua"
+      else  path = package.searchpath(path,package.path) end
+      loadfile(path,"t",env)()
+    end
     
     for _,lf in ipairs(flags.file) do
       DEBUGF('info',"Loading user file %s",lf.fname)
@@ -429,7 +440,7 @@ local function init() -- The rest is run in a copas tasks...
   end
   
   local isQA = mainSrc:match("fun".."ction%s+QuickApp:onInit")
-  if env.QuickApp.onInit or isQA then   -- Start QuickApp if defined
+  if isQA then   -- Start QuickApp if defined
     local qvs = flags.var
     
     local uiCallbacks,viewLayout,uiView
@@ -476,7 +487,7 @@ local function init() -- The rest is run in a copas tasks...
     
     plugin._dev = deviceStruct            -- Now we have an device structure
     plugin.mainDeviceId = deviceStruct.id -- Now we have an deviceId
-    TQ.registerQA(plugin.mainDeviceId,env,deviceStruct,nil)
+    TQ.registerQA(plugin.mainDeviceId,{},deviceStruct,nil)
     
     if flags.save then
       local fileName = flags.save
@@ -488,12 +499,13 @@ local function init() -- The rest is run in a copas tasks...
       DEBUG("Saved QuickApp to %s",fileName)
     end
     
-    loadUserFiles()
+    local env = TQ.getQA(plugin.mainDeviceId).env
+    setupQA(env)
     DEBUGF('info',"Starting QuickApp %s",plugin._dev.name)
     print(TQ.colorStr('orange',"HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..VERSION))
     quickApp = env.QuickApp(plugin._dev) -- quickApp defined first when we return from :onInit()...
   else
-    loadUserFiles()
+    setupQA({})
   end
 end
 

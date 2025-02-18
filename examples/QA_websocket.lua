@@ -16,8 +16,8 @@ function QuickApp:onInit()
     self:debug("connected")
     setInterval(function()
         n=n+1
-        print("Waiting",n)
-        --sock:send("WebSocket: Hello from hc3emu "..n.."\n")
+        --print("Waiting",n)
+        sock:send("WebSocket: Hello from hc3emu "..n.."\n")
     end,1000)
   end
   

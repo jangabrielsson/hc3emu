@@ -5,28 +5,32 @@ local plugin = TQ.plugin
 
 local fmt = string.format
 
-local getDeviceStore = TQ.getDeviceStore
-local flushStore = TQ.flushStore
+local getDeviceStore = TQ.store.getDevice
+local flushStore = TQ.flushflush
+local internalStore = TQ.store.DB.internalStorage
 
 local function internalStoragePut(id,key,data)
-  local store = getDeviceStore(id,'internalStorage')
+  local store = internalStore[id] or {}
+  internalStore[id] = store
   if not store[key] then return nil,404 end
   store[key] = data
-  flushStore()
+  flushStore(true)
   return true,200
 end
 
 local function internalStoragePost(id,data)
-  local store = getDeviceStore(id,'internalStorage')
+  local store = internalStore[id] or {}
+  internalStore[id] = store
   local key = data.name
   if store[key] then return nil,409 end
   store[key] = data
-  flushStore()
+  flushStore(true)
   return true,200
 end
 
 local function internalStorageGet(id,key,data)
-  local store = getDeviceStore(id,'internalStorage')
+  local store = internalStore[id] or {}
+  internalStore[id] = store
   if key ~= nil then 
     if store[key] then return store[key],200
     else return nil,404 end
@@ -38,13 +42,14 @@ local function internalStorageGet(id,key,data)
 end
 
 local function internalStorageDelete(id,key,data) 
-  local store,db = getDeviceStore(id,'internalStorage')
+  local store = internalStore[id] or {}
+  internalStore[id] = store
   if key then
     if not store[key] then return nil,404 end
     store[key] = nil flushStore() 
   else
-    db.internalStorage = {}
-    flushStore()
+    internalStore[id] = {}
+    flushStore(true)
   end
   return true,200
 end

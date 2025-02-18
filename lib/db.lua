@@ -2,23 +2,34 @@
 local json = TQ.json
 
 -- Internal storage (always local)
-local store = {}
+local store = { devices = {}, globalVariables = {}, rooms = {}, sections = {}, settings={}, internalStorage={}, quickapp={} }
 local stateFileName = TQ.flags.state
 local hasState = type(stateFileName)=='string'
 if hasState then 
   local f = io.open(stateFileName,"r")
-  if f then store = json.decode(f:read("*a")) f:close() end
+  if f then 
+    local store2 = json.decode(f:read("*a")) f:close()
+    if type(store2)~='table' then store2 = {} end
+    for k,v in pairs(store2) do store[k] = v end
+  end
 end
-local function flushStore()
+
+local function flush(force)
   if not hasState then return end
+  if TQ.flags.stateReadOnly and not force then return end
   local f = io.open(stateFileName,"w")
   if f then f:write(json.encode(store)) f:close() end
 end
-local function getDeviceStore(id,storeName)
-  if not store[id] then store[id] = {} end
-  if not store[id][storeName] then store[id][storeName] = {} end
-  return store[id][storeName],store[id]
+
+local pathFuns = {}
+local function getDevice(id,prop)
+  id = tonumber(id)
+  if not store.devices[id] then store.devices[id] = {} end
+  if not prop then return store.devices[id] end
+  if not store.devices[id][prop] then store.devices[id][prop] = {} end
+  return store[id][prop],store[id]
 end
 
-TQ.getDeviceStore = getDeviceStore
-TQ.flushStore = flushStore
+TQ.store = { DB = store }
+TQ.store.getDevice = getDevice
+TQ.store.flush = flush

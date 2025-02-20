@@ -11,7 +11,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%proxy=MyProxy
 --%%dark=true
 --%%id=5001
---%%state="state.db"
+--%%state=state.db
 --%%save=MyQA.fqa
 --%%var=foo:config.secret
 --%%debug=sdk:false,info:true,proxyAPI:true,server:true,onAction:true,onUIEvent:true

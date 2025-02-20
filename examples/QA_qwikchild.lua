@@ -28,6 +28,9 @@ end
 function MyChild:setValue(v)
   self:debug("setValue",v)
 end
+function MyChild:childFun(a,b)
+  printf("childFun called %s+%s=%s",a,b,a+b)
+end
 
 local children = {
   bar13 = {
@@ -52,5 +55,6 @@ local children = {
 }
 function QuickApp:onInit()
   self:initChildren(children)
+  fibaro.call(self.children.bar3.id,"childFun",5,7)
 end
 

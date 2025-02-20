@@ -13,45 +13,34 @@ of this license document, but changing it is not allowed.
 ---@diagnostic disable-next-line: undefined-global
 _DEVELOP = _DEVELOP
 
-local VERSION = "1.0.6"
+local VERSION = "1.0.11"
 
 local cfgFileName = "hc3emu_cfg.lua"   -- Config file in current directory
 local homeCfgFileName = ".hc3emu.lua"  -- Config file in home directory
 local mainFileName, mainSrc = MAINFILE, nil -- Main file name and source
 -- TQ defined in src/hc3emu.lua
-TQ.QA={} 
+TQ.DIR={} -- Directory for all QAs - devicesId -> QAinfo 
 TQ.EMUVAR = "TQEMU" -- HC3 GV with connection data for HC3 proxy
 TQ.emuPort = 8264   -- Port for HC3 proxy to connect to
 TQ.emuIP = nil      -- IP of host running the emulator
+TQ.api = {}         -- API functions
+TQ.DBG = { info=true } -- Default flags and debug settings
+TQ.require("hc3emu.util")(TQ) -- Utility functions
 
-local _type = type
+local DEVICEID = 5000 -- Start id for QA devices
 local __TAG = "INIT"
+local qaInfo = { env = {} }
 
-local flags,DBG = {},{ info=true }
-fibaro = { hc3emu = TQ, HC3EMU_VERSION = VERSION, flags = flags, DBG = DBG }
-local api,plugin,net = {},{},{}
-local exports = { fibaro = fibaro, api = api, net = net, plugin = plugin, hub = fibaro } -- Collect all functions that should be exported to the QA environment
-local quickApp
+local flags,runQA = {},nil
 
---  Default directives/flags from main lua file (--%%key=value)
-flags={
-  name='MyQA', type='com.fibaro.binarySwitch', debug={}, dark = false, id = 5001,
-  var = {}, gv = {}, file = {}, creds = {}, u={}
-}
-
-local util = TQ.require("hc3emu.util")
-local __assert_type,urlencode,readFile,json = util.__assert_type,util.urlencode,util.readFile,util.json
-TQ.json, TQ.urlencode, TQ.util = json,urlencode, util
+local __assert_type,urlencode,readFile,json = TQ.__assert_type,TQ.urlencode,TQ.readFile,TQ.json
+local DEBUG,DEBUGF, WARNINGF, ERRORF = TQ.DEBUG, TQ.DEBUGF, TQ.WARNINGF, TQ.ERRORF
+local addThread = TQ.addThread
+local DBG = TQ.DBG
+local api = TQ.api
+local exports = {} -- functions to export to QA
 
 local fmt = string.format
-local function DEBUG(f,...) print("[SYS]",fmt(f,...)) end
-local function DEBUGF(flag,f,...) if DBG[flag] then DEBUG(f,...) end end
-local function WARNINGF(f,...) print("[SYSWARN]",fmt(f,...)) end
-local function ERRORF(f,...) print("[SYSERR]",fmt(f,...)) end
-local function pcall2(f,...) local res = {pcall(f,...)} if res[1] then return table.unpack(res,2) else return nil end end
-local function ll(fn) local f,e = loadfile(fn) if f then return f() else return not tostring(e):match("such file") and error(e) or nil end end
-TQ.DBG, TQ.DEBUG, TQ.DEBUGF, TQ.WARNINGF, TQ.ERRORF = DBG, DEBUG,DEBUGF, WARNINGF, ERRORF
-TQ.fibaro, TQ.api, TQ.plugin = fibaro, api, plugin
 
 DEBUGF('info',"Main QA file %s",mainFileName)
 
@@ -61,14 +50,19 @@ else error("Could not read main file") end
 if mainSrc:match("info:false") then DBG.info = false end -- Peek 
 if mainSrc:match("dark=true") then DBG.dark = true end
 
+qaInfo.src = mainSrc
+qaInfo.fname = mainFileName
+
 -- Get home project file, defaults to {}
 DEBUGF('info',"Loading home config file %s",homeCfgFileName)
 local HOME = os.getenv("HOME") or ""
-local homeCfg =ll(HOME.."/"..homeCfgFileName) or {}
+local homeCfg =TQ.ll(HOME.."/"..homeCfgFileName) or {}
 
 -- Get project config file, defaults to {}
 DEBUGF('info',"Loading project config file ./%s",cfgFileName)
-local cfgFlags = ll(cfgFileName) or {}
+local cfgFlags = TQ.ll(cfgFileName) or {}
+
+local baseFlags = table.merge(homeCfg,cfgFlags) -- merge with home config
 
 local socket = require("socket")
 local ltn12 = require("ltn12")
@@ -76,36 +70,28 @@ local copas = require("copas")
 copas.https = require("ssl.https")
 require("copas.timer")
 require("copas.http")
-TQ.socket = socket
+TQ.socket,TQ.copas = socket,copas
 
---local a = package.searchpath('hc3emu.ws', package.path)
-
-local mobdebug = pcall2(require, 'mobdebug') or { on = function() end, start = function(_,_) end }
+local mobdebug = TQ.pcall2(require, 'mobdebug') or { on = function() end, start = function(_,_) end }
 mobdebug.start('127.0.0.1', 8818)
 TQ.mobdebug = mobdebug
 
--- Try to guess where we are running
-local isVscode = package.path:lower():match("vscode")
-local isZerobrane = package.path:lower():match("zerobrane")
+-- Try to guess in what environment we are running (used for loading extra console colors)
+TQ.isVscode = package.path:lower():match("vscode") ~= nil
+TQ.isZerobrane = package.path:lower():match("zerobrane") ~= nil
 
 local modules = {}
 local MODULE = setmetatable({},{__newindex = function(t,k,v)
   modules[#modules+1]={name=k,fun=v}
 end })
 
-local tasks = {}
-local function addthread(call,...)
-  local task = 42
-  task = copas.addthread(function(...) mobdebug.on() call(...) tasks[task]=nil end,...)
-  tasks[task] = true
-  return task
-end
-function TQ.cancelTasks() for t,_ in pairs(tasks) do copas.removethread(t) end end
-
-function MODULE.directives()
-  DEBUGF('info',"Parsing %s directives...",mainFileName)
+local function parseDirectives(info) -- adds {directives=flags,files=files} to info
+  DEBUGF('info',"Parsing %s directives...",info.fname)
   
-  cfgFlags = table.merge(homeCfg,cfgFlags) -- merge with home config
+  local flags = {
+    name='MyQA', type='com.fibaro.binarySwitch', debug={}, dark = false,
+    var = {}, gv = {}, files = {}, creds = {}, u={}
+  }
   
   local function eval(str,d)
     local stat, res = pcall(function() return load("return " .. str, nil, "t", { config = cfgFlags })() end)
@@ -131,7 +117,7 @@ function MODULE.directives()
   function directive.file(d,val) 
     local path,m = val:match("(.-):(.*)")
     assert(path and m,"Bad file directive: "..d)
-    flags.file[#flags.file+1] = {fname=path,lib=m}
+    flags.files[#flags.files+1] = {fname=path,name=m}
   end
   function directive.debug(d,val) 
     local vs = val:split(",")
@@ -139,7 +125,7 @@ function MODULE.directives()
       local name,expr = v:match("(.-):(.*)")
       assert(name and expr,"Bad debug directive: "..d) 
       local e = eval(expr,d)
-      if e then DBG[name] = e end
+      if e then flags[name] = e end
     end
   end
   function directive.u(d,val) flags.u[#flags.u+1] = eval(val,d) end
@@ -159,80 +145,20 @@ function MODULE.directives()
     else WARNINGF("Unknown directive: %s",tostring(f)) end
   end)
   
-  flags.debug = DBG
-  flags = table.merge(cfgFlags,flags)
-  
-  fibaro.USER = (flags.creds or {}).user -- Get credentials, if available
-  fibaro.PASSWORD = (flags.creds or {}).password
-  fibaro.URL = (flags.creds or {}).url
+  info.directives = table.merge(table.copy(baseFlags),flags)
+  info.files = flags.files
 end
 
-function MODULE.log()
-  
-  local ANSICOLORMAP = {
-    black="\027[30m",brown="\027[31m",green="\027[32m",orange="\027[33m",navy="\027[34m", -- Seems to work in both VSCode and Zerobrane console...
-    purple="\027[35m",teal="\027[36m",grey="\027[37m", gray="\027[37m",red="\027[31;1m",
-    tomato="\027[31;1m",neon="\027[32;1m",yellow="\027[33;1m",blue="\027[34;1m",magenta="\027[35;1m",
-    cyan="\027[36;1m",white="\027[37;1m",darkgrey="\027[30;1m",
-  }
-  
-  if isVscode then
-    TQ.require("hc3emu.colors")(fibaro) -- We can load extra colors working in vscode, don't work in zbs
-  end
+function MODULE.log() TQ.require("hc3emu.log") end
 
-  TQ.SYSCOLORS = { debug='green', trace='blue', warning='orange', ['error']='red', text='black', sys='navy' }
-  if flags.dark then TQ.SYSCOLORS.text='gray' TQ.SYSCOLORS.trace='cyan' TQ.SYSCOLORS.sys='yellow'  end
-  
-  TQ.COLORMAP = ANSICOLORMAP
-  local colorEnd = '\027[0m'
-  
-  local function html2ansiColor(str, dfltColor) -- Allows for nested font tags and resets color to dfltColor
-    local COLORMAP = TQ.COLORMAP
-    local EXTRA = TQ.extraColors or {}
-    dfltColor = COLORMAP[dfltColor] or EXTRA[dfltColor]
-    local st, p = { dfltColor }, 1
-    return dfltColor..str:gsub("(</?font.->)", function(s)
-      if s == "</font>" then
-        p = p - 1; return st[p]
-      else
-        local color = s:match("color=\"?([#%w]+)\"?") or s:match("color='([#%w]+)'")
-        if color then color = color:lower() end
-        color = COLORMAP[color] or EXTRA[color] or dfltColor
-        p = p + 1; st[p] = color
-        return color
-      end
-    end)..colorEnd
-  end
-  
-  function TQ.debugOutput(tag, str, typ)
-    for _,p in ipairs(TQ.logFilter or {}) do if str:find(p) then return end end
-    str = str:gsub("(&nbsp;)", " ")  -- transform html space
-    str = str:gsub("</br>", "\n")    -- transform break line
-    str = str:gsub("<br>", "\n")     -- transform break line
-    if DBG.color==false then
-      str = str:gsub("(</?font.->)", "") -- Remove color tags
-      print(fmt("%s[%s][%s]: %s", os.date("[%d.%m.%Y][%H:%M:%S]"), typ:upper(), tag, str))
-    else
-      local fstr = "<font color='%s'>%s[<font color='%s'>%-6s</font>][%-7s]: %s</font>"
-      local txtColor = TQ.SYSCOLORS.text
-      local typColor = TQ.SYSCOLORS[typ:lower()] or txtColor
-      local outstr = fmt(fstr,txtColor,os.date("[%d.%m.%Y][%H:%M:%S]"),typColor,typ:upper(),tag,str)
-      print(html2ansiColor(outstr,TQ.SYSCOLORS.text))
-    end
-  end
-  
-  function TQ.colorStr(color,str) return fmt("%s%s%s",TQ.COLORMAP[color] or TQ.extraColors [color],str,colorEnd) end
-  
+function MODULE.net()
   local someRandomIP = "192.168.1.122" --This address you make up
   local someRandomPort = "3102" --This port you make up
   local mySocket = socket.udp() --Create a UDP socket like normal
   mySocket:setpeername(someRandomIP,someRandomPort)
   local myDevicesIpAddress,_ = mySocket:getsockname()-- returns IP and Port
   TQ.emuIP = myDevicesIpAddress == "0.0.0.0" and "127.0.0.1" or myDevicesIpAddress
-  
-end
 
-function MODULE.net()
   local function httpRequest(method,url,headers,data,timeout,user,pwd)
     local resp, req = {}, {}
     req.url = url
@@ -245,7 +171,7 @@ function MODULE.net()
     req.user = user
     req.password = pwd
     if method == "PUT" or method == "POST" then
-      data = data== nil and "[]" or json.encode(data)
+      data = data== nil and "[]" or data
       req.headers["Content-Length"] = #data
       req.source = ltn12.source.string(data)
     else
@@ -264,16 +190,17 @@ function MODULE.net()
   local BLOCK = false
   local function HC3Call(method,path,data,silent)
     if BLOCK then ERRORF("HC3 authentication failed again, Access blocked") return nil, 401, "Blocked" end
-    assert(fibaro.URL,"Missing fibaro.URL")
-    assert(fibaro.USER,"Missing fibaro.USER")
-    assert(fibaro.PASSWORD,"Missing fibaro.PASSSWORD")
+    if type(data) == 'table' then data = json.encode(data) end
+    assert(TQ.URL,"Missing hc3emu.URL")
+    assert(TQ.USER,"Missing hc3emu.USER")
+    assert(TQ.PASSWORD,"Missing hc3emu.PASSSWORD")
     local t0 = socket.gettime()
-    local res,stat,headers = httpRequest(method,fibaro.URL.."api"..path,{
+    local res,stat,headers = httpRequest(method,TQ.URL.."api"..path,{
       ["Accept"] = '*/*',
       ["X-Fibaro-Version"] = 2,
-      ["Fibaro-User-PIN"] = fibaro.PIN,
+      ["Fibaro-User-PIN"] = TQ.PIN,
     },
-    data,15000,fibaro.USER,fibaro.PASSWORD)
+    data,15000,TQ.USER,TQ.PASSWORD)
     if stat == 401 then ERRORF("HC3 authentication failed, Access blocked") BLOCKED = true end
     local t1 = socket.gettime()
     local jf,data = pcall(json.decode,res)
@@ -296,10 +223,12 @@ function MODULE.offline() TQ.require("hc3emu.offline") end -- Offline API routes
 function MODULE.ui() TQ.require("hc3emu.ui") end
 
 function MODULE.qa_manager()
-  function TQ.getFQA() -- Move to module
+  function TQ.getFQA(id) -- Move to module
+    local qa = TQ.getQA(id)
+    local dev = qa.device
     local files = {}
-    for _,f in ipairs(flags.file) do
-      files[#files+1] = {name=f.lib, isMain=false, isOpen=false, type='lua', content=f.src}
+    for _,f in ipairs(qa.files) do
+      files[#files+1] = {name=f.name, isMain=false, isOpen=false, type='lua', content=f.src}
     end
     files[#files+1] = {name="main", isMain=true, isOpen=false, type='lua', content=mainSrc}
     local initProps = {}
@@ -307,21 +236,23 @@ function MODULE.qa_manager()
       "uiCallbacks","quickAppVariables","uiView","viewLayout","apiVersion","useEmbededView","manufacturer","useUiView",
       "model","buildNumber","supportedDeviceRoles"
     }
-    for _,k in ipairs(savedProps) do initProps[k]=plugin._dev.properties[k] end
+    for _,k in ipairs(savedProps) do initProps[k]=dev.properties[k] end
     return {
       apiVersion = "1.3",
-      name = plugin._dev.name,
-      type = plugin._dev.type,
+      name = dev.name,
+      type = dev.type,
       initialProperties = initProps,
-      initialInterfaces = plugin._dev.interfaces,
+      initialInterfaces = dev.interfaces,
       file = files
     }
   end
-  function TQ.registerQA(id,env,dev,qa) 
-    TQ.QA[id] = {id=id,env=env,device=dev,qa=qa}
-    TQ.store.DB.devices[id] = dev
+  function TQ.registerQA(info) -- {id=id,directives=directives,fname=fname,src=src,env=env,device=dev,qa=qa,files=files,proxy=<bool>,child=<bool>}
+    local id = info.id
+    assert(id,"Can't register QA without id")
+    TQ.DIR[id] = info 
+    TQ.store.DB.devices[id] = info.device
   end
-  function TQ.getQA(id) return TQ.QA[id or plugin.mainDeviceId] end
+  function TQ.getQA(id) return TQ.DIR[id] end
   
   function TQ.setOffline(offline)
     flags.offline = offline
@@ -331,188 +262,183 @@ function MODULE.qa_manager()
       TQ.route = TQ.remoteRoute
     end
   end
-end
 
-function MODULE.timers()
-  local e = exports
-  local ref,timers = 0,{}
-  
-  function TQ.cancelTimers() for _,t in pairs(timers) do t:cancel() end end
-  
-  local function callback(_,args) mobdebug.on() timers[args[2]] = nil args[1]() end
-  local function _setTimeout(rec,fun,ms)
-    ref = ref+1
-    local ref0 = not rec and ref or "n/a"
-    timers[ref]= copas.timer.new({
-      name = "setTimeout:"..ref,
-      delay = ms / 1000.0,
-      recurring = rec,
-      initial_delay = rec and ms / 1000.0 or nil,
-      callback = callback,
-      params = {fun,ref0},
-      errorhandler = function(err, coro, skt)
-        local qa = TQ.getQA()
-        fibaro.error(tostring(qa.env.__TAG),fmt("setTimeout:%s",tostring(err)))
-        timers[ref]=nil
-        copas.seterrorhandler()
-      end
-    })
-    return ref
-  end
-  
-  function e.setTimeout(fun,ms) return _setTimeout(false,fun,ms) end
-  function e.setInterval(fun,ms) return _setTimeout(true,fun,ms) end
-  function e.clearTimeout(ref)
-    if timers[ref] then
-      timers[ref]:cancel()
+  function TQ.loadQA(path)
+    local f = io.open(path)
+    if f then
+      local src = f:read("*all")
+      f:close()
+      local info = { directives = nil, src = src, fname = path, env = { require=true }, files = {} }
+---@diagnostic disable-next-line: need-check-nil
+      runQA(info)
+    else
+      ERRORF("Could not read file %s",path)
     end
-    timers[ref]=nil
-    copas.pause(0)
   end
-  e.clearInterval = e.clearTimeout
 end
 
-TQ.copas,TQ.flags,TQ._type,TQ.addthread = copas,flags,_type,addthread
+parseDirectives(qaInfo)
+flags = qaInfo.directives
+DBG = flags.debug
+TQ.DBG = DBG
+
+TQ.USER = (flags.creds or {}).user or TQ.USER -- Get credentials, if available
+TQ.PASSWORD = (flags.creds or {}).password or TQ.PASSWORD
+TQ.URL = (flags.creds or {}).url or TQ.URL
+TQ.PIN = (flags.creds or {}).pin or TQ.PIN
+
+TQ.flags,TQ._type = flags,type
 
 -- Load modules
 for _,m in ipairs(modules) do DEBUGF('info',"Loading emu module %s",m.name) m.fun() end
 
 local skip = load("return function(f) return function(...) return f(...) end end")()
+local _type = type
 local luaType = function(obj) -- We need to recognize our class objects as 'userdata' (table with __USERDATA key)
   local t = _type(obj)
   return t == 'table' and rawget(obj,'__USERDATA') and 'userdata' or t
 end
-type = skip(luaType)
+luaType = skip(luaType)
 
-if flags.sdk then -- Try to hide functions from debugger - may work...
-  local e = exports
-  for n,f in pairs(api) do local f0=f; api[n] = skip(f0) end
-  e.setTimeout = skip(e.setTimeout)
-  e.clearTimeout = skip(e.clearTimeout)
-  e.setInterval = skip(e.setInterval)
-  e.clearInterval = skip(e.clearInterval)
-  json.encode = skip(json.encode)
-  json.decode = skip(json.decode)
-  for n,f in pairs(fibaro) do
-    if _type(f) == 'function' then local f0=f fibaro[n]=skip(f0) end
-  end
-end
+TQ.offlineRoute = TQ.setupOfflineRoutes() -- Setup routes for offline API calls
+TQ.remoteRoute = TQ.setupRemoteRoutes() -- Setup routes for remote API calls (incl proxy)
 
 -- Load main file
 
-local function init() -- The rest is run in a copas tasks...
-  mobdebug.on()
+local function loadQAFiles(info)
   
-  local function setupQA(env)
-    TQ.offlineRoute = TQ.setupOfflineRoutes() -- Setup routes for offline API calls
-    TQ.remoteRoute = TQ.setupRemoteRoutes() -- Setup routes for remote API calls (incl proxy)
-    TQ.setOffline(flags.offline) -- We can do api.* calls first now...
-    
-    local os2 = { time = os.time, clock = os.clock, difftime = os.difftime, date = os.date, exit = nil }
-    for k,v in pairs({
-      __assert_type = __assert_type, __TAG = __TAG, quickApp = quickApp, json = json, urlencode = urlencode,
-      collectgarbage = collectgarbage, os = os2, math = math, string = string, table = table,
-      getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring,
-      type = type, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
-      error = error, assert = assert, pcall = pcall, xpcall = xpcall, bit32 = require("bit32"),
-      dofile = dofile, package = package, _coroutine = coroutine, io = io, rawset = rawset, rawget = rawget,
-      _loadfile = loadfile
-    }) do env[k] = v end
-    function env.print(...) env.fibaro.debug(env.__TAG,...) end
-    for name,fun in pairs(exports) do env[name]=fun end -- export functions to environment
-    env._G = env
-    
-    for _,path in ipairs({"hc3emu.class","hc3emu.fibaro","hc3emu.quickapp","hc3emu.net"}) do
-      DEBUGF('info',"Loading QA library %s",path)
-      if _DEVELOP then
-        path = "lib/"..path:match(".-%.(.*)")..".lua"
-      else  path = package.searchpath(path,package.path) end
-      loadfile(path,"t",env)()
-    end
-    
-    for _,lf in ipairs(flags.file) do
-      DEBUGF('info',"Loading user file %s",lf.fname)
-      _,lf.src = readFile{file=lf.fname,eval=true,env=env,silent=false}
-    end
-    DEBUGF('info',"Loading user main file %s",mainFileName)
-    load(mainSrc,mainFileName,"t",env)()
-    assert(fibaro.URL, fibaro.USER and fibaro.PASSWORD,"Please define URL, USER, and PASSWORD")
+  if info.directives == nil then
+    parseDirectives(info)
+  end
+  TQ.setOffline(info.directives.offline) 
+
+  local env = info.env
+  local os2 = { time = os.time, clock = os.clock, difftime = os.difftime, date = os.date, exit = nil }
+  local fibaro = { hc3emu = TQ, HC3EMU_VERSION = VERSION, flags = info.directives, DBG = DBG }
+  for k,v in pairs({
+    __assert_type = __assert_type, fibaro = fibaro, api = api, __TAG = __TAG, json = json, urlencode = urlencode,
+    collectgarbage = collectgarbage, os = os2, math = math, string = string, table = table,
+    getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring,
+    type = luaType, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
+    error = error, assert = assert, pcall = pcall, xpcall = xpcall, bit32 = require("bit32"),
+    dofile = dofile, package = package, _coroutine = coroutine, io = io, rawset = rawset, rawget = rawget,
+    _loadfile = loadfile
+  }) do env[k] = v end
+  
+  env._G = env
+  for k,v in pairs(exports) do env[k] = v end
+
+  for _,path in ipairs({"hc3emu.class","hc3emu.qafuns","hc3emu.fibaro","hc3emu.quickapp","hc3emu.net"}) do
+    DEBUGF('info',"Loading QA library %s",path)
+    if _DEVELOP then
+      path = "lib/"..path:match(".-%.(.*)")..".lua"
+    else  path = package.searchpath(path,package.path) end
+    loadfile(path,"t",env)()
   end
   
-  local isQA = mainSrc:match("fun".."ction%s+QuickApp:onInit")
-  if isQA then   -- Start QuickApp if defined
-    local qvs = flags.var
-    
-    local uiCallbacks,viewLayout,uiView
-    if flags.u and #flags.u > 0 then
-      uiCallbacks,viewLayout,uiView = TQ.compileUI(flags.u)
-    end
-    local deviceStruct = {
-      id=tonumber(flags.id) or 5000,
-      type=flags.type or 'com.fibaro.binarySwitch',
-      name=flags.name or 'MyQA',
-      enabled = true,
-      visible = true,
-      properties = { quickAppVariables = qvs, uiCallbacks = uiCallbacks, viewLayout = viewLayout, uiView = uiView },
-      useUiView = false,
-      interfaces = {"quickApp"},
-      created = os.time(),
-      modified = os.time()
-    }
-    -- Find or create proxy if specified
-    if flags.offline and flags.proxy then
-      flags.proxy = nil
-      DEBUG("Offline mode, proxy directive ignored")
-    end
-    
-    if flags.proxy then
-      TQ.route = TQ.require("hc3emu.route")(TQ.HC3Call) -- Need this to do api.calls to setup proxy
-      local pname = tostring(flags.proxy)
-      if pname:starts("-") then -- delete proxy if name is preceeded with "-"
-        pname = pname:sub(2)
-        local qa = api.get("/devices?name="..urlencode(pname))
-        assert(type(qa)=='table')
-        for _,d in ipairs(qa) do
-          api.delete("/devices/"..d.id)
-          DEBUGF('info',"Proxy device %s deleted",d.id)
-        end
-        flags.proxy = false
-      else
-        deviceStruct = TQ.getProxy(flags.proxy,deviceStruct) -- Get deviceStruct from HC3 proxy
-        assert(deviceStruct, "Can't get proxy device")
-        api.post("/plugins/updateProperty",{deviceId= deviceStruct.id,propertyName='quickAppVariables',value=qvs})
-        TQ.startServer()
+  function env.print(...) env.fibaro.debug(env.__TAG,...) end
+
+  for _,lf in ipairs(info.files) do
+    DEBUGF('info',"Loading user file %s",lf.fname)
+    _,lf.src = readFile{file=lf.fname,eval=true,env=env,silent=false}
+  end
+  DEBUGF('info',"Loading user main file %s",info.fname)
+  load(info.src,info.fname,"t",env)()
+  assert(TQ.URL, TQ.USER and TQ.PASSWORD,"Please define URL, USER, and PASSWORD")
+end
+
+local function createQAstruct(info)
+  if info.directives == nil then
+    parseDirectives(info)
+  end
+  TQ.setOffline(info.directives.offline) 
+  local flags = info.directives
+  local env = info.env
+  local qvs = flags.var
+  
+  local uiCallbacks,viewLayout,uiView
+  if flags.u and #flags.u > 0 then
+    uiCallbacks,viewLayout,uiView = TQ.compileUI(flags.u)
+  end
+
+  if flags.id == nil then flags.id = DEVICEID DEVICEID = DEVICEID + 1 end
+  local deviceStruct = {
+    id=tonumber(flags.id),
+    type=flags.type or 'com.fibaro.binarySwitch',
+    name=flags.name or 'MyQA',
+    enabled = true,
+    visible = true,
+    properties = { quickAppVariables = qvs, uiCallbacks = uiCallbacks, viewLayout = viewLayout, uiView = uiView },
+    useUiView = false,
+    interfaces = {"quickApp"},
+    created = os.time(),
+    modified = os.time()
+  }
+  -- Find or create proxy if specified
+  if flags.offline and flags.proxy then
+    flags.proxy = nil
+    DEBUG("Offline mode, proxy directive ignored")
+  end
+  
+  if flags.proxy then
+    TQ.route = TQ.require("hc3emu.route")(TQ.HC3Call) -- Need this to do api.calls to setup proxy
+    local pname = tostring(flags.proxy)
+    if pname:starts("-") then -- delete proxy if name is preceeded with "-"
+      pname = pname:sub(2)
+      local qa = api.get("/devices?name="..urlencode(pname))
+      assert(type(qa)=='table')
+      for _,d in ipairs(qa) do
+        api.delete("/devices/"..d.id)
+        DEBUGF('info',"Proxy device %s deleted",d.id)
       end
+      flags.proxy = false
+    else
+      deviceStruct = TQ.getProxy(flags.proxy,deviceStruct) -- Get deviceStruct from HC3 proxy
+      assert(deviceStruct, "Can't get proxy device")
+      api.post("/plugins/updateProperty",{deviceId= deviceStruct.id,propertyName='quickAppVariables',value=qvs})
+      TQ.startServer()
+      info.isProxy = true
     end
-    
-    plugin._dev = deviceStruct            -- Now we have an device structure
-    plugin.mainDeviceId = deviceStruct.id -- Now we have an deviceId
-    TQ.registerQA(plugin.mainDeviceId,{},deviceStruct,nil)
-    
-    if flags.save then
-      local fileName = flags.save
-      local fqa = TQ.getFQA()
-      local f = io.open(fileName,"w")
-      assert(f,"Can't open file "..fileName)
-      f:write(json.encode(fqa))
-      f:close()
-      DEBUG("Saved QuickApp to %s",fileName)
-    end
-    
-    local env = TQ.getQA(plugin.mainDeviceId).env
-    setupQA(env)
-    DEBUGF('info',"Starting QuickApp %s",plugin._dev.name)
-    print(TQ.colorStr('orange',"HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..VERSION))
-    quickApp = env.QuickApp(plugin._dev) -- quickApp defined first when we return from :onInit()...
+  end
+  
+  info.device = deviceStruct
+  info.id = deviceStruct.id
+  env.plugin = env.plugin or {}
+  env.plugin._dev = deviceStruct
+  env.plugin.mainDeviceId = deviceStruct.id -- Now we have a deviceId
+  TQ.registerQA(info)
+  
+  if flags.save then
+    local fileName = flags.save
+    local fqa = TQ.getFQA(info.id)
+    local f = io.open(fileName,"w")
+    assert(f,"Can't open file "..fileName)
+    f:write(json.encode(fqa))
+    f:close()
+    DEBUG("Saved QuickApp to %s",fileName)
+  end
+  
+  return info
+end
+
+function runQA(info) -- The rest is run in a copas tasks...
+  mobdebug.on()
+  local isQA = info.src:match("fun".."ction%s+QuickApp:onInit") ~= nil
+  if isQA then  -- Start QuickApp if defined, e.g. run :onInit()
+    createQAstruct(info) 
+    loadQAFiles(info)
+    DEBUGF('info',"Starting QuickApp %s",info.device.name)
+    info.env.quickApp = info.env.QuickApp(info.device) -- quickApp defined first when we return from :onInit()...
   else
-    setupQA({})
+    loadQAFiles(info) -- No QA, just load the QA files...
   end
 end
 
+print(TQ.colorStr('orange',"HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..VERSION))
 while true do
   local startTime,t0 = os.clock(),os.time()
   TQ._shouldExit = true
-  copas(function() addthread(init) end)
+  copas(function() addThread(function() runQA(qaInfo) end) end)
   DEBUG("Runtime %.3f sec (%s sec absolute time)",os.clock()-startTime,os.time()-t0)
   if TQ._shouldExit then os.exit(0) end
 end

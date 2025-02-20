@@ -1,12 +1,11 @@
 -- Standard api routes
 
 local json = TQ.json
-local plugin = TQ.plugin
 
 local fmt = string.format
 
 local getDeviceStore = TQ.store.getDevice
-local flushStore = TQ.flushflush
+local flushStore = TQ.store.flush
 local internalStore = TQ.store.DB.internalStorage
 
 local function internalStoragePut(id,key,data)
@@ -54,25 +53,34 @@ local function internalStorageDelete(id,key,data)
   return true,200
 end
 
-local function getProp(p,prop) -- fetch local properties
-  local value = plugin._dev.properties[prop]
-  return {value=value,modified = plugin._dev.modified},200
+local function getProp(p,id,prop) -- fetch local properties
+  local qa = TQ.getQA(tonumber(id))
+  if qa == nil then return nil,301 end
+  local value = qa.device.properties[prop]
+  return {value=value,modified = qa.device.modified},200
 end
 
-local function callAction(p,name,data)
-  local id = TQ.plugin.mainDeviceId
+local function callAction(p,id,name,data)
   local qa = TQ.getQA(tonumber(id))
+  if qa == nil then return nil,301 end
   qa.qa:callAction(name,table.unpack(data.args)) return 'OK',200
 end
 
 function TQ.addStandardAPIRoutes(route) -- Adds standard API routes to an route object.
-  local id = plugin.mainDeviceId
 
-  route:add(fmt('GET/devices/%s',id),function(p,d) return plugin._dev,200 end) -- Fetch our local device structure
-  route:add(fmt('POST/devices/%s/action/<name>',id),callAction)       -- Call to ourself
-  route:add(fmt('GET/devices/%s/properties/<name>',id),getProp) -- Get properties from ourselves, fetch it locally
+  route:add('GET/devices/<id>',function(p,id,d)  -- Fetch our local device structure
+    local qa = TQ.getQA(tonumber(id))
+    if qa == nil then return nil,301 end
+    return qa.device,200 
+  end)
+  route:add('POST/devices/<id>/action/<name>',callAction)       -- Call to ourself
+  route:add('GET/devices/<id>/properties/<name>',getProp) -- Get properties from ourselves, fetch it locally
   
-  route:add(fmt('GET/quickApp/export/%s',id),function() return TQ.getFQA(),200 end) -- Get our local QA
+  route:add('GET/quickApp/export/<id>',function(p,id,_)  -- Get our local QA
+    local qa = TQ.getQA(tonumber(id))
+    if qa == nil then return nil,301 end
+    return TQ.getFQA(tonumber(id)),200 
+  end)
   route:add('PUT/plugins/<id>/variables/<name>', function(p,...) return internalStoragePut(...) end) --id,key,data
   route:add('POST/plugins/<id>/variables', function(p,...) return internalStoragePost(...) end) --id,data
   route:add('GET/plugins/<id>/variables/<name>', function(p,...) return internalStorageGet(...) end) --id,key,data

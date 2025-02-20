@@ -1,9 +1,7 @@
-local TQ = fibaro.hc3emu
+TQ = TQ
 local DEBUGF = TQ.DEBUGF
 local DEBUG = TQ.DEBUG
-local fibaro = TQ.fibaro
 local api = TQ.api
-local plugin = TQ.plugin
 local copas = TQ.copas
 local socket = TQ.socket
 local json = TQ.json
@@ -36,7 +34,7 @@ function quickApp:UIHandler(ev) send({type='ui',value=ev}) end
   
 function QuickApp:APIFUN(id,method,path,data)
   local stat,res,code = pcall(api[method:lower()],path,data)
-  send({type='resp',id=id,value={stat,res,code}})
+  send({type='resp',deviceId=self.id,id=id,value={stat,res,code}})
 end
   
 function QuickApp:initChildDevices(_) end
@@ -127,7 +125,6 @@ end
 local Route = TQ.require('hc3emu.route')
 
 function TQ.setupRemoteRoutes() -- Proxy routes updates both local QA data and remote Proxy data
-  local id = plugin.mainDeviceId
   local route = Route(TQ.HC3Call)
   local proxy = TQ.proxyId
   
@@ -147,15 +144,16 @@ function TQ.setupRemoteRoutes() -- Proxy routes updates both local QA data and r
   end
 
   local function putProp(p,data)
-    if data.deviceId == plugin.mainDeviceId then
-      plugin._dev.properties[data.propertyName] = data.value
+    if data.deviceId == proxy then
+      local qa = TQ.getQA(data.deviceId)
+      qa.device.properties[data.propertyName] = data.value
     end
     if proxy then return nil,301
-    else return data,200 end
+    else return nil,200 end
   end
 
   local function blockParentId(p,data)
-    if data.parentId == plugin.mainDeviceId and not proxy then return block(p,data) end
+    if data.parentId == proxy and not proxy then return block(p,data) end
     return nil,301
   end
 
@@ -163,16 +161,19 @@ function TQ.setupRemoteRoutes() -- Proxy routes updates both local QA data and r
     return nil,301
   end
 
-  local function putStruct(p,d)
-    for k,v in pairs(d) do plugin._dev[k] = v end -- update local properties
-    if proxy then return nil,301 -- and update the HC3 proxy 
-    else return d,200 end
+  local function putStruct(p,id,d) -- Update local struct, and then update HC3...
+    local qa = TQ.getQA(tonumber(id))
+    if qa then
+      for k,v in pairs(d) do qa.dev[k] = v end -- update local properties 
+      if proxy then return nil,301 -- and update the HC3 proxy 
+      else return d,200 end
+    else return nil,301 end
   end
 
   TQ.addStandardAPIRoutes(route)
 
-  route:add(fmt('PUT/devices/%s',id),putStruct)
-  route:add(fmt('DELETE/devices/%s',id),block)              -- Block delete
+  route:add('PUT/devices/<id>',putStruct)
+  route:add('DELETE/devices/<id>',block)                    -- Block delete
   route:add('POST/plugins/updateView',updateView)           -- Update local and remote view
   route:add('POST/plugins/updateProperty',putProp)          -- Update local and remote properties
   route:add('POST/plugins/createChildDevice',blockParentId) -- Block if it is for local QA and we don't have a proxy
@@ -188,7 +189,7 @@ function TQ.getProxy(name,devTempl)
   assert(type(devStruct)=='table',"API error")
   if next(devStruct)==nil then
     devStruct = TQ.createProxy(name,devTempl)
-    if not devStruct then return fibaro.error(__TAG,"Can't create proxy on HC3") end
+    if not devStruct then return TQ.ERROR("Can't create proxy on HC3") end
     devStruct.id = math.floor(devStruct.id)
     DEBUG("Proxy installed: %s %s",devStruct.id,name)
   else
@@ -232,7 +233,8 @@ function TQ.startServer()
       if not reqdata then break end
       local stat,msg = pcall(json.decode,reqdata)
       if stat then
-        local QA = TQ.getQA()
+        local deviceId = msg.deviceId
+        local QA = TQ.getQA(deviceId)
         if msg.type == 'action' then QA.env.onAction(msg.value.deviceId,msg.value)
         elseif msg.type == 'ui' then QA.env.onUIEvent(msg.value.deviceId,msg.value)
         elseif msg.type == 'resp' then

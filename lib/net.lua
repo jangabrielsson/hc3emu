@@ -1,11 +1,16 @@
-TQ = fibaro.hc3emu
-local async = TQ.addthread
+local TQ = fibaro.hc3emu
+local async = TQ.addThread
 local copas = TQ.copas
 local socket = TQ.socket
 local httpRequest = TQ.httpRequest
 local mobdebug = TQ.mobdebug
 local json = TQ.json
 
+------------------------ base ------------------------------
+---
+---
+------------------------- net ------------------------------
+net = {}
 -------------- HTTPClient ----------------------------------
 function net.HTTPClient()
   local self = {}
@@ -14,7 +19,7 @@ function net.HTTPClient()
       mobdebug.on()
       local opts = options.options or {}
       local res, status, headers = httpRequest(opts.method,url,opts.headers,opts.data,opts.timeout)
-      if tonumber(status) and status < 300 and options.success then 
+      if tonumber(status) and status <= 302 and options.success then 
         options.success({status=status,data=res,headers=headers})
       elseif options.error then options.error(status) end
     end

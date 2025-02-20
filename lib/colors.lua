@@ -224,6 +224,6 @@ COLORMAP.lightred = COLORMAP.red
 COLORMAP.salmon = COLORMAP.lightpink1
 COLORMAP.buttermilk = COLORMAP.yellow
 
-return function(fibaro)
-  fibaro.hc3emu.extraColors = COLORMAP
+return function(hc3emu)
+  hc3emu.extraColors = COLORMAP
 end

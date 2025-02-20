@@ -24,6 +24,7 @@ end
 local pathFuns = {}
 local function getDevice(id,prop)
   id = tonumber(id)
+  assert(id,"Device ID must be a number")
   if not store.devices[id] then store.devices[id] = {} end
   if not prop then return store.devices[id] end
   if not store.devices[id][prop] then store.devices[id][prop] = {} end

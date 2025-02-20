@@ -6,7 +6,7 @@
 
 -- Get main lua file
 local flag = false
-for i=1,20 do -- We do a search up the stack just in case that different debuggers are used... for mobdebug it's offset 5.
+for i=1,20 do -- We do a search up the stack just in case that different debuggers are used... for mobdebug our offset is 5...
   local inf = debug.getinfo(i)
   if not inf then break end
   if flag and inf.source:match("%.lua$") then 

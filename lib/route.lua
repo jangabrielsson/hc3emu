@@ -1,7 +1,8 @@
   -- A router can operate in 2 modes. router.local=true or router.local=false
   -- If false it route to local handler if it exists, otherwise it routes (pass through) to HC3
   -- If true it routes to local handler if it exists, otherwise it returns 501
-  
+
+TQ = TQ
 local fmt = string.format
 local DBG = TQ.DBG
 local DEBUGF = TQ.DEBUGF
@@ -38,6 +39,22 @@ function Route(passThroughHandler)   -- passThroughHandler is a function that ta
     d._handler = errorWrapper(handler)
   end
   
+  function self:addOver(method, path, handler) 
+    if type(path) == 'function' then -- shift args
+      handler = path 
+      method,path = method:match("(.-)(/.+)") -- split method and path
+    end 
+    local path = string.split(path,'/')
+    local d = ROUTEDIR[method:upper()]
+    for _,p in ipairs(path) do
+      p = ({['<id>']=true,['<name>']=true})[p] and '_match' or p
+      local d0 = d[p]
+      if d0 == nil then d[p] = {} end
+      d = d[p]
+    end
+    d._handler = errorWrapper(handler)
+  end
+
   function self:getRoute(method,path)
     local path = string.split(path,'/')
     local d,vars = ROUTEDIR[method:upper()],{}
@@ -74,6 +91,7 @@ function Route(passThroughHandler)   -- passThroughHandler is a function that ta
       if handler == nil then return nil,501 end
       if handler then vars[#vars+1]=data vars[#vars+1]=query and parseQuery(query) or {} vars[#vars+1]=flags end
       local value,code = handler(method..path,table.unpack(vars))
+      if code == 301 then return nil,404 end -- handler didn't want to handle it, return 404
       return value,code
     else -- proxy or no proxy, use route if it exists, otherwise call through
       if handler then

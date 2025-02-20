@@ -1,17 +1,18 @@
 local TQ = fibaro.hc3emu 
-local flags,copas,_type,addthread = TQ.flags,TQ.copas,TQ._type,TQ.addthread
+local flags,copas,_type,addThread = TQ.flags,TQ.copas,TQ._type,TQ.addThread
 local DEBUG,ERRORF = TQ.DEBUG,TQ.ERRORF
 local DBG = TQ.DBG
 local fmt = string.format
-plugin = plugin or {}
 
 function TQ.shutdown(delay)
   if TQ._server then copas.removeserver(TQ._server) end
   if TQ._client then copas.close(TQ._client) end
   TQ.cancelTimers() 
-  TQ.cancelTasks() 
+  TQ.cancelThreads() 
   copas.pause(delay or 0)
 end
+
+plugin = plugin or {}
 function plugin.getDevice(deviceId) return api.get("/devices/"..deviceId) end
 function plugin.deleteDevice(deviceId) return api.delete("/devices/"..deviceId) end
 function plugin.getProperty(deviceId, propertyName) return api.get("/devices/"..deviceId).properties[propertyName] end
@@ -43,7 +44,11 @@ function QuickAppBase:__init(dev)
   self.interfaces = dev.interfaces
   self.uiCallbacks = {}
   self.childDevices = {}
-  TQ.registerQA(dev.id, _G, dev, self)
+  if dev.parentId and dev.parentId > 0 then -- A child device, register it locally
+    TQ.registerQA({id=self.id,device=dev,env=_G,qa=self})
+  else
+    TQ.getQA(dev.id).qa = self
+  end
 end
 
 function QuickAppBase:debug(...) fibaro.debug(__TAG, ...) end
@@ -303,7 +308,7 @@ end
 
 function RefreshStateSubscriber:run()
   if not self.running then 
-    self.running = addthread(refreshStatePoller,self)
+    self.running = addThread(refreshStatePoller,self)
   end
 end
 

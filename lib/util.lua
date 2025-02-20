@@ -1,5 +1,14 @@
 local fmt = string.format 
+local TQ
 
+local function DEBUG(f,...) print("[SYS]",fmt(f,...)) end
+local function DEBUGF(flag,f,...) if TQ.DBG[flag] then DEBUG(f,...) end end
+local function WARNINGF(f,...) print("[SYSWARN]",fmt(f,...)) end
+local function ERRORF(f,...) print("[SYSERR]",fmt(f,...)) end
+local function pcall2(f,...) local res = {pcall(f,...)} if res[1] then return table.unpack(res,2) else return nil end end
+local function ll(fn) local f,e = loadfile(fn) if f then return f() else return not tostring(e):match("such file") and error(e) or nil end end
+
+------------------------ json ------------------------------
 local json = require("json") -- Reasonable fast json parser, not to complicated to build...
 local copy
 
@@ -55,14 +64,15 @@ local function urlencode(str) -- very useful
   end
   return str
 end
-TQ.urlencode = urlencode
 
-function table.merge(a, b)
+local function merge(a, b)
   if type(a) == 'table' and type(b) == 'table' then
-    for k,v in pairs(b) do if type(v)=='table' and type(a[k] or false)=='table' then table.merge(a[k],v) else a[k]=v end end
+    for k,v in pairs(b) do if type(v)=='table' and type(a[k] or false)=='table' then merge(a[k],v) else a[k]=v end end
   end
   return a
 end
+
+function table.merge(a,b) return merge(table.copy(a),b) end
 
 function table.copy(obj)
   if type(obj) == 'table' then
@@ -166,10 +176,9 @@ do
   ---@diagnostic disable-next-line: param-type-mismatch
   local function getTimezone() local now = os.time() return os.difftime(now, os.time(os.date("!*t", now))) end
   
-  function sunCalc(time)
-    local hc3Location = api.get("/settings/location")
-    local lat = hc3Location.latitude or 0
-    local lon = hc3Location.longitude or 0
+  function sunCalc(time,latitude,longitude)
+    local lat = latitude or 0
+    local lon = longitude or 0
     local utc = getTimezone() / 3600
     local zenith,zenith_twilight = 90.83, 96.0 -- sunset/sunrise 90°50′, civil twilight 96°0′
     
@@ -214,7 +223,7 @@ do
           res[#res+1] = "]"
         else
           seen[e]=true
-          if e._var_  then res[#res+1] = format('"%s"',e._str) return end
+          if e._var_  then res[#res+1] = fmt('"%s"',e._str) return end
           local k = {} for key,_ in pairs(e) do k[#k+1] = tostring(key) end
           table.sort(k,keyCompare)
           if #k == 0 then res[#res+1] = "[]" return end
@@ -233,10 +242,43 @@ do
   json.encodeFast = prettyJsonFlat
 end
 
-return {
-  json = json,
-  urlencode = urlencode,
-  __assert_type = __assert_type,
-  readFile = readFile,
-  sunCalc = sunCalc
-}
+local eventHandlers = {}
+local EVENT = setmetatable({}, {
+  __newindex = function(t,k,v)
+    eventHandlers[k] = eventHandlers[k] or {}
+    eventHandlers[k][#eventHandlers[k]+1] = v
+  end
+})
+
+local function post(event,force) ---{type=..., ...}
+  local evhs = eventHandlers[event.type]
+  for _,evh in ipairs(evhs or {}) do evh(event) end
+end
+
+local tasks = {}
+local function addThread(call,...)
+  local task = 42
+  task = TQ.copas.addthread(function(...) TQ.mobdebug.on() call(...) tasks[task]=nil end,...)
+  tasks[task] = true
+  return task
+end
+local function cancelThreads() for t,_ in pairs(tasks) do TQ.copas.removethread(t) end end
+
+return function(_TQ)
+  TQ = _TQ
+  TQ.DEBUG = DEBUG
+  TQ.DEBUGF = DEBUGF
+  TQ.WARNINGF = WARNINGF
+  TQ.ERRORF = ERRORF
+  TQ.pcall2 = pcall2
+  TQ.ll = ll
+  TQ.json = json
+  TQ.urlencode = urlencode
+  TQ.__assert_type = __assert_type
+  TQ.readFile = readFile
+  TQ.sunCalc = sunCalc
+  TQ.EVENT = EVENT
+  TQ.post = post
+  TQ.addThread = addThread
+  TQ.cancelThreads = cancelThreads
+end

@@ -47,6 +47,13 @@ end
 
 local DB = TQ.store.DB
 
+local function updateSunTime()
+  local longitude,latitude = DB.settings.location.longitude,DB.settings.location.latitude
+  local sunrise,sunset = TQ.sunCalc(nil,latitude,longitude)
+  DB.devices[1].properties.sunriseHour = sunrise
+  DB.devices[1].properties.sunsetHour = sunset
+end
+
 local filterkeys = {
   parentId=function(d,v) return d.parentId == v end,
   name=function(d,v) return d.name == v end,
@@ -125,6 +132,9 @@ local function updateDeviceView(p,data)
 end
 local function blocked(p) return nil,501 end
 local function refreshState(p) return {},200 end
+
+function TQ.EVENT.emulator_started() if TQ.flags.offline then updateSunTime() end end
+function TQ.EVENT.midnight() if TQ.flags.offline then updateSunTime() end end
 
 function TQ.setupOfflineRoutes()
   local route = Route(); route:setLocal(true)

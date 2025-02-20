@@ -250,9 +250,10 @@ local EVENT = setmetatable({}, {
   end
 })
 
-local function post(event,force) ---{type=..., ...}
+local function post(event,immidiate) ---{type=..., ...}
   local evhs = eventHandlers[event.type]
-  for _,evh in ipairs(evhs or {}) do evh(event) end
+  local function poster() for _,evh in ipairs(evhs or {}) do evh(event) end end
+  if not immidiate then TQ.addThread(poster) else poster() end
 end
 
 local tasks = {}

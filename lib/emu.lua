@@ -137,6 +137,19 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
   function directive.stateReadOnly(d,val) flags.stateReadOnly = eval(val,d) end
   function directive.latitude(d,val) flags.latitude = tonumber(val) end
   function directive.longitude(d,val) flags.longitude = tonumber(val) end
+  function directive.time(d,val)
+    local D,h = val:match("^(.*) ([%d:]*)$")
+    if D == nil and val:match("^[%d/]+$") then D,h = val,os.date("%H:%M:%S")
+    elseif D == nil and val:match("^[%d:]+$") then D,h = os.date("%Y/%m/%d"),val
+    elseif D == nil then error("Bad time directive: "..d) end
+    local y,m,d = D:match("(%d+)/(%d+)/?(%d*)")
+    if d == "" then y,m,d = os.date("%Y"),y,m end
+    local H,M,S = h:match("(%d+):(%d+):?(%d*)")
+    if S == "" then H,M,S = H,M,0 end
+    assert(y and m and d and H and M and S,"Bad time directive: "..d)
+    flags.time = os.time({year=y,month=m,day=d,hour=H,min=M,sec=S})
+    DEBUGF('info',"Time set to %s",os.date("%c",flags.time))
+  end
   
   mainSrc:gsub("%-%-%%%%(%w+=.-)%s*\n",function(p)
     local f,v = p:match("(%w+)=(.*)")
@@ -312,8 +325,13 @@ local function loadQAFiles(info)
   end
   TQ.setOffline(info.directives.offline) 
 
+  local orgTime,orgDate,timeOffset = os.time,os.date,0
+  function TQ.setTimeOffset(offset) timeOffset = offset TQ.post({type='time_changed'}) end
+  local function userTime(a) return a == nil and math.floor(orgTime() + timeOffset + 0.5) or orgTime(a) end
+  local function userDate(a, b) return b == nil and os.date(a, userTime()) or orgDate(a, b) end
+  if flags.time then local t = flags.time  TQ.setTimeOffset(t - os.time()) end
   local env = info.env
-  local os2 = { time = os.time, clock = os.clock, difftime = os.difftime, date = os.date, exit = nil }
+  local os2 = { time = userTime, clock = os.clock, difftime = os.difftime, date = userDate, exit = nil }
   local fibaro = { hc3emu = TQ, HC3EMU_VERSION = VERSION, flags = info.directives, DBG = DBG }
   for k,v in pairs({
     __assert_type = __assert_type, fibaro = fibaro, api = api, __TAG = __TAG, json = json, urlencode = urlencode,
@@ -428,6 +446,7 @@ function runQA(info) -- The rest is run in a copas tasks...
     createQAstruct(info) 
     loadQAFiles(info)
     DEBUGF('info',"Starting QuickApp %s",info.device.name)
+    TQ.post({type='quickApp_started',id=info.id},true)
     info.env.quickApp = info.env.QuickApp(info.device) -- quickApp defined first when we return from :onInit()...
   else
     loadQAFiles(info) -- No QA, just load the QA files...
@@ -438,7 +457,10 @@ print(TQ.colorStr('orange',"HC3Emu - Tiny QuickApp emulator for the Fibaro Home 
 while true do
   local startTime,t0 = os.clock(),os.time()
   TQ._shouldExit = true
-  copas(function() addThread(function() runQA(qaInfo) end) end)
+  copas(function() addThread(function()
+    TQ.post({type='emulator_started'},true)
+    runQA(qaInfo) end) 
+  end)
   DEBUG("Runtime %.3f sec (%s sec absolute time)",os.clock()-startTime,os.time()-t0)
   if TQ._shouldExit then os.exit(0) end
 end

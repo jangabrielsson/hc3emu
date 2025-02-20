@@ -6,6 +6,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%type=com.fibaro.multilevelSwitch
 --%%proxy=MyProxy
 --%%dark=true
+--%%time=12/31 10:00:12
 --%%id=5001
 --%%offline=true
 --%%debug=info:true,http:true,onAction:true,onUIEvent:true
@@ -16,6 +17,7 @@ if require and not QuickApp then require("hc3emu") end
 
 local function printf(...) print(string.format(...)) end
 
+print("TIME:",os.date("%c"))
 function QuickApp:myFun(a,b)
   printf("myFun called %s+%s=%s",a,b,a+b)
 end

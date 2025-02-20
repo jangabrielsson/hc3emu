@@ -36,19 +36,20 @@ local function html2ansiColor(str, dfltColor) -- Allows for nested font tags and
   end)..colorEnd
 end
 
-function TQ.debugOutput(tag, str, typ)
+function TQ.debugOutput(tag, str, typ, time)
+  time = time or os.time()
   for _,p in ipairs(TQ.logFilter or {}) do if str:find(p) then return end end
   str = str:gsub("(&nbsp;)", " ")  -- transform html space
   str = str:gsub("</br>", "\n")    -- transform break line
   str = str:gsub("<br>", "\n")     -- transform break line
   if TQ.DBG.color==false then
     str = str:gsub("(</?font.->)", "") -- Remove color tags
-    print(fmt("%s[%s][%s]: %s", os.date("[%d.%m.%Y][%H:%M:%S]"), typ:upper(), tag, str))
+    print(fmt("%s[%s][%s]: %s", os.date("[%d.%m.%Y][%H:%M:%S]",time), typ:upper(), tag, str))
   else
     local fstr = "<font color='%s'>%s[<font color='%s'>%-6s</font>][%-7s]: %s</font>"
     local txtColor = TQ.SYSCOLORS.text
     local typColor = TQ.SYSCOLORS[typ:lower()] or txtColor
-    local outstr = fmt(fstr,txtColor,os.date("[%d.%m.%Y][%H:%M:%S]"),typColor,typ:upper(),tag,str)
+    local outstr = fmt(fstr,txtColor,os.date("[%d.%m.%Y][%H:%M:%S]",time),typColor,typ:upper(),tag,str)
     print(html2ansiColor(outstr,TQ.SYSCOLORS.text))
   end
 end

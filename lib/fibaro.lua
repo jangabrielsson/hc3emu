@@ -7,7 +7,7 @@ function __fibaro_get_scene(sceneId) return api.get("/scenes/"..sceneId) end
 function __fibaro_get_global_variable(varName) return api.get("/globalVariables/"..varName) end
 function __fibaro_get_device_property(deviceId, propertyName) return api.get("/devices/"..deviceId.."/properties/"..propertyName) end
 function __fibaro_get_devices_by_type(type) return api.get("/devices?type="..type) end
-function __fibaro_add_debug_message(tag, msg, typ) fibaro.hc3emu.debugOutput(tag, msg, typ) end
+function __fibaro_add_debug_message(tag, msg, typ) fibaro.hc3emu.debugOutput(tag, msg, typ, os.time()) end
 
 function __fibaro_get_partition(id) return api.get('/alarms/v1/partitions/' .. tostring(id)) end
 function __fibaro_get_partitions() return api.get('/alarms/v1/partitions') end

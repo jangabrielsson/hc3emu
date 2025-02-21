@@ -18,6 +18,7 @@ local VERSION = "1.0.11"
 local cfgFileName = "hc3emu_cfg.lua"   -- Config file in current directory
 local homeCfgFileName = ".hc3emu.lua"  -- Config file in home directory
 local mainFileName, mainSrc = MAINFILE, nil -- Main file name and source
+
 -- TQ defined in src/hc3emu.lua
 TQ.DIR={} -- Directory for all QAs - devicesId -> QAinfo 
 TQ.EMUVAR = "TQEMU" -- HC3 GV with connection data for HC3 proxy
@@ -28,7 +29,6 @@ TQ.DBG = { info=true } -- Default flags and debug settings
 TQ.require("hc3emu.util")(TQ) -- Utility functions
 
 local DEVICEID = 5000 -- Start id for QA devices
-local __TAG = "INIT"
 local qaInfo = { env = {} }
 
 local flags,runQA = {},nil
@@ -89,12 +89,12 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
   DEBUGF('info',"Parsing %s directives...",info.fname)
   
   local flags = {
-    name='MyQA', type='com.fibaro.binarySwitch', debug={}, dark = false,
-    var = {}, gv = {}, files = {}, creds = {}, u={}
+    name='MyQA', type='com.fibaro.binarySwitch', debug={}, 
+    var = {}, gv = {}, files = {}, creds = {}, u={}, conceal = {}, 
   }
   
   local function eval(str,d)
-    local stat, res = pcall(function() return load("return " .. str, nil, "t", { config = cfgFlags })() end)
+    local stat, res = pcall(function() return load("return " .. str, nil, "t", { config = baseFlags })() end)
     if stat then return res end
     ERRORF("directive '%s' %s",tostring(d),res)
     error()
@@ -112,6 +112,16 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
     assert(name and expr,"Bad var directive: "..d) 
     local e = eval(expr,d)
     if e then flags.var[#flags.var+1] = {name=name,value=e} end
+    --end
+  end
+  function directive.conceal(d,val) 
+    ---local vs = val:split(",")
+    --for _,v in ipairs(vs) do
+    local v = val
+    local name,expr = v:match("(.-):(.*)")
+    assert(name and expr,"Bad conceal directive: "..d) 
+    --local e = eval(expr,d)
+    if expr then flags.conceal[name] = expr end
     --end
   end
   function directive.file(d,val) 
@@ -132,6 +142,8 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
   function directive.save(d,val) flags.save = tostring(val) assert(flags.save:match("%.fqa$"),"Bad save directive:"..d)end
   function directive.proxy(d,val) flags.proxy = tostring(val) end
   function directive.dark(d,val) flags.dark = eval(val,d) end
+  function directive.color(d,val) flags.logColor = eval(val,d) end
+  function directive.logUI(d,val) flags.logUI = eval(val,d) end
   function directive.offline(d,val) flags.offline = eval(val,d) end
   function directive.state(d,val) flags.state = tostring(val) end
   function directive.stateReadOnly(d,val) flags.stateReadOnly = eval(val,d) end
@@ -259,6 +271,7 @@ function MODULE.qa_manager()
       file = files
     }
   end
+
   function TQ.registerQA(info) -- {id=id,directives=directives,fname=fname,src=src,env=env,device=dev,qa=qa,files=files,proxy=<bool>,child=<bool>}
     local id = info.id
     assert(id,"Can't register QA without id")
@@ -313,6 +326,11 @@ local luaType = function(obj) -- We need to recognize our class objects as 'user
 end
 luaType = skip(luaType)
 
+local orgTime,orgDate,timeOffset = os.time,os.date,0
+function TQ.setTimeOffset(offset) timeOffset = offset TQ.post({type='time_changed'}) end
+local function userTime(a) return a == nil and math.floor(orgTime() + timeOffset + 0.5) or orgTime(a) end
+local function userDate(a, b) return b == nil and os.date(a, userTime()) or orgDate(a, b) end
+
 TQ.offlineRoute = TQ.setupOfflineRoutes() -- Setup routes for offline API calls
 TQ.remoteRoute = TQ.setupRemoteRoutes() -- Setup routes for remote API calls (incl proxy)
 
@@ -320,21 +338,15 @@ TQ.remoteRoute = TQ.setupRemoteRoutes() -- Setup routes for remote API calls (in
 
 local function loadQAFiles(info)
   
-  if info.directives == nil then
-    parseDirectives(info)
-  end
+  if info.directives == nil then parseDirectives(info) end
   TQ.setOffline(info.directives.offline) 
+  if info.directives.time then local t = info.directives.time  TQ.setTimeOffset(t - os.time()) end
 
-  local orgTime,orgDate,timeOffset = os.time,os.date,0
-  function TQ.setTimeOffset(offset) timeOffset = offset TQ.post({type='time_changed'}) end
-  local function userTime(a) return a == nil and math.floor(orgTime() + timeOffset + 0.5) or orgTime(a) end
-  local function userDate(a, b) return b == nil and os.date(a, userTime()) or orgDate(a, b) end
-  if flags.time then local t = flags.time  TQ.setTimeOffset(t - os.time()) end
   local env = info.env
   local os2 = { time = userTime, clock = os.clock, difftime = os.difftime, date = userDate, exit = nil }
   local fibaro = { hc3emu = TQ, HC3EMU_VERSION = VERSION, flags = info.directives, DBG = DBG }
   for k,v in pairs({
-    __assert_type = __assert_type, fibaro = fibaro, api = api, __TAG = __TAG, json = json, urlencode = urlencode,
+    __assert_type = __assert_type, fibaro = fibaro, api = api, json = json, urlencode = urlencode, __TAG = info.directives.name or "INIT",
     collectgarbage = collectgarbage, os = os2, math = math, string = string, table = table,
     getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring,
     type = luaType, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
@@ -366,9 +378,7 @@ local function loadQAFiles(info)
 end
 
 local function createQAstruct(info)
-  if info.directives == nil then
-    parseDirectives(info)
-  end
+  if info.directives == nil then parseDirectives(info) end
   TQ.setOffline(info.directives.offline) 
   local flags = info.directives
   local env = info.env
@@ -392,6 +402,7 @@ local function createQAstruct(info)
     created = os.time(),
     modified = os.time()
   }
+  info.env.__TAG = (deviceStruct.name..(deviceStruct.id or "")):upper()
   -- Find or create proxy if specified
   if flags.offline and flags.proxy then
     flags.proxy = nil
@@ -413,7 +424,9 @@ local function createQAstruct(info)
     else
       deviceStruct = TQ.getProxy(flags.proxy,deviceStruct) -- Get deviceStruct from HC3 proxy
       assert(deviceStruct, "Can't get proxy device")
+      info.env.__TAG = (deviceStruct.name..(deviceStruct.id or "")):upper()
       api.post("/plugins/updateProperty",{deviceId= deviceStruct.id,propertyName='quickAppVariables',value=qvs})
+      if flags.logUI then TQ.logUI(deviceStruct.id) end
       TQ.startServer()
       info.isProxy = true
     end
@@ -429,6 +442,13 @@ local function createQAstruct(info)
   if flags.save then
     local fileName = flags.save
     local fqa = TQ.getFQA(info.id)
+    local vars = table.copy(fqa.initialProperties.quickAppVariables)
+    fqa.initialProperties.quickAppVariables = vars
+    for _,v in ipairs(vars) do
+      if flags.conceal[v.name] then 
+        v.value = flags.conceal[v.name]
+      end
+    end
     local f = io.open(fileName,"w")
     assert(f,"Can't open file "..fileName)
     f:write(json.encode(fqa))

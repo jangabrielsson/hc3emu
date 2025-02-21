@@ -6,6 +6,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%type=com.fibaro.multilevelSwitch
 --%%proxy=MyProxy
 --%%dark=true
+--%%color=true
 --%%time=12/31 10:00:12
 --%%id=5001
 --%%offline=true

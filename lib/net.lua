@@ -199,7 +199,7 @@ if websock then
         while conn do
           local msg,code = ws_client:receive()
           if msg and msg ~="" then dispatch("dataReceived",msg,code)
-          else
+          elseif conn then
             dispatch("error",code)
             disconnected()
           end

@@ -40,7 +40,7 @@ RUN apk add --no-cache \
     && sudo luarocks install luasec \
     && sudo luarocks install mobdebug \
     && sudo luarocks install hc3emu \
-    && apk del gcc make curl wget libc-dev moreutils coreutils git \
+    && apk del gcc make curl wget libc-dev moreutils coreutils \
     && cp /usr/bin/lua5.4 /usr/bin/lua \
     && lua5.4 -v
     

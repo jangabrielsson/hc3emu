@@ -42,7 +42,7 @@ function TQ.debugOutput(tag, str, typ, time)
   str = str:gsub("(&nbsp;)", " ")  -- transform html space
   str = str:gsub("</br>", "\n")    -- transform break line
   str = str:gsub("<br>", "\n")     -- transform break line
-  if TQ.DBG.color==false then
+  if TQ.flags.logColor==false then
     str = str:gsub("(</?font.->)", "") -- Remove color tags
     print(fmt("%s[%s][%s]: %s", os.date("[%d.%m.%Y][%H:%M:%S]",time), typ:upper(), tag, str))
   else
@@ -54,4 +54,8 @@ function TQ.debugOutput(tag, str, typ, time)
   end
 end
 
-function TQ.colorStr(color,str) return fmt("%s%s%s",TQ.COLORMAP[color] or TQ.extraColors [color],str,colorEnd) end
+function TQ.colorStr(color,str) 
+  if TQ.flags.logColor then
+    return fmt("%s%s%s",TQ.COLORMAP[color] or TQ.extraColors [color],str,colorEnd) 
+  else return str end
+end

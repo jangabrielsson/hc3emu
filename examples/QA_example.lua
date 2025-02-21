@@ -11,9 +11,11 @@ if require and not QuickApp then require("hc3emu") end
 --%%proxy=MyProxy
 --%%dark=true
 --%%id=5001
+--%%logUI=true
 --%%state=state.db
 --%%save=MyQA.fqa
 --%%var=foo:config.secret
+--%%conceal=foo:<secret>
 --%%debug=sdk:false,info:true,proxyAPI:true,server:true,onAction:true,onUIEvent:true
 --%%debug=http:true,color:true,blockAPI:true
 --%%file=examples/include_example.lua:lib

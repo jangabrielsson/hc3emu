@@ -1,4 +1,5 @@
 local json = TQ.json
+local api = TQ.api
 local fmt = string.format
 
 -- arrayify table. Ensures that empty array is json encoded as "[]"
@@ -198,4 +199,138 @@ function TQ.compileUI(UI)
   if next(callBacks)==nil then callBacks = nil end
   if next(uiView)==nil then uiView = nil end
   return callBacks,viewLayout,uiView
+end
+
+local sortKeys = {
+  "button", "slider", "label","select","switch","multi",
+  "text",
+  "min", "max", "value",
+  "visible",
+  "onRelease", "onChanged",
+}
+local sortOrder = {}
+for i, s in ipairs(sortKeys) do sortOrder[s] = "\n" .. string.char(i + 64) .. " " .. s end
+local function keyCompare(a, b)
+  local av, bv = sortOrder[a] or a, sortOrder[b] or b
+  return av < bv
+end
+
+local function toLua(t)
+  if type(t) == 'table' then
+    if t[1] or next(t)==nil then
+      local res = {}
+      for _, v in ipairs(t) do
+        res[#res + 1] = toLua(v)
+      end
+      return "{" .. table.concat(res, ",") .. "}"
+    else
+      local res, keys = {}, {}
+      for k, _ in pairs(t) do keys[#keys + 1] = k end
+      table.sort(keys, keyCompare)
+      for _, k in ipairs(keys) do
+        local tk = type(t[k]) == 'table' and toLua(t[k]) 
+        or (type(t[k]) == 'boolean' or type(t[k])=='number') and tostring(t[k])
+        or '"'..t[k]..'"'
+        res[#res + 1] = string.format('%s=%s', k, tk)
+      end
+      return "{" .. table.concat(res, ",") .. "}"
+    end
+  else
+    if type(t) == 'string' then return '"' .. t .. '"' 
+    else return tostring(t) end
+  end
+end
+
+function TQ.dumpUI(UI)
+  local lines = {}
+  for _, row in ipairs(UI or {}) do
+    for _,l in ipairs(row) do l.type=nil end
+    if row[1] and not row[2] then row = row[1] end
+    lines[#lines+1]="--%%u="..toLua(row)
+  end
+  print("Proxy UI:\n"..table.concat(lines,"\n"))
+end
+
+
+local function collectViewLayoutRow(u,map)
+  local row = {}
+  local function empty(a) return a~="" and a or "" end
+  local function conv(u)
+    if type(u) == 'table' then
+      local typ = u.type
+      local name = u.name
+      if name then
+        if typ=='label' then
+          row[#row+1]={label=name, text=u.text}
+        elseif typ=='button' then
+          local e ={[typ]=name, text=u.text, value=u.value, visible=u.visible==nil and true or u.visible}
+          e.onReleased = empty((map[name] or {}).onReleased)
+          e.onLongPressDown = empty((map[name] or {}).onLongPressDown)
+          e.onLongPressReleased = empty((map[name] or {}).onLongPressReleased)
+          row[#row+1]=e
+        elseif typ=='switch' then
+          local e ={[typ]=name, text=u.text, value=u.value, visible=u.visible==nil and true or u.visible}
+          e.onReleased = empty((map[name] or {}).onReleased)
+          e.onLongPressDown = empty((map[name] or {}).onLongPressDown)
+          e.onLongPressReleased = empty((map[name] or {}).onLongPressReleased)
+          row[#row+1]=e
+        elseif typ=='slider' then
+          row[#row+1]={
+            slider=name, 
+            text=u.text, 
+            onChanged=(map[name] or {}).onChanged,
+            max = u.max,
+            min = u.min,
+            step = u.step,
+            visible = u.visible==nil and true or u.visible,
+          }
+        elseif typ=='select' then
+          row[#row+1]={
+            [u.selectionType=='multi' and 'multi' or 'select']=name, 
+            text=u.text, 
+            options=arrayify(u.options),
+            visible = u.visible==nil and true or u.visible,
+            onToggled=(map[name] or {}).onToggled,
+          }
+        else
+          print("Unknown type",json.encode(u))
+        end
+      else
+        for _,v in pairs(u) do conv(v) end
+      end
+    end
+  end
+  conv(u)
+  return row
+end
+
+local function viewLayout2UI(u,map)
+  local function conv(u)
+    local rows = {}
+    for _,j in pairs(u.items) do
+      local row = collectViewLayoutRow(j.components,map)
+      if #row > 0 then
+        if #row == 1 then row=row[1] end
+        rows[#rows+1]=row
+      end
+    end
+    return rows
+  end
+  return conv(u['$jason'].body.sections)
+end
+
+function TQ.viewLayout2UI(view,callbacks)
+  local map = {}
+  for _,c in ipairs(callbacks) do
+    map[c.name]=map[c.name] or {}
+    map[c.name][c.eventType]=c.callback
+  end
+  local UI = viewLayout2UI(view,map)
+  return UI
+end
+
+function TQ.logUI(id)
+  local qa = api.get("/devices/"..id)
+  local UI = TQ.viewLayout2UI(qa.properties.viewLayout,qa.properties.uiCallbacks or {})
+  TQ.dumpUI(UI)
 end

@@ -19,8 +19,7 @@ local function _setTimeout(rec,fun,ms)
     callback = callback,
     params = {fun,ref0},
     errorhandler = function(err, coro, skt)
-      local qa = TQ.getQA()
-      qa.env.fibaro.error(tostring(qa.env.__TAG),fmt("setTimeout:%s",tostring(err)))
+      fibaro.error(tostring(__TAG),fmt("setTimeout:%s",tostring(err)))
       timers[ref]=nil
       copas.seterrorhandler()
     end

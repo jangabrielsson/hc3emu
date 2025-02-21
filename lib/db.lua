@@ -34,3 +34,28 @@ end
 TQ.store = { DB = store }
 TQ.store.getDevice = getDevice
 TQ.store.flush = flush
+
+local function keyMap(list,key)
+  local r = {}
+  for _,v in ipairs(list) do r[v[key]] = v end
+  return r
+end
+
+function TQ.store.copyHC3()
+  local devices = keyMap(api.get("/devices"),'id')
+  local rooms = api.get("/rooms")
+  local sections = api.get("/sections")
+  local globalVariables = keyMap(api.get("/globalVariables"),'name')
+  local locations = api.get("/panels/location")
+  local info = api.get("/settings/info")
+  local location = api.get("/settings/location")
+  local categories = api.get("/categories")
+  local home = api.get("/home")
+  local iosDevices = api.get("/iosDevices")
+  local profiles = api.get("/profiles")
+  local users = api.get("/users")
+  local weather = api.get("/weather")
+  local alarmsPartitions = api.get("/alarms/v1/partitions")
+  local alarmsDevices = api.get("/alarms/v1/devices")
+  local climate = api.get("/panels/climate")
+end

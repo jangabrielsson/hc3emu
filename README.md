@@ -46,13 +46,13 @@ Include header in QA file and set --%% directives
 ```lua
 if require and not QuickApp then require("hc3emu") end
 
---%%name="Test"
---%%type="com.fibaro.multilevelSwitch"
---%%proxy="MyProxy"
+--%%name=Test
+--%%type=com.fibaro.multilevelSwitch
+--%%proxy=MyProxy
 --%%dark=true
 --%%var=foo:config.secret
 --%%debug=sdk:false,info:true
---%%debug=http:true,color:true
+--%%debug=http:true
 
 function QuickApp:onInit()
    self:debug(self.name,self.id)

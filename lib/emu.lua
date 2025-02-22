@@ -143,8 +143,10 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
   function directive.proxy(d,val) flags.proxy = tostring(val) end
   function directive.dark(d,val) flags.dark = eval(val,d) end
   function directive.color(d,val) flags.logColor = eval(val,d) end
+  function directive.speed(d,val) flags.speed = eval(val,d) assert(tonumber(flags.speed),"Bad speed directive:"..d)end
   function directive.logUI(d,val) flags.logUI = eval(val,d) end
   function directive.offline(d,val) flags.offline = eval(val,d) end
+  directive['local'] = function(d,val) flags.offline = eval(val,d) end
   function directive.state(d,val) flags.state = tostring(val) end
   function directive.stateReadOnly(d,val) flags.stateReadOnly = eval(val,d) end
   function directive.latitude(d,val) flags.latitude = tonumber(val) end
@@ -163,8 +165,10 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
     DEBUGF('info',"Time set to %s",os.date("%c",flags.time))
   end
   
-  mainSrc:gsub("%-%-%%%%(%w+=.-)%s*\n",function(p)
-    local f,v = p:match("(%w+)=(.*)")
+  mainSrc:gsub("%-%-%%%%(%w-=.-)%s*\n",function(p)
+    local f,v = p:match("(%w-)=(.*)")
+    local v1,com = v:match("(.*)%s* %-%- (.*)$")
+    if v1 then v = v1 end
     if directive[f] then
       directive[f](p,v)
     else WARNINGF("Unknown directive: %s",tostring(f)) end
@@ -327,9 +331,13 @@ end
 luaType = skip(luaType)
 
 local orgTime,orgDate,timeOffset = os.time,os.date,0
-function TQ.setTimeOffset(offset) timeOffset = offset TQ.post({type='time_changed'}) end
-local function userTime(a) return a == nil and math.floor(orgTime() + timeOffset + 0.5) or orgTime(a) end
+function TQ.setTimeOffset(offset,update) timeOffset = offset if update then TQ.post({type='time_changed'}) end end
+function TQ.getTimeOffset() return timeOffset end
+function TQ.milliClock() return socket.gettime() end
+local function userTime(a) return a == nil and math.floor(TQ.milliClock() + timeOffset + 0.5) or orgTime(a) end
 local function userDate(a, b) return b == nil and os.date(a, userTime()) or orgDate(a, b) end
+function TQ.userTime(a) return userTime(a) end
+function TQ.userDate(a,b) return userDate(a,b) end
 
 TQ.offlineRoute = TQ.setupOfflineRoutes() -- Setup routes for offline API calls
 TQ.remoteRoute = TQ.setupRemoteRoutes() -- Setup routes for remote API calls (incl proxy)

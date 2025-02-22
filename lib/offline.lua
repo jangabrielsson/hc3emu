@@ -49,7 +49,7 @@ local DB = TQ.store.DB
 
 local function updateSunTime()
   local longitude,latitude = DB.settings.location.longitude,DB.settings.location.latitude
-  local sunrise,sunset = TQ.sunCalc(nil,latitude,longitude)
+  local sunrise,sunset = TQ.sunCalc(TQ.userTime(),latitude,longitude)
   DB.devices[1].properties.sunriseHour = sunrise
   DB.devices[1].properties.sunsetHour = sunset
 end

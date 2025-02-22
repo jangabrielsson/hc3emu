@@ -13,7 +13,7 @@ of this license document, but changing it is not allowed.
 ---@diagnostic disable-next-line: undefined-global
 _DEVELOP = _DEVELOP
 
-local VERSION = "1.0.11"
+local VERSION = "1.0.15"
 
 local cfgFileName = "hc3emu_cfg.lua"   -- Config file in current directory
 local homeCfgFileName = ".hc3emu.lua"  -- Config file in home directory
@@ -256,10 +256,12 @@ function MODULE.qa_manager()
     local qa = TQ.getQA(id)
     local dev = qa.device
     local files = {}
+    local suffix = ""
     for _,f in ipairs(qa.files) do
+      if f.name == "main" then suffix = "99" end -- User has main file already... rename ours to main99
       files[#files+1] = {name=f.name, isMain=false, isOpen=false, type='lua', content=f.src}
     end
-    files[#files+1] = {name="main", isMain=true, isOpen=false, type='lua', content=mainSrc}
+    files[#files+1] = {name="main"..suffix, isMain=true, isOpen=false, type='lua', content=mainSrc}
     local initProps = {}
     local savedProps = {
       "uiCallbacks","quickAppVariables","uiView","viewLayout","apiVersion","useEmbededView","manufacturer","useUiView",
@@ -354,7 +356,7 @@ local function loadQAFiles(info)
   local os2 = { time = userTime, clock = os.clock, difftime = os.difftime, date = userDate, exit = nil }
   local fibaro = { hc3emu = TQ, HC3EMU_VERSION = VERSION, flags = info.directives, DBG = DBG }
   for k,v in pairs({
-    __assert_type = __assert_type, fibaro = fibaro, api = api, json = json, urlencode = urlencode, __TAG = info.directives.name or "INIT",
+    __assert_type = __assert_type, fibaro = fibaro, api = api, json = json, urlencode = urlencode, 
     collectgarbage = collectgarbage, os = os2, math = math, string = string, table = table,
     getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring,
     type = luaType, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
@@ -363,6 +365,7 @@ local function loadQAFiles(info)
     _loadfile = loadfile
   }) do env[k] = v end
   
+  env.__TAG = info.directives.name..info.id
   env._G = env
   for k,v in pairs(exports) do env[k] = v end
 
@@ -467,17 +470,28 @@ local function createQAstruct(info)
   return info
 end
 
+-- function runQA(info) -- The rest is run in a copas tasks...
+--   mobdebug.on()
+--   local isQA = info.src:match("fun".."ction%s+QuickApp:onInit") ~= nil
+--   if isQA then  -- Start QuickApp if defined, e.g. run :onInit()
+--     createQAstruct(info) 
+--     loadQAFiles(info)
+--     DEBUGF('info',"Starting QuickApp %s",info.device.name)
+--     TQ.post({type='quickApp_started',id=info.id},true)
+--     info.env.quickApp = info.env.QuickApp(info.device) -- quickApp defined first when we return from :onInit()...
+--   else
+--     loadQAFiles(info) -- No QA, just load the QA files...
+--   end
+-- end
+
 function runQA(info) -- The rest is run in a copas tasks...
   mobdebug.on()
-  local isQA = info.src:match("fun".."ction%s+QuickApp:onInit") ~= nil
-  if isQA then  -- Start QuickApp if defined, e.g. run :onInit()
-    createQAstruct(info) 
-    loadQAFiles(info)
+  createQAstruct(info) 
+  loadQAFiles(info)
+  if info.env.QuickApp.onInit then
     DEBUGF('info',"Starting QuickApp %s",info.device.name)
     TQ.post({type='quickApp_started',id=info.id},true)
     info.env.quickApp = info.env.QuickApp(info.device) -- quickApp defined first when we return from :onInit()...
-  else
-    loadQAFiles(info) -- No QA, just load the QA files...
   end
 end
 

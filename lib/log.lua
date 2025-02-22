@@ -55,7 +55,7 @@ function TQ.debugOutput(tag, str, typ, time)
 end
 
 function TQ.colorStr(color,str) 
-  if TQ.flags.logColor then
+  if TQ.flags.logColor~=false then
     return fmt("%s%s%s",TQ.COLORMAP[color] or TQ.extraColors [color],str,colorEnd) 
   else return str end
 end

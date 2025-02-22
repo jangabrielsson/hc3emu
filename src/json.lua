@@ -1,9 +1,10 @@
+------------------------ json ------------------------------
 local json = require("json") -- Reasonable fast json parser, not to complicated to build...
 local copy
 
 local mt = { __toJSON = function (t) 
   local isArray = nil
-  if t[1] then isArray=true 
+  if t[1]~=nil then isArray=true 
   elseif next(t)== nil and (getmetatable(t) or {}).__isARRAY then isArray=true end
   t = copy(t) 
   t.__array = isArray
@@ -37,7 +38,7 @@ json.util = {}
 function json.util.InitArray(t) 
   local mt = getmetatable(t) or {}
   mt.__isARRAY=true 
-  print(t)
+  --print(t)
   setmetatable(t,mt) 
   local a = getmetatable(t)
   return t

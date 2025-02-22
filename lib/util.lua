@@ -1,7 +1,7 @@
 local fmt = string.format 
 local TQ
 
-local function DEBUG(f,...) print("[SYS]",fmt(f,...)) end
+local function DEBUG(f,...) if not (TQ.flags or {}).silent then print("[SYS]",fmt(f,...)) end end
 local function DEBUGF(flag,f,...) if TQ.DBG[flag] then DEBUG(f,...) end end
 local function WARNINGF(f,...) print("[SYSWARN]",fmt(f,...)) end
 local function ERRORF(f,...) print("[SYSERR]",fmt(f,...)) end

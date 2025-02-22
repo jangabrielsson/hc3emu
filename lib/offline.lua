@@ -168,7 +168,7 @@ function TQ.setupOfflineRoutes()
   route:addOver('POST/plugins/updateProperty',putDeviceProp) -- data = {key="value"}
   route:addOver('POST/plugins/updateView',updateDeviceView) -- data = {key="value"}
   
-  route:addOver('POST/plugins/createChildDevice data',blocked)
+  route:addOver('POST/plugins/createChildDevice data',blocked) -- We could allow this...
   route:addOver('DELETE/plugins/removeChildDevice/<id>',blocked)
   
   route:addOver('GET/alarms/v1/partitions/<id>',blocked)

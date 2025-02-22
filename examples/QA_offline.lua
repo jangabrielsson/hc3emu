@@ -4,11 +4,12 @@ if require and not QuickApp then require("hc3emu") end
 
 --%%name=OfflineQA
 --%%type=com.fibaro.multilevelSwitch
---%%proxy=MyProxy
+--%% proxy=MyProxy
 --%%dark=true
 --%%color=true
 --%%time=12/31 10:00:12
 --%%id=5001
+--%%state=state.db
 --%%offline=true
 --%%debug=info:true,http:true,onAction:true,onUIEvent:true
 --%%var=debug:"main,wsc,child,color,battery,speaker,send,late"
@@ -17,6 +18,8 @@ if require and not QuickApp then require("hc3emu") end
 -- It can be used to test the QA logic without access to the HC3.
 
 local function printf(...) print(string.format(...)) end
+
+--fibaro.hc3emu.store.copyHC3()
 
 print("TIME:",os.date("%c"))
 function QuickApp:myFun(a,b)

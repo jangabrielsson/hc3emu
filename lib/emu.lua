@@ -42,13 +42,17 @@ local exports = {} -- functions to export to QA
 
 local fmt = string.format
 
-DEBUGF('info',"Main QA file %s",mainFileName)
-
 local f = io.open(mainFileName)
 if f then mainSrc = f:read("*all") f:close()
 else error("Could not read main file") end
 if mainSrc:match("info:false") then DBG.info = false end -- Peek 
 if mainSrc:match("dark=true") then DBG.dark = true end
+if mainSrc:match("nodebug=true") then DBG.nodebug = true end
+if mainSrc:match("shellscript=true") then DBG.nodebug = true DBG.shellscript=true end
+if mainSrc:match("silent=true") then DBG.silent = true end
+mainSrc = mainSrc:gsub("#!/usr/bin/env", "--#!/usr/bin/env") -- Fix shebang
+
+if not DBG.silent then DEBUGF('info',"Main QA file %s",mainFileName) end
 
 qaInfo.src = mainSrc
 qaInfo.fname = mainFileName
@@ -72,8 +76,11 @@ require("copas.timer")
 require("copas.http")
 TQ.socket,TQ.copas = socket,copas
 
-local mobdebug = TQ.pcall2(require, 'mobdebug') or { on = function() end, start = function(_,_) end }
-mobdebug.start('127.0.0.1', 8818)
+local mobdebug = { on = function() end, start = function(_,_) end }
+if not DBG.nodebug then
+  mobdebug = require("mobdebug") or mobdebug
+  mobdebug.start('127.0.0.1', 8818)
+end
 TQ.mobdebug = mobdebug
 
 -- Try to guess in what environment we are running (used for loading extra console colors)
@@ -148,6 +155,12 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
   function directive.offline(d,val) flags.offline = eval(val,d) end
   directive['local'] = function(d,val) flags.offline = eval(val,d) end
   function directive.state(d,val) flags.state = tostring(val) end
+  function directive.nodebug(d,val) flags.nodebug = eval(val,d) end
+  function directive.silent(d,val) flags.silent = eval(val,d) end
+  function directive.shellscript(d,val) 
+    flags.shellscript = tostring(val)
+    flags.nodebug = flags.shellscript
+  end
   function directive.stateReadOnly(d,val) flags.stateReadOnly = eval(val,d) end
   function directive.latitude(d,val) flags.latitude = tonumber(val) end
   function directive.longitude(d,val) flags.longitude = tonumber(val) end
@@ -355,9 +368,14 @@ local function loadQAFiles(info)
   local env = info.env
   local os2 = { time = userTime, clock = os.clock, difftime = os.difftime, date = userDate, exit = nil }
   local fibaro = { hc3emu = TQ, HC3EMU_VERSION = VERSION, flags = info.directives, DBG = DBG }
+  local args = nil
+  if flags.shellscript then
+    args = {}
+    for i,v in pairs(arg) do if i > 0 then args[#args+1] = v end end
+  end
   for k,v in pairs({
-    __assert_type = __assert_type, fibaro = fibaro, api = api, json = json, urlencode = urlencode, 
-    collectgarbage = collectgarbage, os = os2, math = math, string = string, table = table,
+    __assert_type = __assert_type, fibaro = fibaro, api = api, json = json, urlencode = urlencode, args=args,
+    collectgarbage = collectgarbage, os = os2, math = math, string = string, table = table, _print = print,
     getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring,
     type = luaType, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
     error = error, assert = assert, pcall = pcall, xpcall = xpcall, bit32 = require("bit32"),
@@ -495,7 +513,7 @@ function runQA(info) -- The rest is run in a copas tasks...
   end
 end
 
-print(TQ.colorStr('orange',"HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..VERSION))
+if not flags.silent then print(TQ.colorStr('orange',"HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..VERSION)) end
 while true do
   local startTime,t0 = os.clock(),os.time()
   TQ._shouldExit = true

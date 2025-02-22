@@ -1,5 +1,13 @@
 
 local json = TQ.json
+local api = TQ.api
+
+local function keyMap(list,key)
+  if list == nil then return {} end
+  local r = {}
+  for _,v in ipairs(list) do r[v[key]] = v end
+  return r
+end
 
 -- Internal storage (always local)
 local store = { devices = {}, globalVariables = {}, rooms = {}, sections = {}, settings={}, internalStorage={}, quickapp={} }
@@ -10,15 +18,36 @@ if hasState then
   if f then 
     local store2 = json.decode(f:read("*a")) f:close()
     if type(store2)~='table' then store2 = {} end
+    store2.devices = keyMap(store2.devices or {},'id')
+    store2.rooms = keyMap(store2.rooms or {},'id')
+    store2.sections = keyMap(store2.sections or {},'id')
+    store2.globalVariables = keyMap(store2.globalVariables or {},'name')
     for k,v in pairs(store2) do store[k] = v end
   end
+end
+
+local function stripIndex(t)
+  local r = {}
+  for k,v in pairs(t) do r[#r+1] = v end
+  return r
+end
+
+local function prepareDB()
+  local r = {}
+  for k,v in pairs(store) do r[k] = v end
+  r.devices = stripIndex(r.devices)
+  r.globalVariables = stripIndex(r.globalVariables)
+  r.rooms = stripIndex(r.rooms)
+  r.sections = stripIndex(r.sections)
+  return r
 end
 
 local function flush(force)
   if not hasState then return end
   if TQ.flags.stateReadOnly and not force then return end
   local f = io.open(stateFileName,"w")
-  if f then f:write(json.encode(store)) f:close() end
+  local s = prepareDB()
+  if f then f:write(json.encode(s)) f:close() end
 end
 
 local pathFuns = {}
@@ -35,16 +64,10 @@ TQ.store = { DB = store }
 TQ.store.getDevice = getDevice
 TQ.store.flush = flush
 
-local function keyMap(list,key)
-  local r = {}
-  for _,v in ipairs(list) do r[v[key]] = v end
-  return r
-end
-
 function TQ.store.copyHC3()
   local devices = keyMap(api.get("/devices"),'id')
-  local rooms = api.get("/rooms")
-  local sections = api.get("/sections")
+  local rooms = keyMap(api.get("/rooms"),'id')
+  local sections = keyMap(api.get("/sections"),'id')
   local globalVariables = keyMap(api.get("/globalVariables"),'name')
   local locations = api.get("/panels/location")
   local info = api.get("/settings/info")
@@ -58,4 +81,26 @@ function TQ.store.copyHC3()
   local alarmsPartitions = api.get("/alarms/v1/partitions")
   local alarmsDevices = api.get("/alarms/v1/devices")
   local climate = api.get("/panels/climate")
+  for id,d in pairs(devices) do if not store.devices[id] then store.devices[id] = d end end
+  for _,r in ipairs(rooms) do if not store.rooms[r.id] then store.rooms[r.id] = r end end
+  for _,s in ipairs(sections) do if not store.sections[s.id] then store.sections[s.id] = s end end
+  for name,v in pairs(globalVariables) do if not store.globalVariables[name] then store.globalVariables[name] = v end end
+  store.settings = store.settings or {}
+  store.settings.info = info
+  store.settings.location = location
+  store.panels = store.panels or {}
+  store.panels.location = locations
+  store.climate = climate
+  store.categories = categories
+  store.home = home
+  store.iosDevices = iosDevices
+  store.profiles = profiles
+  store.users = users
+  store.weather = weather
+  store.alarms = store.alarms or {}
+  store.alarms.v1 = store.alarms.v1 or {}
+  store.alarms.v1.partitions = alarmsPartitions
+  store.alarms.v1.devices = alarmsDevices
+  TQ.DEBUG("HC3 data copied to store")
+  flush(true)
 end

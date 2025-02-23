@@ -36,6 +36,9 @@ end
 
 local encode,decode = json.encode,json.decode
 function json.encode(obj,_)
+  if obj == nil then return "null" end
+  if type(obj) == 'number' then return tostring(obj) end
+  if type(obj) == 'string' then return '"'..obj..'"' end
   local omt = getmetatable(obj)
   setmetatable(obj,mt)
   local r = encode(obj,'__toJSON')

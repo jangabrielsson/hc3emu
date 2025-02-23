@@ -100,9 +100,10 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
     var = {}, gv = {}, files = {}, creds = {}, u={}, conceal = {}, 
   }
   
-  local function eval(str,d)
+  local function eval(str,d,force)
     local stat, res = pcall(function() return load("return " .. str, nil, "t", { config = baseFlags })() end)
     if stat then return res end
+    if force then return str end
     ERRORF("directive '%s' %s",tostring(d),res)
     error()
   end
@@ -146,6 +147,7 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
     end
   end
   function directive.u(d,val) flags.u[#flags.u+1] = eval(val,d) end
+  function directive.interfaces(d,val) flags.interfaces = eval(val,d) end
   function directive.save(d,val) flags.save = tostring(val) assert(flags.save:match("%.fqa$"),"Bad save directive:"..d)end
   function directive.proxy(d,val) flags.proxy = tostring(val) end
   function directive.dark(d,val) flags.dark = eval(val,d) end
@@ -263,6 +265,7 @@ function MODULE.qapi() TQ.require("hc3emu.qapi") end    -- Standard API routes
 function MODULE.proxy() TQ.require("hc3emu.proxy") end     -- Proxy creation and Proxy API routes
 function MODULE.offline() TQ.require("hc3emu.offline") end -- Offline API routes
 function MODULE.ui() TQ.require("hc3emu.ui") end
+function MODULE.tools() TQ.require("hc3emu.tools") end
 
 function MODULE.qa_manager()
   function TQ.getFQA(id) -- Move to module
@@ -319,6 +322,23 @@ function MODULE.qa_manager()
     else
       ERRORF("Could not read file %s",path)
     end
+  end
+
+  function TQ.saveQA(info)
+    local fileName = info.directives.save
+    local fqa = TQ.getFQA(info.id)
+    local vars = table.copy(fqa.initialProperties.quickAppVariables)
+    fqa.initialProperties.quickAppVariables = vars
+    for _,v in ipairs(vars) do
+      if flags.conceal[v.name] then 
+        v.value = flags.conceal[v.name]
+      end
+    end
+    local f = io.open(fileName,"w")
+    assert(f,"Can't open file "..fileName)
+    f:write(json.encode(fqa))
+    f:close()
+    DEBUG("Saved QuickApp to %s",fileName)
   end
 end
 
@@ -406,6 +426,8 @@ local function loadQAFiles(info)
   assert(TQ.URL, TQ.USER and TQ.PASSWORD,"Please define URL, USER, and PASSWORD")
 end
 
+function TQ.getNextDeviceId() DEVICEID = DEVICEID + 1 return DEVICEID end
+
 local function createQAstruct(info)
   if info.directives == nil then parseDirectives(info) end
   TQ.setOffline(info.directives.offline) 
@@ -418,7 +440,9 @@ local function createQAstruct(info)
     uiCallbacks,viewLayout,uiView = TQ.compileUI(flags.u)
   end
 
-  if flags.id == nil then flags.id = DEVICEID DEVICEID = DEVICEID + 1 end
+  if flags.id == nil then flags.id = TQ.getNextDeviceId() end
+  local ifs = table.copy(flags.interfaces or {})
+  if not table.member(ifs,"quickApp") then ifs[#ifs+1] = "quickApp" end
   local deviceStruct = {
     id=tonumber(flags.id),
     type=flags.type or 'com.fibaro.binarySwitch',
@@ -427,7 +451,7 @@ local function createQAstruct(info)
     visible = true,
     properties = { quickAppVariables = qvs, uiCallbacks = uiCallbacks, viewLayout = viewLayout, uiView = uiView },
     useUiView = false,
-    interfaces = {"quickApp"},
+    interfaces = ifs,
     created = os.time(),
     modified = os.time()
   }
@@ -468,44 +492,14 @@ local function createQAstruct(info)
   env.plugin.mainDeviceId = deviceStruct.id -- Now we have a deviceId
   TQ.registerQA(info)
   
-  if flags.save then
-    local fileName = flags.save
-    local fqa = TQ.getFQA(info.id)
-    local vars = table.copy(fqa.initialProperties.quickAppVariables)
-    fqa.initialProperties.quickAppVariables = vars
-    for _,v in ipairs(vars) do
-      if flags.conceal[v.name] then 
-        v.value = flags.conceal[v.name]
-      end
-    end
-    local f = io.open(fileName,"w")
-    assert(f,"Can't open file "..fileName)
-    f:write(json.encode(fqa))
-    f:close()
-    DEBUG("Saved QuickApp to %s",fileName)
-  end
-  
   return info
 end
-
--- function runQA(info) -- The rest is run in a copas tasks...
---   mobdebug.on()
---   local isQA = info.src:match("fun".."ction%s+QuickApp:onInit") ~= nil
---   if isQA then  -- Start QuickApp if defined, e.g. run :onInit()
---     createQAstruct(info) 
---     loadQAFiles(info)
---     DEBUGF('info',"Starting QuickApp %s",info.device.name)
---     TQ.post({type='quickApp_started',id=info.id},true)
---     info.env.quickApp = info.env.QuickApp(info.device) -- quickApp defined first when we return from :onInit()...
---   else
---     loadQAFiles(info) -- No QA, just load the QA files...
---   end
--- end
 
 function runQA(info) -- The rest is run in a copas tasks...
   mobdebug.on()
   createQAstruct(info) 
   loadQAFiles(info)
+  if flags.save then TQ.saveQA(info) end
   if info.env.QuickApp.onInit then
     DEBUGF('info',"Starting QuickApp %s",info.device.name)
     TQ.post({type='quickApp_started',id=info.id},true)

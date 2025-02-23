@@ -23,12 +23,16 @@ if require and not QuickApp then require("hc3emu") end
 --%%u={button='bt1',text="MyButton",onReleased="myButton"}
 --%%u={slider='s1',text="MySlider",onChanged="mySlider"}
 
+local version = "0.1"
+
 local function printf(...) print(string.format(...)) end
 
 if fibaro.hc3emu then
-  print("<font color='salmon'>Salmon</font> <font=color=green>Green</font> <font color=\"blue\">Blue</font>")
-  fibaro.hc3emu.logFilter = {"DevicePropertyUpdatedEvent"} -- We can filter out some log messages containing string
+  fibaro.hc3emu.flags.save=string.format("MyQA_%s.fqa",version:gsub("%.","_")) -- Customize the QA saved file name
+  fibaro.hc3emu.logFilter = {"DevicePropertyUpdatedEvent"} -- We can filter out some log messages containing listed strings
 end
+
+print("<font color='salmon'>Salmon</font> <font=color=green>Green</font> <font color=\"blue\">Blue</font>")
 
 function QuickApp:onInit()
   self:debug(self.name,self.id,self.type)

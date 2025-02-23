@@ -241,14 +241,14 @@ local function toLua(t)
   end
 end
 
-function TQ.dumpUI(UI)
+function TQ.dumpUI(UI,pr)
   local lines = {}
   for _, row in ipairs(UI or {}) do
     for _,l in ipairs(row) do l.type=nil end
     if row[1] and not row[2] then row = row[1] end
     lines[#lines+1]="--%%u="..toLua(row)
   end
-  print("Proxy UI:\n"..table.concat(lines,"\n"))
+  (pr or print)("Proxy UI:\n"..table.concat(lines,"\n"))
 end
 
 
@@ -329,8 +329,8 @@ function TQ.viewLayout2UI(view,callbacks)
   return UI
 end
 
-function TQ.logUI(id)
+function TQ.logUI(id,pr)
   local qa = api.get("/devices/"..id)
   local UI = TQ.viewLayout2UI(qa.properties.viewLayout,qa.properties.uiCallbacks or {})
-  TQ.dumpUI(UI)
+  TQ.dumpUI(UI,pr)
 end

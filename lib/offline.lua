@@ -130,6 +130,31 @@ local function updateDeviceView(p,data)
   local elementId = data.elementId
   --- TBD
 end
+local function createChild(p,data)
+  local parentId = tonumber(data.parentId)
+  local parent = DB.devices[parentId]
+  if not parent then return nil,404 end
+  local id = TQ.getNextDeviceId()
+  local dev = {
+    id=id,
+    name=data.name,
+    type=data.type,
+    parentId=parentId,
+    interfaces=data.initialInterfaces,
+    properties=data.initialProperties
+  }
+  DB.devices[id] = dev
+  return dev,200
+end
+
+local function deleteChild(p,id)
+  local id = tonumber(id)
+  if not id then return nil,501 end
+  if not DB.devices[id] then return nil,404 end
+  DB.devices[id] = nil
+  return nil,200
+end
+
 local function blocked(p) return nil,501 end
 local function refreshState(p) return {},200 end
 
@@ -168,8 +193,8 @@ function TQ.setupOfflineRoutes()
   route:addOver('POST/plugins/updateProperty',putDeviceProp) -- data = {key="value"}
   route:addOver('POST/plugins/updateView',updateDeviceView) -- data = {key="value"}
   
-  route:addOver('POST/plugins/createChildDevice data',blocked) -- We could allow this...
-  route:addOver('DELETE/plugins/removeChildDevice/<id>',blocked)
+  route:addOver('POST/plugins/createChildDevice',createChild) 
+  route:addOver('DELETE/plugins/removeChildDevice/<id>',deleteChild)
   
   route:addOver('GET/alarms/v1/partitions/<id>',blocked)
   route:addOver('GET/alarms/v1/partitions',blocked)

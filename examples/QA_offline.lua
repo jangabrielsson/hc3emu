@@ -45,6 +45,17 @@ function QuickApp:onInit()
 
   local qas = api.get("/devices?interface=quickApp")
   self:checkType("Get QuickApps",qas,function(r) return type(r)=='table' and next(r) and r[1].id end)
+
+  local d,code = api.post("/plugins/createChildDevice",{
+    parentId=self.id,
+    type="com.fibaro.multilevelSwitch",
+    name="Child1",
+    initialProperties={value=20},
+    initialInterfaces={'quickAppChild'}
+  }
+  )
+  local d = api.get("/devices/"..d.id)
+  print(d.id)
 end
 
 function QuickApp:check(str,val1,val2)

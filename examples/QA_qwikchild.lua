@@ -7,6 +7,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%name=QwikChilTest
 --%%type=com.fibaro.genericDevice
 --%%proxy=QCProxy
+--%% offline=true
 --%%dark=true
 --%%state=state.db
 --%%debug=info:true,http:true,onAction:true,onUIEvent:true,proxyAPI:true

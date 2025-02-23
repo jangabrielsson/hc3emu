@@ -8,7 +8,8 @@
         "type": "shell",
         "command": "lua",
         "args": [
-          "${userHome}${pathSeparator}/.vscode.lua",
+          //"${userHome}${pathSeparator}/.vscode.lua",
+          "tools/vscode.lua",
           "downloadQA",
           "${input:QA_id}"
         ]
@@ -18,7 +19,8 @@
         "type": "shell",
         "command": "lua", 
         "args": [
-          "${userHome}${pathSeparator}/.vscode.lua",
+          //"${userHome}${pathSeparator}/.vscode.lua",
+          "tools/vscode.lua",
           "uploadQA",
           "${input:QA_name}"
         ]
@@ -28,7 +30,8 @@
         "type": "shell",
         "command": "lua", 
         "args": [
-          "${userHome}${pathSeparator}/.vscode.lua",
+          //"${userHome}${pathSeparator}/.vscode.lua" ,
+          "tools/vscode.lua",
           "updateFile",
           "${relativeFile}"
         ]

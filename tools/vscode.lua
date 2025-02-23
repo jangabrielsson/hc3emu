@@ -40,7 +40,7 @@ function cmd.uploadFile()
     for qn,fn in pairs(p.files or {}) do
       if arg==fn then 
         local content = readFile(fn)
-        local f  = {name=fn,content=content}
+        local f = {name=qn, isMain=qn=='main', isOpen=false, type='lua', content=content}
         local r,err = api.put("/quickApps/"..p.id.."/files/"..qn,f)
         if not r then 
           local r,err = api.post("/quickApps/"..p.id.."/files",f)

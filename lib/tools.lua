@@ -45,9 +45,9 @@ function TQ.downloadFQA(id,path)
   ifs = remove(ifs,"quickApp")
   if next(ifs) == nil then ifs = nil end
   
-  if path:sub(-4):lower() == ".fqa" then
-    fname = path:match("([^/\\]+)%.[fF][qQ][aA]$")
-    path = path:sub(1,-#fname)
+  if path:sub(-4):lower() == ".lua" then
+    fname = path:match("([^/\\]+)%.[Ll][uU][Aa]$")
+    path = path:sub(1,-(#fname+4+1))
   else
     if path:sub(-1) ~= sep then path = path..sep end
     fname = name:gsub("[%s%-%.%%!%?%(%)]","_")

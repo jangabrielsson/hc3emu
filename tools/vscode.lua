@@ -19,19 +19,19 @@ end
 local cmd = args[1]
 local arg = args[2]
 
-local cmd = {}
+local cmds = {}
 
-function cmd.downloadQA()
+function cmds.downloadQA()
   printf("Downloading QA:%s",arg) --id
   --TBD
 end
 
-function cmd.uploadQA()
+function cmds.uploadQA()
   printf("Downloading QA:%s",arg) -- name
   --TBD
 end
 
-function cmd.uploadFile()
+function cmds.uploadFile()
   local f = io.open(".project","r")
   if f then 
     local p = f:read("*a")
@@ -61,7 +61,7 @@ function cmd.uploadFile()
   end
 end
 
-local c = cmd[cmd]
+local c = cmds[cmd]
 if not c then
   _print("Unknown command:",cmd)
 else

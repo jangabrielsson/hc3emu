@@ -2,9 +2,9 @@
 --Save state between runs (internalStorage) - done
 --Including multiple QA files - done
 --plugin.restart() -- Done
---Implement --%%u directive to setup proxy UI
---Implement some kind of offline mode.... no access to HC3.
---Make websocket wss work...
+--Implement --%%u directive to setup proxy UI - done
+--Implement some kind of offline mode.... no access to HC3. Done
+--Make websocket wss work... Done
 
 
 ------------ All functions ----------------

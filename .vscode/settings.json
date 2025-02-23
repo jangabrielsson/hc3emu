@@ -47,7 +47,9 @@
     "_sceneId",
     "onAction",
     "onUIEvent",
-    "__onAction"
+    "__onAction",
+    "_print",
+    "args"
 ],
 "Lua.diagnostics.disable": [
     "duplicate-set-field",

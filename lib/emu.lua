@@ -112,6 +112,7 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
   function directive.name(d,val) flags.name = val end
   function directive.type(d,val) flags.type = val end
   function directive.id(d,val) flags.id = eval(val,d) assert(flags.id,"Bad id directive:"..d) end
+  function directive.project(d,val) flags.project = eval(val,d) assert(flags.project,"Bad project directive:"..d) end
   function directive.var(d,val) 
     ---local vs = val:split(",")
     --for _,v in ipairs(vs) do
@@ -340,6 +341,18 @@ function MODULE.qa_manager()
     f:close()
     DEBUG("Saved QuickApp to %s",fileName)
   end
+
+  function TQ.saveProject(info)
+    local r = {}
+    for _,f in ipairs(info.files) do
+      r[f.name] = f.src
+    end
+    r.main = info.fname
+    local f = io.open(".project","w")
+    assert(f,"Can't open file "..".project")
+    f:write(json.encode({files=r,id=info.directives.project}))
+    f:close()
+  end
 end
 
 parseDirectives(qaInfo)
@@ -500,6 +513,7 @@ function runQA(info) -- The rest is run in a copas tasks...
   createQAstruct(info) 
   loadQAFiles(info)
   if flags.save then TQ.saveQA(info) end
+  if flags.project then TQ.saveProject(info) end
   if info.env.QuickApp.onInit then
     DEBUGF('info',"Starting QuickApp %s",info.device.name)
     TQ.post({type='quickApp_started',id=info.id},true)

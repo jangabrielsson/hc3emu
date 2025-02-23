@@ -10,6 +10,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%time=12/31 10:00:12
 --%%id=5001
 --%%state=state.db
+--%%project=5566
 --%%offline=true
 --%%debug=info:true,http:true,onAction:true,onUIEvent:true
 --%%var=debug:"main,wsc,child,color,battery,speaker,send,late"
@@ -56,6 +57,7 @@ function QuickApp:onInit()
   )
   local d = api.get("/devices/"..d.id)
   print(d.id)
+  function self:initChildDevices() end
 end
 
 function QuickApp:check(str,val1,val2)

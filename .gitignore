@@ -2,6 +2,7 @@
 *.db
 *.rock
 test.lua
+.project
 *.log
 *.out
 test/

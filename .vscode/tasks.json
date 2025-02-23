@@ -1,0 +1,57 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=733558
+  // for the documentation about the tasks.json format
+  "version": "2.0.0",
+  "tasks": [
+      {
+        "label": "QA, Download and unpack",
+        "type": "shell",
+        "command": "lua",
+        "args": [
+          "${userHome}${pathSeparator}/.vscode.lua",
+          "downloadQA",
+          "${input:QA_id}"
+        ]
+      },
+      {
+        "label": "QA, upload",
+        "type": "shell",
+        "command": "lua", 
+        "args": [
+          "${userHome}${pathSeparator}/.vscode.lua",
+          "uploadQA",
+          "${input:QA_name}"
+        ]
+      },
+      {
+        "label": "QA, update file",
+        "type": "shell",
+        "command": "lua", 
+        "args": [
+          "${userHome}${pathSeparator}/.vscode.lua",
+          "updateFile",
+          "${relativeFile}"
+        ]
+      }
+    ],
+    "inputs": [
+      {
+        "type": "promptString",
+        "id": "QA_id",
+        "description": "deviceId of QA from HC3 you want to download?",
+        "default": "-"
+      },
+      {
+        "type": "promptString",
+        "id": "path_id",
+        "description": "path where to store the QA",
+        "default": "dev"
+      },
+      {
+        "type": "promptString",
+        "id": "QA_name",
+        "description": "'.' for open file, or QA path name",
+        "default": "."
+      }
+    ]
+  }

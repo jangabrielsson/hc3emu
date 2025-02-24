@@ -40,7 +40,8 @@
       "interpreter": "lua",
       "arguments": [
         "${relativeFile}"
-      ]
+      ],
+      "listenPublicly": true
     }
   ]
 }

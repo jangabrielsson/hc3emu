@@ -23,9 +23,10 @@ function plugin.restart()
   TQ._shouldExit = false
   TQ.shutdown(5)
 end
+local exit = os.exit
 function os.exit(code) 
   DEBUG("Exit %s",code or 0)
-  if code == -1 then os.exit(-1) end -- Hard exit...
+  if code == -1 then exit(-1) end -- Hard exit...
   TQ._shouldExit = true
   TQ.shutdown(0)
 end

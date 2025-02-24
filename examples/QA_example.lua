@@ -6,7 +6,7 @@ if require and not QuickApp then require("hc3emu") end
 --fibaro.PASSWORD = "admin"
 --fibaro.URL = "http://192.168.1.57/"
 
---%%name=Test
+--%%name=Test 
 --%%type=com.fibaro.multilevelSwitch
 --%%proxy=MyProxy
 --%%dark=true

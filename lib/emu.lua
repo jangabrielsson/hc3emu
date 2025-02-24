@@ -401,7 +401,7 @@ local function loadQAFiles(info)
   if info.directives.time then local t = info.directives.time  TQ.setTimeOffset(t - os.time()) end
 
   local env = info.env
-  local os2 = { time = userTime, clock = os.clock, difftime = os.difftime, date = userDate, _exit = os.exit }
+  local os2 = { time = userTime, clock = os.clock, difftime = os.difftime, date = userDate, exit = os.exit }
   local fibaro = { hc3emu = TQ, HC3EMU_VERSION = VERSION, flags = info.directives, DBG = DBG }
   local args = nil
   if flags.shellscript then

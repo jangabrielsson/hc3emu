@@ -480,7 +480,8 @@ local function createQAstruct(info)
   if flags.proxy then
     TQ.route = TQ.require("hc3emu.route")(TQ.HC3Call) -- Need this to do api.calls to setup proxy
     local pname = tostring(flags.proxy)
-    if pname:starts("-") then -- delete proxy if name is preceeded with "-"
+    local pop = pname:sub(1,1)
+    if pop == '-' or pop == '+' then -- delete proxy if name is preceeded with "-" or "+"
       pname = pname:sub(2)
       local qa = api.get("/devices?name="..urlencode(pname))
       assert(type(qa)=='table')
@@ -488,8 +489,9 @@ local function createQAstruct(info)
         api.delete("/devices/"..d.id)
         DEBUGF('info',"Proxy device %s deleted",d.id)
       end
-      flags.proxy = false
-    else
+      if pop== '-' then flags.proxy = false end -- If '+' go on and generate a new Proxy
+    end
+    if flags.proxy then
       deviceStruct = TQ.getProxy(flags.proxy,deviceStruct) -- Get deviceStruct from HC3 proxy
       assert(deviceStruct, "Can't get proxy device")
       info.env.__TAG = (deviceStruct.name..(deviceStruct.id or "")):upper()

@@ -46,7 +46,7 @@ local fmt = string.format
 local f = io.open(mainFileName)
 if f then mainSrc = f:read("*all") f:close()
 else error("Could not read main file") end
-if mainSrc:match("info:false") then DBG.info = false end -- Peek 
+if mainSrc:match("info:false") then DBG.info = false else DBG.info=true end -- Peek 
 if mainSrc:match("dark=true") then DBG.dark = true end
 if mainSrc:match("nodebug=true") then DBG.nodebug = true end
 if mainSrc:match("shellscript=true") then DBG.nodebug = true DBG.shellscript=true end
@@ -145,7 +145,7 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
       local name,expr = v:match("(.-):(.*)")
       assert(name and expr,"Bad debug directive: "..d) 
       local e = eval(expr,d)
-      if e then flags[name] = e end
+      if e then flags.debug[name] = e end
     end
   end
   function directive.u(d,val) flags.u[#flags.u+1] = eval(val,d) end
@@ -495,7 +495,8 @@ local function createQAstruct(info)
       info.env.__TAG = (deviceStruct.name..(deviceStruct.id or "")):upper()
       api.post("/plugins/updateProperty",{deviceId= deviceStruct.id,propertyName='quickAppVariables',value=qvs})
       if flags.logUI then TQ.logUI(deviceStruct.id) end
-      TQ.startServer()
+      TQ.startServer(deviceStruct.id)
+      TQ.HC3Call("POST","/devices/"..deviceStruct.id.."/action/CONNECT",{args={{ip=TQ.emuIP,port=TQ.emuPort}}})
       info.isProxy = true
     end
   end

@@ -13,21 +13,33 @@ local fmt = string.format
 function TQ.createProxy(name,devTempl)
   local code = [[
 local fmt = string.format
-  
+local con = nil
+local ip,port = nil,nil
+
 function QuickApp:onInit()
 self:debug("Started", self.name, self.id)
 quickApp = self
-  
+con = self:internalStorageGet("con") or {}
+ip = con.ip
+port = con.port
 local send
   
-local IGNORE={ MEMORYWATCH=true,APIFUN=true}
+local IGNORE={ MEMORYWATCH=true,APIFUN=true,CONNECT=true}
   
+function QuickApp:CONNECT(con)
+  connection = con
+  con = con or {}
+  self:internalStorageSet("con",con)
+  ip = con.ip
+  port = con.port
+  self:debug("Connected")
+end
 function quickApp:actionHandler(action)
   if IGNORE[action.actionName] then
     print(action.actionName)
     return quickApp:callAction(action.actionName, table.unpack(action.args))
   end
-  send({type='action',value=action})
+  send({deviceId=self.id,type='action',value=action})
 end
   
 function quickApp:UIHandler(ev) send({type='ui',value=ev}) end
@@ -38,19 +50,6 @@ function QuickApp:APIFUN(id,method,path,data)
 end
   
 function QuickApp:initChildDevices(_) end
-  
-local ip,port = nil,nil
-  
-local function getAddress() -- continously poll for new address from emulator
-  local var = __fibaro_get_global_variable("TQEMU") or {}
-  local success,values = pcall(json.decode,var.value)
-  if success then
-    ip = values.ip
-    port = values.port
-  end
-  setTimeout(getAddress,5000)
-end
-getAddress()
   
 local queue = {}
 local sender = nil
@@ -217,10 +216,13 @@ function TQ.callAPIFUN(method,path,data)
   return msg
 end
 
-function TQ.startServer()
-  local emuval = json.encode({ip = TQ.emuIP, port = TQ.emuPort}) -- Update HC3 var with emulator connection data
-  api.post("/globalVariables", {name=TQ.EMUVAR, value=emuval})
-  api.put("/globalVariables/"..TQ.EMUVAR, {name=TQ.EMUVAR, value=emuval})
+local started = false
+function TQ.startServer(id)
+  if started then return end
+  started = true
+  -- local emuval = json.encode({id = id, ip = TQ.emuIP, port = TQ.emuPort}) -- Update HC3 var with emulator connection data
+  -- api.post("/globalVariables", {name=TQ.EMUVAR, value=emuval})
+  -- api.put("/globalVariables/"..TQ.EMUVAR, {name=TQ.EMUVAR, value=emuval})
   DEBUGF('info',"Server started at %s:%s",TQ.emuIP,TQ.emuPort)
   
   local function handle(skt)
@@ -235,8 +237,8 @@ function TQ.startServer()
       if stat then
         local deviceId = msg.deviceId
         local QA = TQ.getQA(deviceId)
-        if msg.type == 'action' then QA.env.onAction(msg.value.deviceId,msg.value)
-        elseif msg.type == 'ui' then QA.env.onUIEvent(msg.value.deviceId,msg.value)
+        if QA and msg.type == 'action' then QA.env.onAction(msg.value.deviceId,msg.value)
+        elseif QA and msg.type == 'ui' then QA.env.onUIEvent(msg.value.deviceId,msg.value)
         elseif msg.type == 'resp' then
           if callRef[msg.id] then local c = callRef[msg.id] callRef[msg.id] = nil pcall(c,msg.value) end
         else DEBUGF('server',"Unknown data %s",reqdata) end

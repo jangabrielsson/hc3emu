@@ -483,6 +483,7 @@ local function createQAstruct(info)
     local pop = pname:sub(1,1)
     if pop == '-' or pop == '+' then -- delete proxy if name is preceeded with "-" or "+"
       pname = pname:sub(2)
+      flags.proxy = flags.proxy:sub(2)
       local qa = api.get("/devices?name="..urlencode(pname))
       assert(type(qa)=='table')
       for _,d in ipairs(qa) do

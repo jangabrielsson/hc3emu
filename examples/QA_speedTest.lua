@@ -1,4 +1,6 @@
-_DEVELOP = true
+--This is a QA rinning in local mode and speeding the timers...
+
+--_DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
 --%%name=SpeedTest

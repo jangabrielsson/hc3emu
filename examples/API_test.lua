@@ -1,11 +1,13 @@
+--This QA test of local and external api calls return the same values
+
 ---@diagnostic disable: duplicate-set-field
-_DEVELOP = true
+--_DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
 --%%name=APItest
 --%%proxy=TestProxy
 --%%dark=true
---%% local=true
+--%%local=true
 
 local function printf(...) print(string.format(...)) end
 local function setLocal(flag) fibaro.hc3emu.setOffline(flag) end

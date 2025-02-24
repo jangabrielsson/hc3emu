@@ -1,5 +1,7 @@
+--This QA sets directive but is running another file
+
 ---@diagnostic disable: duplicate-set-field
-_DEVELOP = true
+--_DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
 --This is how to run a "clean" QA without directives

@@ -46,6 +46,7 @@ local fmt = string.format
 local f = io.open(mainFileName)
 if f then mainSrc = f:read("*all") f:close()
 else error("Could not read main file") end
+-- We need to do some pre-look dor directives...
 if mainSrc:match("info:false") then DBG.info = false else DBG.info=true end -- Peek 
 if mainSrc:match("dark=true") then DBG.dark = true end
 if mainSrc:match("nodebug=true") then DBG.nodebug = true end
@@ -54,6 +55,13 @@ if mainSrc:match("silent=true") then DBG.silent = true end
 mainSrc = mainSrc:gsub("#!/usr/bin/env", "--#!/usr/bin/env") -- Fix shebang
 
 if not DBG.silent then DEBUGF('info',"Main QA file %s",mainFileName) end
+
+local win = (os.getenv('WINDIR') or (os.getenv('OS') or ''):match('[Ww]indows'))
+  and not (os.getenv('OSTYPE') or ''):match('cygwin') -- exclude cygwin
+TQ.sep = win and '\\' or '/'
+TQ.tempDir = os.getenv("TMPDIR") or os.getenv("TEMP") or os.getenv("TMP") -- temp directory
+
+print("tempDir",TQ.tempDir)
 
 qaInfo.src = mainSrc
 qaInfo.fname = mainFileName
@@ -166,6 +174,7 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
     flags.shellscript = tostring(val)
     flags.nodebug = flags.shellscript
   end
+  function directive.tempDir(d,val) TQ.tempDir = tostring(val) end
   function directive.stateReadOnly(d,val) flags.stateReadOnly = eval(val,d) end
   function directive.latitude(d,val) flags.latitude = tonumber(val) end
   function directive.longitude(d,val) flags.longitude = tonumber(val) end
@@ -327,6 +336,23 @@ function MODULE.qa_manager()
     end
   end
 
+  local fileNum = 0
+  function TQ.createTempName(suffix)
+    fileNum = fileNum + 1
+    return os.date("hc3emu%M%M")..fileNum..suffix
+  end
+
+  function TQ.loadQAsrc(src)
+    local path = TQ.tempDir..TQ.createTempName(".lua")
+    local f = io.open(path,"w")
+    assert(f,"Can't open file "..path)
+    f:write(src)
+    f:close()
+    local info = { directives = nil, src = src, fname = path, env = { require=true }, files = {} }
+---@diagnostic disable-next-line: need-check-nil
+    runQA(info)
+  end
+
   function TQ.saveQA(info)
     local fileName = info.directives.save
     local fqa = TQ.getFQA(info.id)
@@ -483,7 +509,7 @@ local function createQAstruct(info)
     local pop = pname:sub(1,1)
     if pop == '-' or pop == '+' then -- delete proxy if name is preceeded with "-" or "+"
       pname = pname:sub(2)
-      flags.proxy = flags.proxy:sub(2)
+      flags.proxy = pname
       local qa = api.get("/devices?name="..urlencode(pname))
       assert(type(qa)=='table')
       for _,d in ipairs(qa) do

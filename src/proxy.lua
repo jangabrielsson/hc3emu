@@ -10,7 +10,7 @@ function QuickApp:onInit()
   port = con.port
   local send
   
-  local IGNORE={ MEMORYWATCH=true,APIFUN=true,CONNECT=true }
+  local IGNORE={ MEMORYWATCH=true, APIFUN=true, CONNECT=true }
   
   function quickApp:CONNECT(con2)
     con = con or {}
@@ -53,6 +53,7 @@ function QuickApp:onInit()
   function runSender()
     if connected then
       if #queue>0 then
+---@diagnostic disable-next-line: need-check-nil, undefined-field
         sock:write(queue[1],{
           success = function() print("Sent",table.remove(queue,1)) runSender() end,
         })

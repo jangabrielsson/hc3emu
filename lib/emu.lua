@@ -347,7 +347,7 @@ function MODULE.qa_manager()
   function TQ.saveProject(info)
     local r = {}
     for _,f in ipairs(info.files) do
-      r[f.name] = f.src
+      r[f.name] = f.fname
     end
     r.main = info.fname
     local f = io.open(".project","w")

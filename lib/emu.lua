@@ -26,6 +26,7 @@ TQ.emuPort = 8264   -- Port for HC3 proxy to connect to
 TQ.emuIP = nil      -- IP of host running the emulator
 TQ.api = {}         -- API functions
 TQ.DBG = { info=true } -- Default flags and debug settings
+TQ.mainFile = mainFileName
 TQ.require("hc3emu.util")(TQ) -- Utility functions
 
 local DEVICEID = 5000 -- Start id for QA devices
@@ -154,6 +155,7 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
   function directive.dark(d,val) flags.dark = eval(val,d) end
   function directive.color(d,val) flags.logColor = eval(val,d) end
   function directive.speed(d,val) flags.speed = eval(val,d) assert(tonumber(flags.speed),"Bad speed directive:"..d)end
+  function directive.port(d,val) TQ.emuPort = eval(val,d) assert(tonumber(TQ.emuPort),"Bad port directive:"..d)end
   function directive.logUI(d,val) flags.logUI = eval(val,d) end
   function directive.offline(d,val) flags.offline = eval(val,d) end
   directive['local'] = function(d,val) flags.offline = eval(val,d) end

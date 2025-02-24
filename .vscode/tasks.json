@@ -11,7 +11,8 @@
           //"${userHome}${pathSeparator}/.vscode.lua",
           "tools/vscode.lua",
           "downloadQA",
-          "${input:QA_id}"
+          "${input:QA_id}",
+          "${input:path_id}"
         ]
       },
       {

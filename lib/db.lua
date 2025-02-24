@@ -11,18 +11,21 @@ end
 
 -- Internal storage (always local)
 local store = { devices = {}, globalVariables = {}, rooms = {}, sections = {}, settings={}, internalStorage={}, quickapp={} }
+local mainStore = {}
 local stateFileName = TQ.flags.state
 local hasState = type(stateFileName)=='string'
 if hasState then 
   local f = io.open(stateFileName,"r")
   if f then 
-    local store2 = json.decode(f:read("*a")) f:close()
-    if type(store2)~='table' then store2 = {} end
+    mainStore = json.decode(f:read("*a")) f:close()
+    if type(mainStore)~='table' then mainStore = {} end
+    local store2 = mainStore[TQ.mainFile] or {}
     store2.devices = keyMap(store2.devices or {},'id')
     store2.rooms = keyMap(store2.rooms or {},'id')
     store2.sections = keyMap(store2.sections or {},'id')
     store2.globalVariables = keyMap(store2.globalVariables or {},'name')
     for k,v in pairs(store2) do store[k] = v end
+    mainStore[TQ.mainFile] = store
   end
 end
 
@@ -39,15 +42,15 @@ local function prepareDB()
   r.globalVariables = stripIndex(r.globalVariables)
   r.rooms = stripIndex(r.rooms)
   r.sections = stripIndex(r.sections)
-  return r
+  mainStore[TQ.mainFile] = r
 end
 
 local function flush(force)
   if not hasState then return end
   if TQ.flags.stateReadOnly and not force then return end
   local f = io.open(stateFileName,"w")
-  local s = prepareDB()
-  if f then f:write(json.encode(s)) f:close() end
+  prepareDB()
+  if f then f:write(json.encode(mainStore)) f:close() end
 end
 
 local pathFuns = {}

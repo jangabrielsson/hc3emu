@@ -18,20 +18,25 @@ end
 
 local cmd = args[1]
 local arg = args[2]
+local arg2 = args[3]
 
 local cmds = {}
 
 function cmds.downloadQA()
-  printf("Downloading QA:%s",arg) --id
-  --TBD
+  printf("Downloading QA:%s",arg) -- id
+  local deviceId = tonumber(arg)
+  __assert_type(deviceId, "number")
+  if arg2=="." or arg2=="" then arg2="./" end
+  fibaro.hc3emu.downloadFQA(deviceId,arg2)
 end
 
 function cmds.uploadQA()
   printf("Downloading QA:%s",arg) -- name
-  --TBD
+  printf("Not implemented yet") -- name
 end
 
 function cmds.uploadFile()
+  printf("Updating QA file :%s",arg) -- fname
   local f = io.open(".project","r")
   if f then 
     local p = f:read("*a")

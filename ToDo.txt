@@ -5,9 +5,13 @@
 --Implement --%%u directive to setup proxy UI - done
 --Implement some kind of offline mode.... no access to HC3. Done
 --Make websocket wss work... Done
+--Sync interfaces declared with proxy's current interfaces...
 
 
 ------------ All functions ----------------
+-utf8 missing
+-getHierarchy missing
+
 [09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __assert_type 'function: 0xaaaae1458b50'
 [09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __fibaro_add_debug_message 'function: 0xaaaae1447d70'
 [09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __fibaro_get_breached_partitions 'function: 0xaaaae1447460'

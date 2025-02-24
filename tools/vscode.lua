@@ -1,8 +1,6 @@
---#!/usr/bin/env lua
-
 if require and not QuickApp then require("hc3emu") end
 --%%color=false
---%%shell script=true
+--%%shellscript=true
 --%%silent=true
 --%%debug=info:false
 
@@ -57,7 +55,7 @@ function cmds.updateFile()
         else 
           printf("Updated QA:%s, file%s, QAfile:%s ",p.id,fn,qn)
         end
-        os.exit()
+        os._exit()
       end
     end
     _print(arg," not found in current project")
@@ -75,4 +73,4 @@ else
     _print("Error:",err)
   end
 end
-os.exit()
+os._exit()

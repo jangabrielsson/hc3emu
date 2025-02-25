@@ -26,7 +26,7 @@ function QuickApp:onInit()
   
   local IGNORE={ MEMORYWATCH=true,APIFUN=true,CONNECT=true }
   
-  function quickApp:CONNECT(con2)
+  function quickApp:CONNECT(con)
     con = con or {}
     self:internalStorageSet("con",con)
     ip = con.ip

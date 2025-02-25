@@ -20,6 +20,8 @@ HC3Emu is a Lua-based emulator designed to simulate the behavior of Fibaro Home 
 - bit32 >= 5.3.5.1-1
 - mobdebug >= 0.80-1
 
+You also need to have openssl installed in the system for luasec to compile.
+
 ## Installation
 
 1. Install with luarocks

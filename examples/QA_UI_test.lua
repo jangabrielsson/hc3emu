@@ -9,7 +9,6 @@ if require and not QuickApp then require("hc3emu") end
 --%%proxy=UItestProxy
 --%%dark=true
 --%%debug=sdk:false,info:true,proxyAPI:true,server:true,onAction:true,onUIEvent:true
---%%debug=http:true,color:true,blockAPI:true
 
 --%%u={label='lbl1',text="LABEL"}
 --%%u={button='btn1',text="Btn1", onReleased="myButton"}
@@ -25,6 +24,14 @@ function QuickApp:onInit()
   self:updateView("select1","options",opts1)
   local opts2 = {{text='C',type="option",value='c'},{text='D',type="option",value='d'}}
   self:updateView("multi1","options",opts2)
+end
+
+function QuickApp:turnOn()
+  self:debug("turn on")
+end
+
+function QuickApp:turnOff()
+  self:debug("turn off")
 end
 
 function QuickApp:setValue(value)

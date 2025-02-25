@@ -12,200 +12,200 @@
 -utf8 missing
 -getHierarchy missing
 
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __assert_type 'function: 0xaaaae1458b50'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __fibaro_add_debug_message 'function: 0xaaaae1447d70'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __fibaro_get_breached_partitions 'function: 0xaaaae1447460'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __fibaro_get_device 'function: 0xaaaae1404dc0'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __fibaro_get_device_property 'function: 0xaaaae14479d0'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __fibaro_get_devices 'function: 0xaaaae1447540'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __fibaro_get_devices_by_type 'function: 0xaaaae14479a0'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __fibaro_get_global_variable 'function: 0xaaaae145ab00'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __fibaro_get_partition 'function: 0xaaaae1445a60'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __fibaro_get_partitions 'function: 0xaaaae14474d0'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __fibaro_get_room 'function: 0xaaaae1495c90'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __fibaro_get_scene 'function: 0xaaaae1495630'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __fibaroSleep 'function: 0xaaaae1462420'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __fibaroUseAsyncHandler 'function: 0xaaaae1465fa0'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __print 'function: 0xaaaae14615d0'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __TAG 'QuickApp54'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: __ternary 'function: 0xaaaae1458a50'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: _G 'table: 0xaaaae13dd650'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: _VERSION 'Lua 5.3'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: api delete function: 0xaaaae1465ec0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: api get function: 0xaaaae1465e00
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: api post function: 0xaaaae1465e40
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: api put function: 0xaaaae1465e80
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: assert 'function: 0xffff9e38a7f4'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: bit32 arshift function: 0xffff9e38aca0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: bit32 band function: 0xffff9e38b094
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: bit32 bnot function: 0xffff9e38ac34
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: bit32 bor function: 0xffff9e38b190
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: bit32 btest function: 0xffff9e38b02c
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: bit32 bxor function: 0xffff9e38b0f8
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: bit32 extract function: 0xffff9e38af0c
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: bit32 lrotate function: 0xffff9e38abd4
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: bit32 lshift function: 0xffff9e38aa74
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: bit32 replace function: 0xffff9e38ae54
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: bit32 rrotate function: 0xffff9e38ab74
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: bit32 rshift function: 0xffff9e38aa00
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: class 'function: 0xaaaac5899c2c'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: clearInterval 'function: 0xaaaae1462300'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: clearTimeout 'function: 0xaaaae14621e0'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: collectgarbage 'function: 0xffff9e38a124'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: core EventTarget class EventTarget (EventTarget)
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: error 'function: 0xffff9e38a074'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro __houseAlarm function: 0xaaaae1444ca0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro alarm function: 0xaaaae143e210
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro alert function: 0xaaaae1445840
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro call function: 0xaaaae1447050
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro callGroupAction function: 0xaaaae1411250
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro clearTimeout function: 0xaaaae145c8a0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro debug function: 0xaaaae1470210
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro emitCustomEvent function: 0xaaaae14430d0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro error function: 0xaaaae1471110
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro get function: 0xaaaae13e8a60
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro getDevicesID function: 0xaaaae143e800
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro getGlobalVariable function: 0xaaaae143e0d0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro getHomeArmState function: 0xaaaae14688e0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro getIds function: 0xaaaae1442190
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro getName function: 0xaaaae13f5000
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro getPartition function: 0xaaaae1442140
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro getPartitionArmState function: 0xaaaae1471010
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro getPartitions function: 0xaaaae14453d0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro getRoomID function: 0xaaaae14186f0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro getRoomName function: 0xaaaae1413450
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro getRoomNameByDeviceID function: 0xaaaae13f1a90
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro getSectionID function: 0xaaaae1413690
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro getType function: 0xaaaae13ea000
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro getValue function: 0xaaaae14027c0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro isHomeBreached function: 0xaaaae14701c0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro isPartitionBreached function: 0xaaaae1466720
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro profile function: 0xaaaae14651a0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro scene function: 0xaaaae1447a00
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro setGlobalVariable function: 0xaaaae143dc40
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro setTimeout function: 0xaaaae145f7a0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro sleep function: 0xaaaae145a5d0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro trace function: 0xaaaae1471190
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro useAsyncHandler function: 0xaaaae1474af0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro wakeUpDeadDevice function: 0xaaaae145bde0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: fibaro warning function: 0xaaaae145ad50
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: getHierarchy 'function: 0xaaaae148bb20'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: getmetatable 'function: 0xffff9e38a698'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: Hierarchy 'class Hierarchy'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: ipairs 'function: 0xffff9e389de8'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: json _COPYRIGHT Copyright (c) 2007-2017 Thomas Harning Jr.
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: json _DESCRIPTION LuaJSON : customizable JSON decoder/encoder
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: json _VERSION 1.3.4
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: json array function: 0xaaaae1461480
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: json decode table: 0xaaaae13fd0f0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: json encode table: 0xaaaae14473e0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: json null function: 0xaaaae13ef430
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: json util table: 0xaaaae13f36a0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: logError 'function: 0xaaaae14736c0'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math abs function: 0xffff9e38fe40
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math acos function: 0xffff9e38fae8
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math asin function: 0xffff9e38fa80
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math atan function: 0xffff9e38f9f4
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math atan2 function: 0xffff9e38f9f4
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math ceil function: 0xffff9e38fbf0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math cos function: 0xffff9e38f98c
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math cosh function: 0xffff9e38f1b0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math deg function: 0xffff9e38ee84
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math exp function: 0xffff9e38f924
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math floor function: 0xffff9e38fd30
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math fmod function: 0xffff9e38f818
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math frexp function: 0xffff9e38efe0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math huge inf
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math ldexp function: 0xffff9e38ef5c
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math log function: 0xffff9e38f6b8
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math log10 function: 0xffff9e38eef4
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math max function: 0xffff9e38f5f0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math maxinteger 9223372036854775807
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math min function: 0xffff9e38f528
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math mininteger -9223372036854775808
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math modf function: 0xffff9e38fc74
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math pi 3.1415926535898
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math pow function: 0xffff9e38f058
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math rad function: 0xffff9e38ee14
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math random function: 0xffff9e38f3ac
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math randomseed function: 0xffff9e38f350
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math sin function: 0xffff9e38f2e8
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math sinh function: 0xffff9e38f148
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math sqrt function: 0xffff9e38f280
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math tan function: 0xffff9e38f218
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math tanh function: 0xffff9e38f0e0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math tointeger function: 0xffff9e38fdb4
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math type function: 0xffff9e38fb50
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: math ult function: 0xffff9e38f79c
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: mqtt Client class Client (MqttClient)
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: mqtt ConnectReturnCode class ConnectReturnCode (MqttModule::registerConnectReturnCodeInLua(lua_State*)::DummyConnectReturnCode)
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: mqtt QoS class QoS (MqttModule::registerQoSInLua(lua_State*)::DummyQoS)
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: net HTTPClient class HTTPClient (HTTPClient)
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: net TCPSocket class TCPSocket (TCPSocket)
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: net UDPSocket class UDPSocket (UDPSocket)
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: net WebSocketClient class WebSocketClient (WebSocketClient_)
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: net WebSocketClientTls class WebSocketClientTls (WebSocketClient_)
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: next 'function: 0xffff9e389e40'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: os clock function: 0xffff9e390540
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: os date function: 0xffff9e390978
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: os difftime function: 0xffff9e3904c0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: os exit function: 0xffff9e390360
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: os time function: 0xffff9e390794
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: pairs 'function: 0xffff9e389d90'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: pcall 'function: 0xffff9e38a368'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: plugin createChildDevice function: 0xaaaae147d200
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: plugin deleteDevice function: 0xaaaae1470160
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: plugin getChildDevices function: 0xaaaae13ff820
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: plugin getDevice function: 0xaaaae14874b0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: plugin getProperty function: 0xaaaae147ccb0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: plugin mainDeviceId 54
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: plugin restart function: 0xaaaae147d1d0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: print 'function: 0xaaaae14703b0'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: property 'function: 0xaaaac58981d4'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: QuickApp 'class QuickApp'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: QuickAppBase 'class QuickAppBase'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: QuickAppChild 'class QuickAppChild'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: rawlen 'function: 0xffff9e389a28'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: RefreshStateSubscriber 'class RefreshStateSubscriber'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: select 'function: 0xffff9e38951c'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: setInterval 'function: 0xaaaae14620c0'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: setmetatable 'function: 0xffff9e389824'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: setTimeout 'function: 0xaaaae1461fd0'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: string byte function: 0xffff9e3921d8
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: string char function: 0xffff9e3917d8
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: string dump function: 0xffff9e3920a4
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: string find function: 0xffff9e393b0c
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: string format function: 0xffff9e391968
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: string gmatch function: 0xffff9e3916fc
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: string gsub function: 0xffff9e393c10
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: string len function: 0xffff9e390ca8
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: string lower function: 0xffff9e3913cc
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: string match function: 0xffff9e393ac4
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: string pack function: 0xffff9e392cac
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: string packsize function: 0xffff9e392844
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: string rep function: 0xffff9e391258
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: string reverse function: 0xffff9e391198
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: string split function: 0xaaaae147c2c0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: string starts function: 0xaaaae148b7f0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: string sub function: 0xffff9e392308
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: string unpack function: 0xffff9e3929fc
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: string upper function: 0xffff9e3910d0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: super 'function: 0xaaaac589816c'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: table concat function: 0xffff9e395050
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: table insert function: 0xffff9e394f10
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: table move function: 0xffff9e394c1c
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: table pack function: 0xffff9e394400
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: table remove function: 0xffff9e394de0
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: table sort function: 0xffff9e394b40
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: table unpack function: 0xffff9e3942d4
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: tonumber 'function: 0xffff9e389608'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: tostring 'function: 0xffff9e3894b0'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: type 'function: 0xffff9e38941c'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: unpack 'function: 0xffff9e3942d4'
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: utf8 char function: 0xffff9e395524
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: utf8 charpattern [-�-�][�-�]*
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: utf8 codepoint function: 0xffff9e395934
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: utf8 codes function: 0xffff9e3952f4
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: utf8 len function: 0xffff9e395648
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: utf8 offset function: 0xffff9e395794
-[09.02.2025] [20:47:26] [DEBUG] [QUICKAPP54]: xpcall 'function: 0xffff9e38a2ac'
+ V __assert_type 'function: 0xaaaae1458b50'
+ V __fibaro_add_debug_message 'function: 0xaaaae1447d70'
+ V __fibaro_get_breached_partitions 'function: 0xaaaae1447460'
+ V __fibaro_get_device 'function: 0xaaaae1404dc0'
+ V __fibaro_get_device_property 'function: 0xaaaae14479d0'
+ V __fibaro_get_devices 'function: 0xaaaae1447540'
+ V __fibaro_get_devices_by_type 'function: 0xaaaae14479a0'
+ V __fibaro_get_global_variable 'function: 0xaaaae145ab00'
+ V __fibaro_get_partition 'function: 0xaaaae1445a60'
+ V __fibaro_get_partitions 'function: 0xaaaae14474d0'
+ V __fibaro_get_room 'function: 0xaaaae1495c90'
+ V __fibaro_get_scene 'function: 0xaaaae1495630'
+ V __fibaroSleep 'function: 0xaaaae1462420'
+ V __fibaroUseAsyncHandler 'function: 0xaaaae1465fa0'
+ V __print 'function: 0xaaaae14615d0'
+ V __TAG 'QuickApp54'
+ V __ternary 'function: 0xaaaae1458a50'
+ V _G 'table: 0xaaaae13dd650'
+ _VERSION 'Lua 5.3'
+ V api delete function: 0xaaaae1465ec0
+ V api get function: 0xaaaae1465e00
+ V api post function: 0xaaaae1465e40
+ V api put function: 0xaaaae1465e80
+ V assert 'function: 0xffff9e38a7f4'
+ V bit32 arshift function: 0xffff9e38aca0
+ V bit32 band function: 0xffff9e38b094
+ V bit32 bnot function: 0xffff9e38ac34
+ V bit32 bor function: 0xffff9e38b190
+ V bit32 btest function: 0xffff9e38b02c
+ V bit32 bxor function: 0xffff9e38b0f8
+ V bit32 extract function: 0xffff9e38af0c
+ V bit32 lrotate function: 0xffff9e38abd4
+ V bit32 lshift function: 0xffff9e38aa74
+ V bit32 replace function: 0xffff9e38ae54
+ V bit32 rrotate function: 0xffff9e38ab74
+ V bit32 rshift function: 0xffff9e38aa00
+ V class 'function: 0xaaaac5899c2c'
+ V clearInterval 'function: 0xaaaae1462300'
+ V clearTimeout 'function: 0xaaaae14621e0'
+ V collectgarbage 'function: 0xffff9e38a124'
+ core EventTarget class EventTarget (EventTarget)
+ V error 'function: 0xffff9e38a074'
+ V fibaro __houseAlarm function: 0xaaaae1444ca0
+ V fibaro alarm function: 0xaaaae143e210
+ V fibaro alert function: 0xaaaae1445840
+ V fibaro call function: 0xaaaae1447050
+ V fibaro callGroupAction function: 0xaaaae1411250
+ V fibaro clearTimeout function: 0xaaaae145c8a0
+ V fibaro debug function: 0xaaaae1470210
+ V fibaro emitCustomEvent function: 0xaaaae14430d0
+ V fibaro error function: 0xaaaae1471110
+ V fibaro get function: 0xaaaae13e8a60
+ V fibaro getDevicesID function: 0xaaaae143e800
+ V fibaro getGlobalVariable function: 0xaaaae143e0d0
+ V fibaro getHomeArmState function: 0xaaaae14688e0
+ V fibaro getIds function: 0xaaaae1442190
+ V fibaro getName function: 0xaaaae13f5000
+ V fibaro getPartition function: 0xaaaae1442140
+ V fibaro getPartitionArmState function: 0xaaaae1471010
+ V fibaro getPartitions function: 0xaaaae14453d0
+ V fibaro getRoomID function: 0xaaaae14186f0
+ V fibaro getRoomName function: 0xaaaae1413450
+ V fibaro getRoomNameByDeviceID function: 0xaaaae13f1a90
+ V fibaro getSectionID function: 0xaaaae1413690
+ V fibaro getType function: 0xaaaae13ea000
+ V fibaro getValue function: 0xaaaae14027c0
+ V fibaro isHomeBreached function: 0xaaaae14701c0
+ V fibaro isPartitionBreached function: 0xaaaae1466720
+ V fibaro profile function: 0xaaaae14651a0
+ V fibaro scene function: 0xaaaae1447a00
+ V fibaro setGlobalVariable function: 0xaaaae143dc40
+ V fibaro setTimeout function: 0xaaaae145f7a0
+ V fibaro sleep function: 0xaaaae145a5d0
+ V fibaro trace function: 0xaaaae1471190
+ V fibaro useAsyncHandler function: 0xaaaae1474af0
+ V fibaro wakeUpDeadDevice function: 0xaaaae145bde0
+ V fibaro warning function: 0xaaaae145ad50
+ getHierarchy 'function: 0xaaaae148bb20'
+ V getmetatable 'function: 0xffff9e38a698'
+ Hierarchy 'class Hierarchy'
+ V ipairs 'function: 0xffff9e389de8'
+ json _COPYRIGHT Copyright (c) 2007-2017 Thomas Harning Jr.
+ json _DESCRIPTION LuaJSON : customizable JSON decoder/encoder
+ json _VERSION 1.3.4
+ json array function: 0xaaaae1461480       -- CHECK!
+ V json decode table: 0xaaaae13fd0f0
+ V json encode table: 0xaaaae14473e0
+ json null function: 0xaaaae13ef430        -- CHECK!
+ V json util table: 0xaaaae13f36a0         
+ logError 'function: 0xaaaae14736c0'
+ V math abs function: 0xffff9e38fe40
+ V math acos function: 0xffff9e38fae8
+ V math asin function: 0xffff9e38fa80
+ V math atan function: 0xffff9e38f9f4
+ V math atan2 function: 0xffff9e38f9f4
+ V math ceil function: 0xffff9e38fbf0
+ V math cos function: 0xffff9e38f98c
+ V math cosh function: 0xffff9e38f1b0
+ V math deg function: 0xffff9e38ee84
+ V math exp function: 0xffff9e38f924
+ V math floor function: 0xffff9e38fd30
+ V math fmod function: 0xffff9e38f818
+ V math frexp function: 0xffff9e38efe0
+ V math huge inf
+ V math ldexp function: 0xffff9e38ef5c
+ V math log function: 0xffff9e38f6b8
+ V math log10 function: 0xffff9e38eef4
+ V math max function: 0xffff9e38f5f0
+ V math maxinteger 9223372036854775807
+ V math min function: 0xffff9e38f528
+ V math mininteger -9223372036854775808
+ V math modf function: 0xffff9e38fc74
+ V math pi 3.1415926535898
+ V math pow function: 0xffff9e38f058
+ V math rad function: 0xffff9e38ee14
+ V math random function: 0xffff9e38f3ac
+ V math randomseed function: 0xffff9e38f350
+ V math sin function: 0xffff9e38f2e8
+ V math sinh function: 0xffff9e38f148
+ V math sqrt function: 0xffff9e38f280
+ V math tan function: 0xffff9e38f218
+ V math tanh function: 0xffff9e38f0e0
+ V math tointeger function: 0xffff9e38fdb4
+ V math type function: 0xffff9e38fb50
+ V math ult function: 0xffff9e38f79c
+ V mqtt Client class Client (MqttClient)
+ mqtt ConnectReturnCode class ConnectReturnCode (MqttModule::registerConnectReturnCodeInLua(lua_State*)::DummyConnectReturnCode)
+ mqtt QoS class QoS (MqttModule::registerQoSInLua(lua_State*)::DummyQoS)
+ V net HTTPClient class HTTPClient (HTTPClient)
+ V net TCPSocket class TCPSocket (TCPSocket)
+ V net UDPSocket class UDPSocket (UDPSocket)
+ V net WebSocketClient class WebSocketClient (WebSocketClient_)
+ V net WebSocketClientTls class WebSocketClientTls (WebSocketClient_)
+ V next 'function: 0xffff9e389e40'
+ V os clock function: 0xffff9e390540
+ V os date function: 0xffff9e390978
+ V os difftime function: 0xffff9e3904c0
+ V os exit function: 0xffff9e390360
+ V os time function: 0xffff9e390794
+ V pairs 'function: 0xffff9e389d90'
+ V pcall 'function: 0xffff9e38a368'
+ plugin createChildDevice function: 0xaaaae147d200
+ V plugin deleteDevice function: 0xaaaae1470160
+ V plugin getChildDevices function: 0xaaaae13ff820
+ V plugin getDevice function: 0xaaaae14874b0
+ V plugin getProperty function: 0xaaaae147ccb0
+ V plugin mainDeviceId 54
+ V plugin restart function: 0xaaaae147d1d0
+ V print 'function: 0xaaaae14703b0'
+ V property 'function: 0xaaaac58981d4'
+ V QuickApp 'class QuickApp'
+ V QuickAppBase 'class QuickAppBase'
+ V QuickAppChild 'class QuickAppChild'
+ rawlen 'function: 0xffff9e389a28'
+ V RefreshStateSubscriber 'class RefreshStateSubscriber'
+ V select 'function: 0xffff9e38951c'
+ V setInterval 'function: 0xaaaae14620c0'
+ V setmetatable 'function: 0xffff9e389824'
+ V setTimeout 'function: 0xaaaae1461fd0'
+ V string byte function: 0xffff9e3921d8
+ V string char function: 0xffff9e3917d8
+ V string dump function: 0xffff9e3920a4
+ V string find function: 0xffff9e393b0c
+ V string format function: 0xffff9e391968
+ V string gmatch function: 0xffff9e3916fc
+ V string gsub function: 0xffff9e393c10
+ V string len function: 0xffff9e390ca8
+ V string lower function: 0xffff9e3913cc
+ V string match function: 0xffff9e393ac4
+ V string pack function: 0xffff9e392cac
+ V string packsize function: 0xffff9e392844
+ V string rep function: 0xffff9e391258
+ V string reverse function: 0xffff9e391198
+ V string split function: 0xaaaae147c2c0
+ V string starts function: 0xaaaae148b7f0
+ V string sub function: 0xffff9e392308
+ V string unpack function: 0xffff9e3929fc
+ V string upper function: 0xffff9e3910d0
+ super 'function: 0xaaaac589816c'
+ V table concat function: 0xffff9e395050
+ V table insert function: 0xffff9e394f10
+ V table move function: 0xffff9e394c1c
+ V table pack function: 0xffff9e394400
+ V table remove function: 0xffff9e394de0
+ V table sort function: 0xffff9e394b40
+ V table unpack function: 0xffff9e3942d4
+ V tonumber 'function: 0xffff9e389608'
+ V tostring 'function: 0xffff9e3894b0'
+ V type 'function: 0xffff9e38941c'
+ V unpack 'function: 0xffff9e3942d4'
+ utf8 char function: 0xffff9e395524
+ utf8 charpattern [-�-�][�-�]*
+ utf8 codepoint function: 0xffff9e395934
+ utf8 codes function: 0xffff9e3952f4
+ utf8 len function: 0xffff9e395648
+ utf8 offset function: 0xffff9e395794
+ V xpcall 'function: 0xffff9e38a2ac'

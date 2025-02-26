@@ -165,6 +165,8 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
   function directive.speed(d,val) flags.speed = eval(val,d) assert(tonumber(flags.speed),"Bad speed directive:"..d)end
   function directive.port(d,val) TQ.emuPort = eval(val,d) assert(tonumber(TQ.emuPort),"Bad port directive:"..d)end
   function directive.logUI(d,val) flags.logUI = eval(val,d) end
+  function directive.breakOnLoad(d,val) flags.breakOnLoad = eval(val,d) end
+  function directive.breakOnInit(d,val) flags.breakOnInit = eval(val,d) end
   function directive.offline(d,val) flags.offline = eval(val,d) end
   directive['local'] = function(d,val) flags.offline = eval(val,d) end
   function directive.state(d,val) flags.state = tostring(val) end
@@ -192,9 +194,11 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
     DEBUGF('info',"Time set to %s",os.date("%c",flags.time))
   end
   
-  mainSrc:gsub("%-%-%%%%(%w-=.-)%s*\n",function(p)
+  local truncCode = info.src:match("(.-)%-%-+ENDOFDIRECTIVES%-%-") or info.src
+
+  truncCode:gsub("%-%-%%%%(%w-=.-)%s*\n",function(p)
     local f,v = p:match("(%w-)=(.*)")
-    local v1,com = v:match("(.*)%s* %-%- (.*)$")
+    local v1,com = v:match("(.*)%s* %-%- (.*)$") -- remove comments
     if v1 then v = v1 end
     if directive[f] then
       directive[f](p,v)
@@ -280,31 +284,6 @@ function MODULE.ui() TQ.require("hc3emu.ui") end
 function MODULE.tools() TQ.require("hc3emu.tools") end
 
 function MODULE.qa_manager()
-  function TQ.getFQA(id) -- Move to module
-    local qa = TQ.getQA(id)
-    local dev = qa.device
-    local files = {}
-    local suffix = ""
-    for _,f in ipairs(qa.files) do
-      if f.name == "main" then suffix = "99" end -- User has main file already... rename ours to main99
-      files[#files+1] = {name=f.name, isMain=false, isOpen=false, type='lua', content=f.src}
-    end
-    files[#files+1] = {name="main"..suffix, isMain=true, isOpen=false, type='lua', content=mainSrc}
-    local initProps = {}
-    local savedProps = {
-      "uiCallbacks","quickAppVariables","uiView","viewLayout","apiVersion","useEmbededView","manufacturer","useUiView",
-      "model","buildNumber","supportedDeviceRoles"
-    }
-    for _,k in ipairs(savedProps) do initProps[k]=dev.properties[k] end
-    return {
-      apiVersion = "1.3",
-      name = dev.name,
-      type = dev.type,
-      initialProperties = initProps,
-      initialInterfaces = dev.interfaces,
-      file = files
-    }
-  end
 
   function TQ.registerQA(info) -- {id=id,directives=directives,fname=fname,src=src,env=env,device=dev,qa=qa,files=files,proxy=<bool>,child=<bool>}
     local id = info.id
@@ -321,53 +300,6 @@ function MODULE.qa_manager()
     else
       TQ.route = TQ.remoteRoute
     end
-  end
-
-  function TQ.loadQA(path)
-    local f = io.open(path)
-    if f then
-      local src = f:read("*all")
-      f:close()
-      local info = { directives = nil, src = src, fname = path, env = { require=true }, files = {} }
----@diagnostic disable-next-line: need-check-nil
-      runQA(info)
-    else
-      ERRORF("Could not read file %s",path)
-    end
-  end
-
-  local fileNum = 0
-  function TQ.createTempName(suffix)
-    fileNum = fileNum + 1
-    return os.date("hc3emu%M%M")..fileNum..suffix
-  end
-
-  function TQ.loadQAsrc(src)
-    local path = TQ.tempDir..TQ.createTempName(".lua")
-    local f = io.open(path,"w")
-    assert(f,"Can't open file "..path)
-    f:write(src)
-    f:close()
-    local info = { directives = nil, src = src, fname = path, env = { require=true }, files = {} }
----@diagnostic disable-next-line: need-check-nil
-    runQA(info)
-  end
-
-  function TQ.saveQA(info)
-    local fileName = info.directives.save
-    local fqa = TQ.getFQA(info.id)
-    local vars = table.copy(fqa.initialProperties.quickAppVariables)
-    fqa.initialProperties.quickAppVariables = vars
-    for _,v in ipairs(vars) do
-      if flags.conceal[v.name] then 
-        v.value = flags.conceal[v.name]
-      end
-    end
-    local f = io.open(fileName,"w")
-    assert(f,"Can't open file "..fileName)
-    f:write(json.encode(fqa))
-    f:close()
-    DEBUG("Saved QuickApp to %s",fileName)
   end
 
   function TQ.saveProject(info)
@@ -464,7 +396,7 @@ local function loadQAFiles(info)
   end
   DEBUGF('info',"Loading user main file %s",info.fname)
   load(info.src,info.fname,"t",env)()
-  assert(TQ.URL, TQ.USER and TQ.PASSWORD,"Please define URL, USER, and PASSWORD")
+  if not TQ.flags.offline then assert(TQ.URL, TQ.USER and TQ.PASSWORD,"Please define URL, USER, and PASSWORD") end
 end
 
 function TQ.getNextDeviceId() DEVICEID = DEVICEID + 1 return DEVICEID end
@@ -479,6 +411,23 @@ local function createQAstruct(info)
   local uiCallbacks,viewLayout,uiView
   if flags.u and #flags.u > 0 then
     uiCallbacks,viewLayout,uiView = TQ.compileUI(flags.u)
+  else
+    viewLayout = json.decode([[{
+        "$jason": {
+          "body": {
+            "header": {
+              "style": { "height": "0" },
+              "title": "quickApp_device_57"
+            },
+            "sections": { "items": [] }
+          },
+          "head": { "title": "quickApp_device_57" }
+        }
+      }
+  ]])
+    viewLayout['$jason']['body']['sections']['items'] = json.util.InitArray({})
+    uiView = json.util.InitArray({})
+    uiCallbacks = json.util.InitArray({})
   end
 
   if flags.id == nil then flags.id = TQ.getNextDeviceId() end
@@ -542,9 +491,13 @@ end
 
 function runQA(info) -- The rest is run in a copas tasks...
   mobdebug.on()
-  createQAstruct(info) 
+  createQAstruct(info)
+  local firstLine,onInitLine = TQ.findFirstLine(info.src)
+  if firstLine == onInitLine then onInitLine = nil end
+  if info.directives.breakOnLoad and firstLine then TQ.mobdebug.setbreakpoint(info.fname,firstLine) end
+  if info.directives.breakOnInit and onInitLine then TQ.mobdebug.setbreakpoint(info.fname,onInitLine) end
   loadQAFiles(info)
-  if flags.save then TQ.saveQA(info) end
+  if flags.save then TQ.saveQA(info.id) end
   if flags.project then TQ.saveProject(info) end
   if info.env.QuickApp.onInit then
     DEBUGF('info',"Starting QuickApp %s",info.device.name)
@@ -552,6 +505,7 @@ function runQA(info) -- The rest is run in a copas tasks...
     info.env.quickApp = info.env.QuickApp(info.device) -- quickApp defined first when we return from :onInit()...
   end
 end
+TQ.runQA = runQA
 
 if not flags.silent then print(TQ.colorStr('orange',"HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..VERSION)) end
 while true do

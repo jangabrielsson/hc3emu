@@ -37,12 +37,13 @@ function MyChild:childFun(a,b)
 end
 
 local children = {
-  bar13 = {
+  bar135 = {
     name = "Bar1",
     type = "com.fibaro.multilevelSwitch",
     className = "MyChild",
     UI = {
       {button='b1',text='B1',onReleased='myButton1'},
+      {button='b2',text='My new button',onReleased='myButton1'},
       {slider='s1',text='S1',onChanged='mySlider'}
     },
   },

@@ -6,7 +6,18 @@
 --Implement some kind of offline mode.... no access to HC3. Done
 --Make websocket wss work... Done
 --Sync interfaces declared with proxy's current interfaces...
+--plugins.restart() only affect the current QA, not the whole emulator
 
+-------------------------------------------
+hc3emu funs
+
+function TQ.getFQA(id)           -- Creates FQA structure from installed QA
+function TQ.loadQA(path)         -- Load QA from file and run it
+function TQ.loadQAString(src)    -- Load QA from string and run it (saves as temp file)
+function TQ.saveQA(id)           -- Save installed QA to disk as .fqa file
+function TQ.installFQA(id)       -- Installs QA from HC3 and run it. (saves as temp files)
+function TQ.loadFQA(path)        -- Load FQA from file and run it (saves as temp files)
+function TQ.downloadFQA(id,path) -- Download QA from HC3, unpack and save it to disk
 
 ------------ All functions ----------------
 -utf8 missing

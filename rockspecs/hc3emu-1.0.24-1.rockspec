@@ -1,13 +1,13 @@
 package = "hc3emu"
-version = "1.0.23-1"
+version = "1.0.24-1"
 source = {
    url = "git://github.com/jangabrielsson/hc3emu",
-   tag = "v1.0.23",
+   tag = "v1.0.24",
 }
 description = {
-   summary = "hc3emu is a emulator for developing Fibaro HC3 QuickApps offline.",
+   summary = "hc3emu is an emulator for developing Fibaro HC3 QuickApps offline.",
    detailed = [[
-      hc3emu is a emulator for developing Fibaro HC3 QuickApps offline.
+      hc3emu is an emulator for developing Fibaro HC3 QuickApps offline.
       It's based on copas for asynchronous network calls.
       It can automatically deploy a "QA proxy" on the HC3 funneling 
       onAction and uiEvents back to the QA running in the emulator, thus

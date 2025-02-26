@@ -359,7 +359,7 @@ local function loadQAFiles(info)
   if info.directives.time then local t = info.directives.time  TQ.setTimeOffset(t - os.time()) end
 
   local env = info.env
-  local os2 = { time = userTime, clock = os.clock, difftime = os.difftime, date = userDate, exit = os.exit }
+  local os2 = { time = userTime, clock = os.clock, difftime = os.difftime, date = userDate, exit = os.exit, remove = os.remove }
   local fibaro = { hc3emu = TQ, HC3EMU_VERSION = VERSION, flags = info.directives, DBG = DBG }
   local args = nil
   if flags.shellscript then
@@ -406,7 +406,7 @@ local function createQAstruct(info)
   TQ.setOffline(info.directives.offline) 
   local flags = info.directives
   local env = info.env
-  local qvs = flags.var
+  local qvs = json.util.InitArray(flags.var or {})
   
   local uiCallbacks,viewLayout,uiView
   if flags.u and #flags.u > 0 then
@@ -439,7 +439,7 @@ local function createQAstruct(info)
     name=flags.name or 'MyQA',
     enabled = true,
     visible = true,
-    properties = { quickAppVariables = qvs, uiCallbacks = uiCallbacks, viewLayout = viewLayout, uiView = uiView },
+    properties = { apiVersion = "1.3", quickAppVariables = qvs, uiCallbacks = uiCallbacks, useUiView = false, viewLayout = viewLayout, uiView = uiView, typeTemplateInitialized = true },
     useUiView = false,
     interfaces = ifs,
     created = os.time(),

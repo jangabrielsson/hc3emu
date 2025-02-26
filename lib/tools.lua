@@ -94,7 +94,7 @@ function TQ.getFQA(id) -- Creates FQA structure from installed QA
   local initProps = {}
   local savedProps = {
     "uiCallbacks","quickAppVariables","uiView","viewLayout","apiVersion","useEmbededView","manufacturer","useUiView",
-    "model","buildNumber","supportedDeviceRoles"
+    "model","buildNumber","supportedDeviceRoles","userDescription","typeTemplateInitialized",
   }
   for _,k in ipairs(savedProps) do initProps[k]=dev.properties[k] end
   return {
@@ -103,7 +103,7 @@ function TQ.getFQA(id) -- Creates FQA structure from installed QA
     type = dev.type,
     initialProperties = initProps,
     initialInterfaces = dev.interfaces,
-    file = files
+    files = files
   }
 end
 
@@ -166,7 +166,7 @@ local function unpackFQA(id,fqa,path) -- Unpack fqa and save it to disk
   assert(fqa, "Failed to download fqa")
   local name = fqa.name
   local typ = fqa.type
-  local files = fqa.file
+  local files = fqa.files
   local props = fqa.initialProperties or {}
   local ifs = fqa.initialInterfaces or {}
   ifs = remove(ifs,"quickApp")

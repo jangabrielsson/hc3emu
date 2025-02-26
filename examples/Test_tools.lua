@@ -2,6 +2,7 @@ _DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
 --%%name=Tool test
+--%%proxy=-ToolProxy
 
 local loadQAString = fibaro.hc3emu.loadQAString   -- Load QA from string and run it (saves as temp file)
 local downloadFQA = fibaro.hc3emu.downloadFQA     -- Download QA from HC3, unpack and save it to disk
@@ -13,21 +14,35 @@ local loadQA = fibaro.hc3emu.loadQA               -- Load QA from file and run i
 local getFQA = fibaro.hc3emu.getFQA               -- Creates FQA structure from installed QA
 
 --ENDOFDIRECTIVES--
+-- Run instance of QA (5002)
 loadQAString([[
 --%%name=StringQA
 function QuickApp:onInit()
   self:debug("onInit",self.name,self.id)
 end
-]])
+]])   
 
 --local sqa = api.get("/devices?name=StringQA") -- FIX, this is not found
 local fqa = getFQA(plugin.mainDeviceId)
 print("Name of this QA",fqa.name)
 
-saveQA(5002,"StringQA.fqa")
+saveQA(5002,"StringQA.fqa")       -- Save running QA to disk as .fqa
 
 loadFQA("StringQA.fqa")           -- Running new instance of the QA (5003)
 
-unpackFQA("StringQA.fqa","./")
+unpackFQA("StringQA.fqa","./")    -- Unpack fqa on disk to lua file
 
 loadQA("StringQA.lua")            -- Running new instance of the QA (5004)
+
+fqa = getFQA(5004)                -- Get FQA structure from installed QA
+fqa.initialProperties.useUiView = true
+local dev,err = api.post("/quickApp/",fqa) -- Install QA from fqa file
+
+print(dev.id)
+
+installFQA(dev.id)                -- Running new instance of the QA downloaded from HC3 (5005)
+
+-- Clean up
+os.remove("StringQA.fqa")         -- Remove saved fqa file
+os.remove("StringQA.lua")         -- Remove saved lua file
+api.delete("/devices/"..dev.id)   -- Remove installed QA

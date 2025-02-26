@@ -156,6 +156,11 @@ function TQ.setupRemoteRoutes() -- Proxy routes updates both local QA data and r
     return nil,301
   end
 
+  local function blockIfEmulated(p,id,data)
+    if TQ.getQA(tonumber(id)) then return block(p,data)
+    else return nil,301 end
+  end
+
   local function updateView(p,data) --ToDo, update local view
     return nil,301
   end
@@ -172,7 +177,7 @@ function TQ.setupRemoteRoutes() -- Proxy routes updates both local QA data and r
   TQ.addStandardAPIRoutes(route)
 
   route:add('PUT/devices/<id>',putStruct)
-  route:add('DELETE/devices/<id>',block)                    -- Block delete
+  route:add('DELETE/devices/<id>',blockIfEmulated)                    -- Block delete
   route:add('POST/plugins/updateView',updateView)           -- Update local and remote view
   route:add('POST/plugins/updateProperty',putProp)          -- Update local and remote properties
   route:add('POST/plugins/createChildDevice',blockParentId) -- Block if it is for local QA and we don't have a proxy

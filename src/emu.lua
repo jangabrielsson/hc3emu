@@ -17,7 +17,6 @@ local VERSION = "1.0.20"
 
 local cfgFileName = "hc3emu_cfg.lua"   -- Config file in current directory
 local homeCfgFileName = ".hc3emu.lua"  -- Config file in home directory
-local mainFileName, mainSrc = MAINFILE, nil -- Main file name and source
 
 -- TQ defined in src/hc3emu.lua
 TQ.DIR={} -- Directory for all QAs - devicesId -> QAinfo 
@@ -25,12 +24,12 @@ TQ.EMUVAR = "TQEMU" -- HC3 GV with connection data for HC3 proxy
 TQ.emuPort = 8264   -- Port for HC3 proxy to connect to
 TQ.emuIP = nil      -- IP of host running the emulator
 TQ.api = {}         -- API functions
-TQ.DBG = { info=true } -- Default flags and debug settings
-TQ.mainFile = mainFileName
+TQ.DBG = { info = true } -- Default flags and debug settings
+TQ.mainFile = MAINFILE
 TQ.require("hc3emu.util")(TQ) -- Utility functions
 
 local DEVICEID = 5000 -- Start id for QA devices
-local qaInfo = { env = {} }
+local qaInfo = { fname = TQ.mainFile, env = {} }
 
 local flags,runQA = {},nil
 
@@ -43,28 +42,25 @@ local exports = {} -- functions to export to QA
 
 local fmt = string.format
 
-local f = io.open(mainFileName)
-if f then mainSrc = f:read("*all") f:close()
+local f = io.open(TQ.mainFile)
+if f then 
+  local src = f:read("*all") f:close()
+  -- We need to do some pre-look dor directives...
+  if src:match("info:false") then DBG.info = false else DBG.info=true end -- Peek 
+  if src:match("dark=true") then DBG.dark = true end
+  if src:match("nodebug=true") then DBG.nodebug = true end
+  if src:match("shellscript=true") then DBG.nodebug = true DBG.shellscript=true end
+  if src:match("silent=true") then DBG.silent = true end
+  src = src:gsub("#!/usr/bin/env", "--#!/usr/bin/env") -- Fix shebang
+  qaInfo.src = src
 else error("Could not read main file") end
--- We need to do some pre-look dor directives...
-if mainSrc:match("info:false") then DBG.info = false else DBG.info=true end -- Peek 
-if mainSrc:match("dark=true") then DBG.dark = true end
-if mainSrc:match("nodebug=true") then DBG.nodebug = true end
-if mainSrc:match("shellscript=true") then DBG.nodebug = true DBG.shellscript=true end
-if mainSrc:match("silent=true") then DBG.silent = true end
-mainSrc = mainSrc:gsub("#!/usr/bin/env", "--#!/usr/bin/env") -- Fix shebang
 
-if not DBG.silent then DEBUGF('info',"Main QA file %s",mainFileName) end
+if not DBG.silent then DEBUGF('info',"Main QA file %s",TQ.mainFile) end
 
 local win = (os.getenv('WINDIR') or (os.getenv('OS') or ''):match('[Ww]indows'))
   and not (os.getenv('OSTYPE') or ''):match('cygwin') -- exclude cygwin
 TQ.sep = win and '\\' or '/'
 TQ.tempDir = os.getenv("TMPDIR") or os.getenv("TEMP") or os.getenv("TMP") -- temp directory
-
-print("tempDir",TQ.tempDir)
-
-qaInfo.src = mainSrc
-qaInfo.fname = mainFileName
 
 -- Get home project file, defaults to {}
 DEBUGF('info',"Loading home config file %s",homeCfgFileName)
@@ -195,6 +191,12 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
   end
   
   local truncCode = info.src:match("(.-)%-%-+ENDOFDIRECTIVES%-%-") or info.src
+  if info.extraDirectives then
+    local extras = {}
+    for _,d in ipairs(info.extraDirectives) do extras[#extras+1] = fmt("--%%%%%s",d) end
+    local extraStr = table.concat(extras,"\n")
+    truncCode = truncCode.."\n"..extraStr.."\n"
+  end
 
   truncCode:gsub("%-%-%%%%(%w-=.-)%s*\n",function(p)
     local f,v = p:match("(%w-)=(.*)")
@@ -383,7 +385,7 @@ local function loadQAFiles(info)
   for _,path in ipairs({"hc3emu.class","hc3emu.qafuns","hc3emu.fibaro","hc3emu.quickapp","hc3emu.net"}) do
     DEBUGF('info',"Loading QA library %s",path)
     if _DEVELOP then
-      path = "lib/"..path:match(".-%.(.*)")..".lua"
+      path = "src/"..path:match(".-%.(.*)")..".lua"
     else  path = package.searchpath(path,package.path) end
     loadfile(path,"t",env)()
   end
@@ -396,7 +398,9 @@ local function loadQAFiles(info)
   end
   DEBUGF('info',"Loading user main file %s",info.fname)
   load(info.src,info.fname,"t",env)()
-  if not TQ.flags.offline then assert(TQ.URL, TQ.USER and TQ.PASSWORD,"Please define URL, USER, and PASSWORD") end
+  if not TQ.flags.offline then 
+    assert(TQ.URL, TQ.USER and TQ.PASSWORD,"Please define URL, USER, and PASSWORD") -- Early check that creds are available
+  end
 end
 
 function TQ.getNextDeviceId() DEVICEID = DEVICEID + 1 return DEVICEID end
@@ -493,13 +497,14 @@ function runQA(info) -- The rest is run in a copas tasks...
   mobdebug.on()
   createQAstruct(info)
   local firstLine,onInitLine = TQ.findFirstLine(info.src)
-  if firstLine == onInitLine then onInitLine = nil end
   if info.directives.breakOnLoad and firstLine then TQ.mobdebug.setbreakpoint(info.fname,firstLine) end
-  if info.directives.breakOnInit and onInitLine then TQ.mobdebug.setbreakpoint(info.fname,onInitLine) end
   loadQAFiles(info)
   if flags.save then TQ.saveQA(info.id) end
   if flags.project then TQ.saveProject(info) end
   if info.env.QuickApp.onInit then
+    if info.directives.breakOnInit and onInitLine then -- This doesn't work...(?)
+      TQ.mobdebug.setbreakpoint(info.fname,onInitLine) 
+    end
     DEBUGF('info',"Starting QuickApp %s",info.device.name)
     TQ.post({type='quickApp_started',id=info.id},true)
     info.env.quickApp = info.env.QuickApp(info.device) -- quickApp defined first when we return from :onInit()...

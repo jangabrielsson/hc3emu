@@ -107,12 +107,12 @@ function TQ.getFQA(id) -- Creates FQA structure from installed QA
   }
 end
 
-function TQ.loadQA(path)   -- Load QA from file and run it
+function TQ.loadQA(path,optionalDirectives)   -- Load QA from file and run it
   local f = io.open(path)
   if f then
     local src = f:read("*all")
     f:close()
-    local info = { directives = nil, src = src, fname = path, env = { require=true }, files = {} }
+    local info = { directives = nil, extraDirectives = optionalDirectives, src = src, fname = path, env = { require=true }, files = {} }
 ---@diagnostic disable-next-line: need-check-nil
     TQ.runQA(info)
   else
@@ -120,13 +120,13 @@ function TQ.loadQA(path)   -- Load QA from file and run it
   end
 end
 
-function TQ.loadQAString(src) -- Load QA from string and run it
+function TQ.loadQAString(src,optionalDirectives) -- Load QA from string and run it
   local path = TQ.tempDir..TQ.createTempName(".lua")
   local f = io.open(path,"w")
   assert(f,"Can't open file "..path)
   f:write(src)
   f:close()
-  local info = { directives = nil, src = src, fname = path, env = { require=true }, files = {} }
+  local info = { directives = nil, extraDirectives = optionalDirectives, src = src, fname = path, env = { require=true }, files = {} }
 ---@diagnostic disable-next-line: need-check-nil
   TQ.runQA(info)
 end
@@ -151,11 +151,11 @@ function TQ.saveQA(id,fileName)       -- Save installed QA to disk as .fqa
   TQ.DEBUG("Saved QuickApp to %s",fileName)
 end
 
-function TQ.installFQA(id)          -- Installs QA from HC3 and run it.
+function TQ.installFQA(id,optionalDirectives)          -- Installs QA from HC3 and run it.
   assert(type(id) == "number", "id must be a number")
   local path = TQ.tempDir
   local path = TQ.downloadFQA(id,path)
-  TQ.loadQA(path)
+  TQ.loadQA(path,optionalDirectives)
 end
 
 
@@ -229,12 +229,12 @@ function TQ.downloadFQA(id,path) -- Download QA from HC3,unpack and save it to d
   return unpackFQA(id,nil,path)
 end
 
-function TQ.loadFQA(path)        -- Load FQA from file and run it (saves as temp files)
+function TQ.loadFQA(path,optionalDirectives)        -- Load FQA from file and run it (saves as temp files)
   local fqaPath = TQ.unpackFQA(path,TQ.tempDir)
-  TQ.loadQA(fqaPath)
+  TQ.loadQA(fqaPath,optionalDirectives)
 end
 
-function TQ.unpackFQA(fqaPath,savePath)        -- Load FQA from file and unpack it
+function TQ.unpackFQA(fqaPath,savePath)        -- Upnack FQA on disk  to lua files
   assert(type(fqaPath) == "string", "path must be a string")
   local f = io.open(fqaPath)
   assert(f,"Can't open file "..fqaPath)

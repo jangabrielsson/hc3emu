@@ -66,8 +66,20 @@ local function callAction(p,id,name,data)
   qa.qa:callAction(name,table.unpack(data.args)) return 'OK',200
 end
 
-function TQ.addStandardAPIRoutes(route) -- Adds standard API routes to an route object.
+local function getDevices(p,query)
+  -- Get all devices from HC3
+  local qa = TQ.HC3Call('GET','/devices')
+    -- Add emulated QAs 
+  for id,q in pairs(TQ.DIR) do
+    if id >= 5000 then qa[#qa+1] = q.device end
+  end
+  if next(query) then return TQ.queryFilter(query,qa),200 end   -- if query, filter the list.
+  return qa,200
+end
 
+function TQ.addStandardAPIRoutes(route) -- Adds standard API routes to a route object.
+
+  route:addOver('GET/devices',function(p,query,...) return getDevices(p,query,...) end)
   route:add('GET/devices/<id>',function(p,id,d)  -- Fetch our local device structure
     local qa = TQ.getQA(tonumber(id))
     if qa == nil then return nil,301 end

@@ -21,7 +21,7 @@ TQ = {}
 function TQ.require(path)
   if _DEVELOP then
     if not path:match("^hc3emu") then return require(path) end
-    path = "lib/"..path:match(".-%.(.*)")..".lua" -- If developing, we pick it up from our own directory
+    path = "src/"..path:match(".-%.(.*)")..".lua" -- If developing, we pick it up from our own directory
     return dofile(path)
   else 
     return require(path)  -- else require the package
@@ -31,7 +31,7 @@ end
 function TQ.pathto(module)
   if _DEVELOP then
     if not module:match("^hc3emu") then return package.searchpath(module,package.path) end
-    return "lib/"..module:match(".-%.(.*)")..".lua" -- If developing, we pick it up from our own directory
+    return "src/"..module:match(".-%.(.*)")..".lua" -- If developing, we pick it up from our own directory
   else 
     return package.searchpath(module,package.path)  
   end

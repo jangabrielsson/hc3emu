@@ -5,149 +5,149 @@
 --Implement --%%u directive to setup proxy UI - done
 --Implement some kind of offline mode.... no access to HC3. Done
 --Make websocket wss work... Done
---Sync interfaces declared with proxy's current interfaces...
---plugins.restart() only affect the current QA, not the whole emulator
+--Sync interfaces declared with proxy's current interfaces..
+--plugins.restart() should only affect the current QA, not the whole emulator
 
 -------------------------------------------
 hc3emu funs
 
-function TQ.getFQA(id)           -- Creates FQA structure from installed QA
-function TQ.loadQA(path)         -- Load QA from file and run it
-function TQ.loadQAString(src)    -- Load QA from string and run it (saves as temp file)
-function TQ.saveQA(id)           -- Save installed QA to disk as .fqa file
-function TQ.installFQA(id)       -- Installs QA from HC3 and run it. (saves as temp files)
-function TQ.loadFQA(path)        -- Load FQA from file and run it (saves as temp files)
-function TQ.downloadFQA(id,path) -- Download QA from HC3, unpack and save it to disk
+V function TQ.getFQA(id)           -- Creates FQA structure from installed QA
+V function TQ.loadQA(path)         -- Load QA from file and run it
+V function TQ.loadQAString(src)    -- Load QA from string and run it (saves as temp file)
+V function TQ.saveQA(id)           -- Save installed QA to disk as .fqa file
+V function TQ.installFQA(id)       -- Installs QA from HC3 and run it. (saves as temp files)
+V function TQ.loadFQA(path)        -- Load FQA from file and run it (saves as temp files)
+V function TQ.downloadFQA(id,path) -- Download QA from HC3, unpack and save it to disk
 
 ------------ All functions ----------------
 -utf8 missing
 -getHierarchy missing
 
- V __assert_type 'function: 0xaaaae1458b50'
- V __fibaro_add_debug_message 'function: 0xaaaae1447d70'
- V __fibaro_get_breached_partitions 'function: 0xaaaae1447460'
- V __fibaro_get_device 'function: 0xaaaae1404dc0'
- V __fibaro_get_device_property 'function: 0xaaaae14479d0'
- V __fibaro_get_devices 'function: 0xaaaae1447540'
- V __fibaro_get_devices_by_type 'function: 0xaaaae14479a0'
- V __fibaro_get_global_variable 'function: 0xaaaae145ab00'
- V __fibaro_get_partition 'function: 0xaaaae1445a60'
- V __fibaro_get_partitions 'function: 0xaaaae14474d0'
- V __fibaro_get_room 'function: 0xaaaae1495c90'
- V __fibaro_get_scene 'function: 0xaaaae1495630'
- V __fibaroSleep 'function: 0xaaaae1462420'
- V __fibaroUseAsyncHandler 'function: 0xaaaae1465fa0'
- V __print 'function: 0xaaaae14615d0'
+ V __assert_type function
+ V __fibaro_add_debug_message function
+ V __fibaro_get_breached_partitions function
+ V __fibaro_get_device function
+ V __fibaro_get_device_property function
+ V __fibaro_get_devices function
+ V __fibaro_get_devices_by_type function
+ V __fibaro_get_global_variable function
+ V __fibaro_get_partition function
+ V __fibaro_get_partitions function
+ V __fibaro_get_room function
+ V __fibaro_get_scene function
+ V __fibaroSleep function
+ V __fibaroUseAsyncHandler function
+ V __print function
  V __TAG 'QuickApp54'
- V __ternary 'function: 0xaaaae1458a50'
- V _G 'table: 0xaaaae13dd650'
+ V __ternary function
+ V _G 'table'
  _VERSION 'Lua 5.3'
- V api delete function: 0xaaaae1465ec0
- V api get function: 0xaaaae1465e00
- V api post function: 0xaaaae1465e40
- V api put function: 0xaaaae1465e80
- V assert 'function: 0xffff9e38a7f4'
- V bit32 arshift function: 0xffff9e38aca0
- V bit32 band function: 0xffff9e38b094
- V bit32 bnot function: 0xffff9e38ac34
- V bit32 bor function: 0xffff9e38b190
- V bit32 btest function: 0xffff9e38b02c
- V bit32 bxor function: 0xffff9e38b0f8
- V bit32 extract function: 0xffff9e38af0c
- V bit32 lrotate function: 0xffff9e38abd4
- V bit32 lshift function: 0xffff9e38aa74
- V bit32 replace function: 0xffff9e38ae54
- V bit32 rrotate function: 0xffff9e38ab74
- V bit32 rshift function: 0xffff9e38aa00
- V class 'function: 0xaaaac5899c2c'
- V clearInterval 'function: 0xaaaae1462300'
- V clearTimeout 'function: 0xaaaae14621e0'
- V collectgarbage 'function: 0xffff9e38a124'
+ V api delete function
+ V api get function
+ V api post function
+ V api put function
+ V assert function
+ V bit32 arshift function
+ V bit32 band function
+ V bit32 bnot function
+ V bit32 bor function
+ V bit32 btest function
+ V bit32 bxor function
+ V bit32 extract function
+ V bit32 lrotate function
+ V bit32 lshift function
+ V bit32 replace function
+ V bit32 rrotate function
+ V bit32 rshift function
+ V class function
+ V clearInterval function
+ V clearTimeout function
+ V collectgarbage function
  core EventTarget class EventTarget (EventTarget)
- V error 'function: 0xffff9e38a074'
- V fibaro __houseAlarm function: 0xaaaae1444ca0
- V fibaro alarm function: 0xaaaae143e210
- V fibaro alert function: 0xaaaae1445840
- V fibaro call function: 0xaaaae1447050
- V fibaro callGroupAction function: 0xaaaae1411250
- V fibaro clearTimeout function: 0xaaaae145c8a0
- V fibaro debug function: 0xaaaae1470210
- V fibaro emitCustomEvent function: 0xaaaae14430d0
- V fibaro error function: 0xaaaae1471110
- V fibaro get function: 0xaaaae13e8a60
- V fibaro getDevicesID function: 0xaaaae143e800
- V fibaro getGlobalVariable function: 0xaaaae143e0d0
- V fibaro getHomeArmState function: 0xaaaae14688e0
- V fibaro getIds function: 0xaaaae1442190
- V fibaro getName function: 0xaaaae13f5000
- V fibaro getPartition function: 0xaaaae1442140
- V fibaro getPartitionArmState function: 0xaaaae1471010
- V fibaro getPartitions function: 0xaaaae14453d0
- V fibaro getRoomID function: 0xaaaae14186f0
- V fibaro getRoomName function: 0xaaaae1413450
- V fibaro getRoomNameByDeviceID function: 0xaaaae13f1a90
- V fibaro getSectionID function: 0xaaaae1413690
- V fibaro getType function: 0xaaaae13ea000
- V fibaro getValue function: 0xaaaae14027c0
- V fibaro isHomeBreached function: 0xaaaae14701c0
- V fibaro isPartitionBreached function: 0xaaaae1466720
- V fibaro profile function: 0xaaaae14651a0
- V fibaro scene function: 0xaaaae1447a00
- V fibaro setGlobalVariable function: 0xaaaae143dc40
- V fibaro setTimeout function: 0xaaaae145f7a0
- V fibaro sleep function: 0xaaaae145a5d0
- V fibaro trace function: 0xaaaae1471190
- V fibaro useAsyncHandler function: 0xaaaae1474af0
- V fibaro wakeUpDeadDevice function: 0xaaaae145bde0
- V fibaro warning function: 0xaaaae145ad50
- getHierarchy 'function: 0xaaaae148bb20'
- V getmetatable 'function: 0xffff9e38a698'
+ V error function
+ V fibaro __houseAlarm function
+ V fibaro alarm function
+ V fibaro alert function
+ V fibaro call function
+ V fibaro callGroupAction function
+ V fibaro clearTimeout function
+ V fibaro debug function
+ V fibaro emitCustomEvent function
+ V fibaro error function
+ V fibaro get function
+ V fibaro getDevicesID function
+ V fibaro getGlobalVariable function
+ V fibaro getHomeArmState function
+ V fibaro getIds function
+ V fibaro getName function
+ V fibaro getPartition function
+ V fibaro getPartitionArmState function
+ V fibaro getPartitions function
+ V fibaro getRoomID function
+ V fibaro getRoomName function
+ V fibaro getRoomNameByDeviceID function
+ V fibaro getSectionID function
+ V fibaro getType function
+ V fibaro getValue function
+ V fibaro isHomeBreached function
+ V fibaro isPartitionBreached function
+ V fibaro profile function
+ V fibaro scene function
+ V fibaro setGlobalVariable function
+ V fibaro setTimeout function
+ V fibaro sleep function
+ V fibaro trace function
+ V fibaro useAsyncHandler function
+ V fibaro wakeUpDeadDevice function
+ V fibaro warning function
+ getHierarchy function
+ V getmetatable function
  Hierarchy 'class Hierarchy'
- V ipairs 'function: 0xffff9e389de8'
- json _COPYRIGHT Copyright (c) 2007-2017 Thomas Harning Jr.
- json _DESCRIPTION LuaJSON : customizable JSON decoder/encoder
+ V ipairs function
+ json _COPYRIGHT "Copyright (c) 2007-2017 Thomas Harning Jr."
+ json _DESCRIPTION "LuaJSON : customizable JSON decoder/encoder
  json _VERSION 1.3.4
- json array function: 0xaaaae1461480       -- CHECK!
- V json decode table: 0xaaaae13fd0f0
- V json encode table: 0xaaaae14473e0
- json null function: 0xaaaae13ef430        -- CHECK!
- V json util table: 0xaaaae13f36a0         
- logError 'function: 0xaaaae14736c0'
- V math abs function: 0xffff9e38fe40
- V math acos function: 0xffff9e38fae8
- V math asin function: 0xffff9e38fa80
- V math atan function: 0xffff9e38f9f4
- V math atan2 function: 0xffff9e38f9f4
- V math ceil function: 0xffff9e38fbf0
- V math cos function: 0xffff9e38f98c
- V math cosh function: 0xffff9e38f1b0
- V math deg function: 0xffff9e38ee84
- V math exp function: 0xffff9e38f924
- V math floor function: 0xffff9e38fd30
- V math fmod function: 0xffff9e38f818
- V math frexp function: 0xffff9e38efe0
+ json array function
+ V json decode table
+ V json encode table
+ json null function
+ V json util table
+ logError function
+ V math abs function
+ V math acos function
+ V math asin function
+ V math atan function
+ V math atan2 function
+ V math ceil function
+ V math cos function
+ V math cosh function
+ V math deg function
+ V math exp function
+ V math floor function
+ V math fmod function
+ V math frexp function
  V math huge inf
- V math ldexp function: 0xffff9e38ef5c
- V math log function: 0xffff9e38f6b8
- V math log10 function: 0xffff9e38eef4
- V math max function: 0xffff9e38f5f0
+ V math ldexp function
+ V math log function
+ V math log10 function
+ V math max function
  V math maxinteger 9223372036854775807
- V math min function: 0xffff9e38f528
+ V math min function
  V math mininteger -9223372036854775808
- V math modf function: 0xffff9e38fc74
+ V math modf function
  V math pi 3.1415926535898
- V math pow function: 0xffff9e38f058
- V math rad function: 0xffff9e38ee14
- V math random function: 0xffff9e38f3ac
- V math randomseed function: 0xffff9e38f350
- V math sin function: 0xffff9e38f2e8
- V math sinh function: 0xffff9e38f148
- V math sqrt function: 0xffff9e38f280
- V math tan function: 0xffff9e38f218
- V math tanh function: 0xffff9e38f0e0
- V math tointeger function: 0xffff9e38fdb4
- V math type function: 0xffff9e38fb50
- V math ult function: 0xffff9e38f79c
+ V math pow function
+ V math rad function
+ V math random function
+ V math randomseed function
+ V math sin function
+ V math sinh function
+ V math sqrt function
+ V math tan function
+ V math tanh function
+ V math tointeger function
+ V math type function
+ V math ult function
  V mqtt Client class Client (MqttClient)
  mqtt ConnectReturnCode class ConnectReturnCode (MqttModule::registerConnectReturnCodeInLua(lua_State*)::DummyConnectReturnCode)
  mqtt QoS class QoS (MqttModule::registerQoSInLua(lua_State*)::DummyQoS)
@@ -156,67 +156,67 @@ function TQ.downloadFQA(id,path) -- Download QA from HC3, unpack and save it to 
  V net UDPSocket class UDPSocket (UDPSocket)
  V net WebSocketClient class WebSocketClient (WebSocketClient_)
  V net WebSocketClientTls class WebSocketClientTls (WebSocketClient_)
- V next 'function: 0xffff9e389e40'
- V os clock function: 0xffff9e390540
- V os date function: 0xffff9e390978
- V os difftime function: 0xffff9e3904c0
- V os exit function: 0xffff9e390360
- V os time function: 0xffff9e390794
- V pairs 'function: 0xffff9e389d90'
- V pcall 'function: 0xffff9e38a368'
- plugin createChildDevice function: 0xaaaae147d200
- V plugin deleteDevice function: 0xaaaae1470160
- V plugin getChildDevices function: 0xaaaae13ff820
- V plugin getDevice function: 0xaaaae14874b0
- V plugin getProperty function: 0xaaaae147ccb0
+ V next function
+ V os clock function
+ V os date function
+ V os difftime function
+ V os exit function
+ V os time function
+ V pairs function
+ V pcall function
+ plugin createChildDevice function
+ V plugin deleteDevice function
+ V plugin getChildDevices function
+ V plugin getDevice function
+ V plugin getProperty function
  V plugin mainDeviceId 54
- V plugin restart function: 0xaaaae147d1d0
- V print 'function: 0xaaaae14703b0'
- V property 'function: 0xaaaac58981d4'
+ V plugin restart function
+ V print function
+ V property function
  V QuickApp 'class QuickApp'
  V QuickAppBase 'class QuickAppBase'
  V QuickAppChild 'class QuickAppChild'
- rawlen 'function: 0xffff9e389a28'
+ rawlen function
  V RefreshStateSubscriber 'class RefreshStateSubscriber'
- V select 'function: 0xffff9e38951c'
- V setInterval 'function: 0xaaaae14620c0'
- V setmetatable 'function: 0xffff9e389824'
- V setTimeout 'function: 0xaaaae1461fd0'
- V string byte function: 0xffff9e3921d8
- V string char function: 0xffff9e3917d8
- V string dump function: 0xffff9e3920a4
- V string find function: 0xffff9e393b0c
- V string format function: 0xffff9e391968
- V string gmatch function: 0xffff9e3916fc
- V string gsub function: 0xffff9e393c10
- V string len function: 0xffff9e390ca8
- V string lower function: 0xffff9e3913cc
- V string match function: 0xffff9e393ac4
- V string pack function: 0xffff9e392cac
- V string packsize function: 0xffff9e392844
- V string rep function: 0xffff9e391258
- V string reverse function: 0xffff9e391198
- V string split function: 0xaaaae147c2c0
- V string starts function: 0xaaaae148b7f0
- V string sub function: 0xffff9e392308
- V string unpack function: 0xffff9e3929fc
- V string upper function: 0xffff9e3910d0
- super 'function: 0xaaaac589816c'
- V table concat function: 0xffff9e395050
- V table insert function: 0xffff9e394f10
- V table move function: 0xffff9e394c1c
- V table pack function: 0xffff9e394400
- V table remove function: 0xffff9e394de0
- V table sort function: 0xffff9e394b40
- V table unpack function: 0xffff9e3942d4
- V tonumber 'function: 0xffff9e389608'
- V tostring 'function: 0xffff9e3894b0'
- V type 'function: 0xffff9e38941c'
- V unpack 'function: 0xffff9e3942d4'
- utf8 char function: 0xffff9e395524
+ V select function
+ V setInterval function
+ V setmetatable function
+ V setTimeout function
+ V string byte function
+ V string char function
+ V string dump function
+ V string find function
+ V string format function
+ V string gmatch function
+ V string gsub function
+ V string len function
+ V string lower function
+ V string match function
+ V string pack function
+ V string packsize function
+ V string rep function
+ V string reverse function
+ V string split function
+ V string starts function
+ V string sub function
+ V string unpack function
+ V string upper function
+ super function
+ V table concat function
+ V table insert function
+ V table move function
+ V table pack function
+ V table remove function
+ V table sort function
+ V table unpack function
+ V tonumber function
+ V tostring function
+ V type function
+ V unpack function
+ utf8 char function
  utf8 charpattern [-�-�][�-�]*
- utf8 codepoint function: 0xffff9e395934
- utf8 codes function: 0xffff9e3952f4
- utf8 len function: 0xffff9e395648
- utf8 offset function: 0xffff9e395794
- V xpcall 'function: 0xffff9e38a2ac'
+ utf8 codepoint function
+ utf8 codes function
+ utf8 len function
+ utf8 offset function
+ V xpcall function

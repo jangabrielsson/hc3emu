@@ -10,7 +10,6 @@ if require and not QuickApp then require("hc3emu") end
 --%%dark=true
 --%%color=true
 --%%time=12/31 10:00:12
---%%id=5001
 --%%state=state.db
 --%%project=5566
 --%%offline=true
@@ -36,27 +35,27 @@ function QuickApp:onInit()
   printf("SW version:%s",info.currentVersion.version)
   printf("Serial nr:%s",info.serialNumber)
   printf("Sunrise: %s, Sunset: %s",fibaro.getValue(1,"sunriseHour"),fibaro.getValue(1,"sunsetHour"))
-
+  
   api.post("/globalVariables",{name='TestVar',value="42"})
   self:check("getGlobalVariable",fibaro.getGlobalVariable("TestVar"),"42")
   fibaro.setGlobalVariable("TestVar",tostring(43))
   self:check("setGlobalVariable",fibaro.getGlobalVariable("TestVar"),"43")
   api.delete("/globalVariables/TestVar")
   self:check("deleteGlobalVariable",fibaro.getGlobalVariable("TestVar"),nil)
-
+  
   fibaro.call(self.id,"myFun",7,8)
-
+  
   local qas = api.get("/devices?interface=quickApp")
   self:checkType("Get QuickApps",qas,function(r) return type(r)=='table' and next(r) and r[1].id end)
-
+  
   local d,code = api.post("/plugins/createChildDevice",{
     parentId=self.id,
     type="com.fibaro.multilevelSwitch",
     name="Child1",
     initialProperties={value=20},
     initialInterfaces={'quickAppChild'}
-  }
-  )
+  })
+  
   local d = api.get("/devices/"..d.id)
   print(d.id)
   function self:initChildDevices() end

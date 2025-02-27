@@ -76,6 +76,7 @@ local function filter(q,ds)
   end
   return r
 end
+TQ.queryFilter = filter
 
 local function valueList(t) local r = {} for _,v in pairs(t) do r[#r+1]=v end return r end
 local function DEVICE(id) id = tonumber(id) if DB.devices[id] then return DB.devices[id],200 else error({nil,404}) end end

@@ -39,7 +39,7 @@ function QuickApp:onInit()
     return v
   end)
 
-  local f = io.open("lib/stdStructs.lua", "w")
+  local f = io.open("src/stdStructs.lua", "w")
   assert(f)
   f:write(fmt("return [[%s]]",json.encode(data)))
   f:close()

@@ -1,6 +1,6 @@
 --This is a QA rinning in local mode and speeding the timers...
 
---_DEVELOP = true
+_DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
 --%%name=SpeedTest
@@ -10,6 +10,8 @@ if require and not QuickApp then require("hc3emu") end
 --%%speed=24*7 -- One week
 
 function QuickApp:onInit()
+  self:debug("onInit",self.name,self.id)
+  setTimeout(function() print("PING") end,2000)
   setInterval(function() -- Ping every day
     self:debug("Hello from hc3emu",fibaro.getValue(1,"sunriseHour"))
   end,24*3600*1000)

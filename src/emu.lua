@@ -13,7 +13,7 @@ of this license document, but changing it is not allowed.
 ---@diagnostic disable-next-line: undefined-global
 _DEVELOP = _DEVELOP
 
-local VERSION = "1.0.20"
+local VERSION = "1.0.25"
 
 local cfgFileName = "hc3emu_cfg.lua"   -- Config file in current directory
 local homeCfgFileName = ".hc3emu.lua"  -- Config file in home directory
@@ -87,6 +87,7 @@ if not DBG.nodebug then
   mobdebug.start('127.0.0.1', 8818)
 end
 TQ.mobdebug = mobdebug
+TQ.luadebug = debug
 
 -- Try to guess in what environment we are running (used for loading extra console colors)
 TQ.isVscode = package.path:lower():match("vscode") ~= nil
@@ -282,6 +283,7 @@ function MODULE.db() TQ.require("hc3emu.db") end    -- Database for storing data
 function MODULE.qapi() TQ.require("hc3emu.qapi") end    -- Standard API routes
 function MODULE.proxy() TQ.require("hc3emu.proxy") end     -- Proxy creation and Proxy API routes
 function MODULE.offline() TQ.require("hc3emu.offline") end -- Offline API routes
+function MODULE.qafuns() TQ.require("hc3emu.qafuns") end
 function MODULE.ui() TQ.require("hc3emu.ui") end
 function MODULE.tools() TQ.require("hc3emu.tools") end
 
@@ -329,6 +331,17 @@ TQ.PIN = (flags.creds or {}).pin or TQ.PIN
 
 TQ.flags,TQ._type = flags,type
 
+TQ.coroMap = setmetatable({},{__mode = "k"})
+local coroMetaData = setmetatable({},{__mode = "k"})
+function TQ.getCoroData(co,key) return (coroMetaData[co or coroutine.running()] or {})[key] end
+function TQ.setCoroData(co,key,val)
+  co = co or coroutine.running()
+  local md = coroMetaData[co] or {}
+  coroMetaData[co] = md
+  md[key] = val
+  return val
+end
+
 -- Load modules
 for _,m in ipairs(modules) do DEBUGF('info',"Loading emu module %s",m.name) m.fun() end
 
@@ -348,6 +361,8 @@ local function userTime(a) return a == nil and math.floor(TQ.milliClock() + time
 local function userDate(a, b) return b == nil and os.date(a, userTime()) or orgDate(a, b) end
 function TQ.userTime(a) return userTime(a) end
 function TQ.userDate(a,b) return userDate(a,b) end
+
+TQ.midnightLoop() -- Setup loop for midnight events
 
 TQ.offlineRoute = TQ.setupOfflineRoutes() -- Setup routes for offline API calls
 TQ.remoteRoute = TQ.setupRemoteRoutes() -- Setup routes for remote API calls (incl proxy)
@@ -370,6 +385,9 @@ local function loadQAFiles(info)
   end
   for k,v in pairs({
     __assert_type = __assert_type, fibaro = fibaro, api = api, json = json, urlencode = urlencode, args=args,
+    setTimeout = function(f,ms) return TQ._setTimeout(f,ms,env) end, -- They need the current environment to report errors
+    setInterval = function(f,ms) return TQ._setInterval(f,ms,env) end, 
+    clearTimeout = TQ.clearTimeout, clearInterval = TQ.clearInterval,
     collectgarbage = collectgarbage, os = os2, math = math, string = string, table = table, _print = print,
     getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring,
     type = luaType, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
@@ -382,7 +400,7 @@ local function loadQAFiles(info)
   env._G = env
   for k,v in pairs(exports) do env[k] = v end
 
-  for _,path in ipairs({"hc3emu.class","hc3emu.qafuns","hc3emu.fibaro","hc3emu.quickapp","hc3emu.net"}) do
+  for _,path in ipairs({"hc3emu.class","hc3emu.fibaro","hc3emu.quickapp","hc3emu.net"}) do
     DEBUGF('info',"Loading QA library %s",path)
     if _DEVELOP then
       path = "src/"..path:match(".-%.(.*)")..".lua"
@@ -391,6 +409,8 @@ local function loadQAFiles(info)
   end
   
   function env.print(...) env.fibaro.debug(env.__TAG,...) end
+
+  if flags.speed then TQ.startSpeedTime() end
 
   for _,lf in ipairs(info.files) do
     DEBUGF('info',"Loading user file %s",lf.fname)
@@ -488,6 +508,7 @@ local function createQAstruct(info)
   env.plugin = env.plugin or {}
   env.plugin._dev = deviceStruct
   env.plugin.mainDeviceId = deviceStruct.id -- Now we have a deviceId
+  TQ.setCoroData(nil,'deviceId',deviceStruct.id)
   TQ.registerQA(info)
   
   return info
@@ -502,9 +523,7 @@ function runQA(info) -- The rest is run in a copas tasks...
   if flags.save then TQ.saveQA(info.id) end
   if flags.project then TQ.saveProject(info) end
   if info.env.QuickApp.onInit then
-    if info.directives.breakOnInit and onInitLine then -- This doesn't work...(?)
-      TQ.mobdebug.setbreakpoint(info.fname,onInitLine) 
-    end
+    if info.directives.breakOnInit and onInitLine then TQ.mobdebug.setbreakpoint(info.fname,onInitLine+1) end
     DEBUGF('info',"Starting QuickApp %s",info.device.name)
     TQ.post({type='quickApp_started',id=info.id},true)
     info.env.quickApp = info.env.QuickApp(info.device) -- quickApp defined first when we return from :onInit()...
@@ -516,7 +535,7 @@ if not flags.silent then print(TQ.colorStr('orange',"HC3Emu - Tiny QuickApp emul
 while true do
   local startTime,t0 = os.clock(),os.time()
   TQ._shouldExit = true
-  copas(function() addThread(function()
+  copas(function() addThread(qaInfo.env,function()
     TQ.post({type='emulator_started'},true)
     runQA(qaInfo) end) 
   end)

@@ -19,10 +19,14 @@ function plugin.getProperty(deviceId, propertyName) return api.get("/devices/"..
 function plugin.getChildDevices(deviceId) return api.get("/devices?parentId="..deviceId) end
 function plugin.createChildDevice(opts) return api.post("/plugins/createChildDevice", opts) end
 function plugin.restart() 
-  DEBUG("Restarting QuickApp in 5 seconds")
-  TQ._shouldExit = false
-  TQ.shutdown(5)
+  local id = plugin.mainDeviceId
+  DEBUG("Restarting QuickApp "..id.." in 5 seconds")
+  local info = TQ.getQA(id)
+  TQ.cancelTimers(id) 
+  TQ.cancelThreads(id)
+  setTimeout(function() TQ.runQA(info) end,5000)
 end
+
 local exit = os.exit
 function os.exit(code) 
   DEBUG("Exit %s",code or 0)
@@ -309,7 +313,7 @@ end
 
 function RefreshStateSubscriber:run()
   if not self.running then 
-    self.running = addThread(refreshStatePoller,self)
+    self.running = addThread(_G,refreshStatePoller,self)
   end
 end
 

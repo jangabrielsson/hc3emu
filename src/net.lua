@@ -1,11 +1,12 @@
 local TQ = fibaro.hc3emu
-local async = TQ.addThread
+local addThread = TQ.addThread
 local copas = TQ.copas
 local socket = TQ.socket
 local httpRequest = TQ.httpRequest
 local mobdebug = TQ.mobdebug
 local json = TQ.json
 
+local function async(fun,...) return addThread(_G,fun,...) end
 ------------------------ base ------------------------------
 ---
 ---

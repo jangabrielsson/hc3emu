@@ -2,12 +2,12 @@ _DEVELOP =true
 if require and not QuickApp then require("hc3emu") end
 
 --%%name=RPC test
---%%file=examples/rpc_lib.lua:rpclib
+--%%file=lib/rpc_lib.lua:rpclib
 
 local function startClient()
 local client = [[
 --%%name=RPC client
---%%file=examples/rpc_lib.lua:rpclib
+--%%file=lib/rpc_lib.lua:rpclib
 
 function QuickApp:onInit()
   local Foo = fibaro.rpc(5001,"Foo")

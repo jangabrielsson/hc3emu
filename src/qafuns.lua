@@ -1,18 +1,29 @@
-local TQ = fibaro.hc3emu
+local TQ = TQ
 local copas = TQ.copas
 local mobdebug = TQ.mobdebug
 
 local ref,timers = 0,{}
 local fmt = string.format
 
-function TQ.cancelTimers() for _,t in pairs(timers) do t:cancel() end end
+local function cancelTimers(id) 
+  if id == nil then 
+    for _,t in pairs(timers) do t:cancel() end timers = {} 
+  else
+    for _,t in pairs(timers) do 
+      if TQ.getCoroData(t.co,'deviceId') == id then t:cancel() timers[t]= nil end 
+    end
+  end
+end
+
+local _setTimeout
+local _setInterval
 
 if not TQ.flags.speed then
   local function callback(_,args) mobdebug.on() timers[args[2]] = nil args[1]() end
-  local function _setTimeout(rec,fun,ms)
+  local function __setTimeout(rec,fun,ms,env)
     ref = ref+1
     local ref0 = not rec and ref or "n/a"
-    timers[ref]= copas.timer.new({
+    local t = copas.timer.new({
       name = "setTimeout:"..ref,
       delay = ms / 1000.0,
       recurring = rec,
@@ -20,16 +31,29 @@ if not TQ.flags.speed then
       callback = callback,
       params = {fun,ref0},
       errorhandler = function(err, coro, skt)
-        fibaro.error(tostring(__TAG),fmt("setTimeout:%s",tostring(err)))
+        env.fibaro.error(tostring(env.__TAG),fmt("setTimeout:%s",tostring(err)))
         timers[ref]=nil
         copas.seterrorhandler()
+        --print(copas.copas.gettraceback(err,coro,skt))
       end
     })
+    timers[ref] = t
+    -- Keep track of what QA started what timer
+    -- Will allows us to kill all timers started by a QA when it is deleted
+    TQ.setCoroData(t.co,'deviceId',(env and env.plugin or {}).mainDeviceId)
     return ref
   end
   
-  function setTimeout(fun,ms) return _setTimeout(false,fun,ms) end
-  function setInterval(fun,ms) return _setTimeout(true,fun,ms) end
+  function _setTimeout(fun,ms,env) 
+    if type(fun) ~= "function" then error("setTimeout: first argument must be a function",2) end
+    if type(ms) ~= "number" then error("setTimeout: second argument must be a number",2) end
+    return __setTimeout(false,fun,ms,env)
+  end
+  function _setInterval(fun,ms,env) 
+    if type(fun) ~= "function" then error("setInterval: first argument must be a function",2) end
+    if type(ms) ~= "number" then error("setInterval: second argument must be a number",2) end
+    return __setTimeout(true,fun,ms,env) 
+  end
   function clearTimeout(ref)
     if timers[ref] then
       timers[ref]:cancel()
@@ -42,8 +66,8 @@ end
 
 if TQ.flags.speed then
   local times = nil
-  local function insert(t,fun)
-    local v = {t=t,fun=fun, cancel=function() end}
+  local function insert(t,fun,env)
+    local v = {t=t,fun=fun,cancel=function() end,env=env}
     if not times then times = v return v end
     if t < times.t then
       times.prev = v
@@ -79,13 +103,15 @@ if TQ.flags.speed then
     if t.next then times = t.next times.prev=nil else times = nil end
     return t
   end
-
-  local function _setTimeout(fun,ms)
+  
+  local function __setTimeout(fun,ms,env)
     local ta = TQ.socket.gettime() + TQ.getTimeOffset() + ms/1000.0
-    return insert(ta,fun)
+    return insert(ta,fun,env)
   end
-  function setTimeout(fun,ms)
-    timers[#timers+1] = _setTimeout(fun,ms)
+  function _setTimeout(fun,ms,env)
+    if type(fun) ~= "function" then error("setTimeout: first argument must be a function",2) end
+    if type(ms) ~= "number" then error("setTimeout: second argument must be a number",2) end
+    timers[#timers+1] = __setTimeout(fun,ms,env)
     return #timers
   end
   function clearTimeout(ref)
@@ -95,54 +121,70 @@ if TQ.flags.speed then
       remove(t)
     end
   end
-
-  function setInterval(fun,ms)
+  
+  function _setInterval(fun,ms,env)
+    if type(fun) ~= "function" then error("setInterval: first argument must be a function",2) end
+    if type(ms) ~= "number" then error("setInterval: second argument must be a number",2) end
     local ref = nil
     local function loop()
       if ref == nil or timers[ref]==nil then return end
       fun()
-      timers[ref] = _setTimeout(loop,ms)
+      timers[ref] = __setTimeout(loop,ms,env)
     end
-    ref = setTimeout(loop,ms)
+    ref = _setTimeout(loop,ms,env)
     return ref
   end
-
+  
   function clearInterval(ref)
     clearTimeout(ref)
   end
-
-  TQ.addThread(function()
-    local start = TQ.userTime()
-    local stop = start + TQ.flags.speed*3600
-    TQ.DEBUG("Speed run started, will run for %s hours",TQ.flags.speed)
-    while true do
-      if times then
-        local t = pop()
-        if t then
-          local time = t.t
-          TQ.setTimeOffset(time-TQ.socket.gettime())
-          t.fun()
+  
+  function TQ.startSpeedTime()
+    TQ.addThread(nil,function()
+      local start = TQ.userTime()
+      local stop = start + TQ.flags.speed*3600
+      TQ.DEBUG("Speed run started, will run for %s hours",TQ.flags.speed)
+      while true do
+        if times then
+          local t = pop()
+          if t then
+            local time = t.t
+            TQ.setTimeOffset(time-TQ.socket.gettime())
+            local stat,err = pcall(t.fun)
+            if not stat then
+              t.env.fibaro.error(tostring(t.env.__TAG),fmt("setTimeout:%s",tostring(err)))
+            end
+          end
         end
+        if TQ.userTime() >= stop then
+          TQ.DEBUG("Speed run ended after %s hours",TQ.flags.speed)
+          os.exit()
+        end
+        TQ.copas.pause(0)
       end
-      if TQ.userTime() >= stop then
-        TQ.DEBUG("Speed run ended after %s hours",TQ.flags.speed)
-        os.exit()
-      end
-      TQ.copas.pause(0)
-    end
-  end)
+    end)
+  end
 end
 
-local d = TQ.userDate("*t")
-d.hour,d.min,d.sec = 24,0,0
-local midnxt = TQ.userTime(d)
 local function midnightLoop()
-  TQ.post({type="midnight"},true)
-  local now = TQ.userDate("*t")
   local d = TQ.userDate("*t")
   d.hour,d.min,d.sec = 24,0,0
-  midnxt = TQ.userTime(d)
-  setTimeout(midnightLoop,(midnxt-TQ.userTime())*1000)
+  local midnxt = TQ.userTime(d)
+  local function loop()
+    TQ.post({type="midnight"},true)
+    local d = TQ.userDate("*t")
+    d.hour,d.min,d.sec = 24,0,0
+    midnxt = TQ.userTime(d)
+    _setTimeout(loop,(midnxt-TQ.userTime())*1000,nil)
+  end
+  _setTimeout(loop,(midnxt-TQ.userTime())*1000,nil)
 end
 
-setTimeout(midnightLoop,(midnxt-TQ.userTime())*1000)
+
+TQ._setTimeout = _setTimeout
+TQ._setInterval = _setInterval
+TQ.clearTimeout = clearTimeout
+TQ.clearInterval = clearInterval
+TQ.cancelTimers = cancelTimers
+TQ.midnightLoop = midnightLoop
+TQ.startSpeedTime = TQ.startSpeedTime or function() end

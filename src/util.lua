@@ -114,7 +114,7 @@ local function readFile(args)
     local code,err = load(content,file,"t",env or _G)
     if code == nil then error(err) end
     _,res = pcall(code)
-    if _ == false then error(content) end
+    if _ == false then error(res) end
   end
   return res,content
 end
@@ -255,18 +255,59 @@ local EVENT = setmetatable({}, {
 
 local function post(event,immidiate) ---{type=..., ...}
   local evhs = eventHandlers[event.type]
-  local function poster() for _,evh in ipairs(evhs or {}) do evh(event) end end
-  if not immidiate then TQ.addThread(poster) else poster() end
+  local function poster() 
+    for _,evh in ipairs(evhs or {}) do 
+      local stat,err = pcall(evh,event)
+      if not stat then ERRORF("Event handler error: %s",err) end
+    end 
+  end
+  if not immidiate then TQ.addThread(nil,poster) else poster() end
 end
 
 local tasks = {}
-local function addThread(call,...)
+local function errfun(msg,co,skt)
+   -- Try to figure what QA started this task
+  local deviceId = TQ.getCoroData(co,'deviceId') -- We use that to make the right fibaro.debug call
+  if deviceId then
+    local dev = TQ.getQA(deviceId)
+    if dev then
+      dev.env.fibaro.error(tostring(dev.env.__TAG),msg)
+      print(TQ.copas.gettraceback("",co,skt))
+      return
+    end
+  end
+  local str = TQ.copas.gettraceback(msg,co,skt)
+  TQ.ERRORF(msg)
+end
+
+local function addThread(env,call,...)
+  TQ.mobdebug.on()
   local task = 42
-  task = TQ.copas.addthread(function(...) TQ.mobdebug.on() call(...) tasks[task]=nil end,...)
+  task = TQ.copas.addthread(function(...) 
+    TQ.mobdebug.on() 
+    TQ.copas.seterrorhandler(errfun)
+    call(...) 
+    tasks[task]=nil 
+    end,...)
+  -- Keep track of what QA started what task
+  -- Will allows us to kill all tasks started by a QA when it is deleted
+  TQ.setCoroData(task,'deviceId',(env and env.plugin or {}).mainDeviceId) 
   tasks[task] = true
   return task
 end
-local function cancelThreads() for t,_ in pairs(tasks) do TQ.copas.removethread(t) end end
+local function cancelThreads(id) 
+  if id == nil then 
+    for t,_ in pairs(tasks) do TQ.copas.removethread(t) end 
+    tasks = {}
+  else
+    for t,_ in pairs(tasks) do 
+      if TQ.getCoroData(t,'deviceId') == id then 
+        TQ.copas.removethread(t) 
+        tasks[t]=nil 
+      end 
+    end
+  end
+end
 
 return function(_TQ)
   TQ = _TQ

@@ -89,16 +89,15 @@ function TQ.addStandardAPIRoutes(route) -- Adds standard API routes to a route o
   route:add('GET/devices/<id>/properties/<name>',getProp) -- Get properties from ourselves, fetch it locally
   
   route:add('GET/quickApp/export/<id>',function(p,id,_)  -- Get our local QA
-  
-  
-  
-  
-  
     local qa = TQ.getQA(tonumber(id))
     if qa == nil then return nil,301 end
     return TQ.getFQA(tonumber(id)),200 
   end)
 
+  local function getQAfiles() end
+  local function createQAfile() end
+  local function setQAfiles() end
+  local function deleteQAfiles() end
   -- QuickApp file methods 
   route:add('GET/quickApp/<id>/files', function (p,id) return getQAfiles(id,id,nil) end)
   route:add('GET/quickApp/<id>/files/<name>', function (p,id,name) return getQAfiles(p,id,name) end)

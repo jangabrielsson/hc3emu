@@ -526,7 +526,7 @@ local function loadQAFiles(info)
   DEBUGF('info',"Loading user main file %s",info.fname)
   load(info.src,info.fname,"t",env)()
   if not TQ.flags.offline then 
-    assert(TQ.URL, TQ.USER and TQ.PASSWORD,"Please define URL, USER, and PASSWORD") -- Early check that creds are available
+    assert(TQ.URL and TQ.USER and TQ.PASSWORD,"Please define URL, USER, and PASSWORD") -- Early check that creds are available
   end
 end
 

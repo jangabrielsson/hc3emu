@@ -89,16 +89,29 @@ function TQ.addStandardAPIRoutes(route) -- Adds standard API routes to a route o
   route:add('GET/devices/<id>/properties/<name>',getProp) -- Get properties from ourselves, fetch it locally
   
   route:add('GET/quickApp/export/<id>',function(p,id,_)  -- Get our local QA
+  
+  
+  
+  
+  
     local qa = TQ.getQA(tonumber(id))
     if qa == nil then return nil,301 end
     return TQ.getFQA(tonumber(id)),200 
   end)
+
+  -- QuickApp file methods 
+  route:add('GET/quickApp/<id>/files', function (p,id) return getQAfiles(id,id,nil) end)
+  route:add('GET/quickApp/<id>/files/<name>', function (p,id,name) return getQAfiles(p,id,name) end)
+  route:add('POST/quickApp/<id>/files', createQAfile)
+  route:add('PUT/quickApp/<id>/files/<name>', setQAfiles)
+  route:add('PUT/quickApp/<id>/files', function (p,id,...) return setQAfiles(p,id,nil,...) end)
+  route:add('DELETE/quickApp/<id>/files/<name>', deleteQAfiles)
+    
   route:add('PUT/plugins/<id>/variables/<name>', function(p,...) return internalStoragePut(...) end) --id,key,data
   route:add('POST/plugins/<id>/variables', function(p,...) return internalStoragePost(...) end) --id,data
   route:add('GET/plugins/<id>/variables/<name>', function(p,...) return internalStorageGet(...) end) --id,key,data
   route:add('GET/plugins/<id>/variables', function(p,id,...) return internalStorageGet(id,...) end) --id,nil,data
   route:add('DELETE/plugins/<id>/variables/<name>', function(p,...) return internalStorageDelete(...) end) --id,key,data
-  route:add('DELETE/plugins/<id>/variables', function(p,id,...) return internalStorageDelete(id,...) end) --id,nil,data
 
 end
 

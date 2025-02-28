@@ -18,3 +18,4 @@ jgab@DESKTOP-9874G43:~$ sudo apt install luarocks
 jgab@DESKTOP-9874G43:~$ sudo apt install libssl-dev
 jgab@DESKTOP-9874G43:~$ sudo luarocks install luasec
 jgab@DESKTOP-9874G43:~$ sudo luarocks install hc3emu
+.

@@ -10,7 +10,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%type=com.fibaro.genericDevice
 --%%proxy=QCProxy
 --%%port=8265
---%%off line=true
+--%%offline=true
 --%%dark=true
 --%%state=state.db
 --%%debug=info:true,http:true,onAction:true,onUIEvent:true,proxyAPI:true

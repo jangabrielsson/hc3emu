@@ -74,7 +74,7 @@ if not DBG.silent then DEBUGF('info',"Main QA file %s",TQ.mainFile) end
 local win = (os.getenv('WINDIR') or (os.getenv('OS') or ''):match('[Ww]indows'))
   and not (os.getenv('OSTYPE') or ''):match('cygwin') -- exclude cygwin
 TQ.sep = win and '\\' or '/'
-TQ.tempDir = os.getenv("TMPDIR") or os.getenv("TEMP") or os.getenv("TMP") -- temp directory
+TQ.tempDir = os.getenv("TMPDIR") or os.getenv("TEMP") or os.getenv("TMP") or "/tmp/" -- temp directory
 
 -- Get home project file, defaults to {}
 DEBUGF('info',"Loading home config file %s",homeCfgFileName)

@@ -19,3 +19,12 @@ jgab@DESKTOP-9874G43:~$ sudo apt install libssl-dev
 jgab@DESKTOP-9874G43:~$ sudo luarocks install luasec
 jgab@DESKTOP-9874G43:~$ sudo luarocks install hc3emu
 .
+
+create file /.hc3emu.lua
+return {
+  creds = {
+    user = "admin",
+    password = "XYZ", 
+    ip = "http://192.168.1.57"
+  }
+}

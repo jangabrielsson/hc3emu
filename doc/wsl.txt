@@ -1,0 +1,20 @@
+root@DESKTOP-9874G43:~# NEWUSER=jgab
+root@DESKTOP-9874G43:~# useradd --create-home --shell /usr/bin/bash --user-group --groups  adm,dialout,cdrom,floppy,sudo,audio,dip,video,plugdev,netdev --password $(read -sp Password: pw ; echo $pw | openssl passwd -1 -stdin) $NEWUSER
+
+/etc/wsl.conf
+Add
+[user]
+default=jgab
+
+Exit your distro/instance, then issue a 
+PS C:\WINDOWS\system32>wsl --terminate Ubuntu 
+from PowerShell or CMD. When you restart, the default user should be set.
+
+jgab@DESKTOP-9874G43:~$ sudo apt update
+jgab@DESKTOP-9874G43:~$ sudo apt install lua5.3
+jgab@DESKTOP-9874G43:~$ sudo apt install liblua5.3-dev
+jgab@DESKTOP-9874G43:~$ sudo apt remove lua5.1 lua5.2 
+jgab@DESKTOP-9874G43:~$ sudo apt install luarocks
+jgab@DESKTOP-9874G43:~$ sudo apt install libssl-dev
+jgab@DESKTOP-9874G43:~$ sudo luarocks install luasec
+jgab@DESKTOP-9874G43:~$ sudo luarocks install hc3emu

@@ -1,5 +1,5 @@
 --[[
-hc3emu - Tiny QuickApp emulator for the Fibaro Home Center 3
+hc3emu - QuickApp emulator for the Fibaro Home Center 3
 Copyright (c) 2025 Jan Gabrielsson
 Email: jan@gabrielsson.com
 GNU GENERAL PUBLIC LICENSE
@@ -9,11 +9,25 @@ Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
 Everyone is permitted to copy and distribute verbatim copies
 of this license document, but changing it is not allowed.
 --]]
+
+--[[
+  Installation:
+  >luarocks install hc3emu
+
+  Dependencies:
+   lua >= 5.3, <= 5.4
+   copas >= 4.7.1-1  (luasocket, luasec, timerwheel)
+   luamqtt >= 3.4.3-1
+   lua-json >= 1.0.0-1
+   bit32 >= 5.3.5.1-1
+   lua-websockets-bit32 >= 2.0.1-7
+   mobdebug >= 0.80-1
+--]]
 ---@diagnostic disable: cast-local-type
 ---@diagnostic disable-next-line: undefined-global
 _DEVELOP = _DEVELOP
 
-local VERSION = "1.0.25"
+local VERSION = "1.0.26"
 
 local cfgFileName = "hc3emu_cfg.lua"   -- Config file in current directory
 local homeCfgFileName = ".hc3emu.lua"  -- Config file in home directory
@@ -367,64 +381,10 @@ TQ.midnightLoop() -- Setup loop for midnight events
 TQ.offlineRoute = TQ.setupOfflineRoutes() -- Setup routes for offline API calls
 TQ.remoteRoute = TQ.setupRemoteRoutes() -- Setup routes for remote API calls (incl proxy)
 
--- Load main file
-
-local function loadQAFiles(info)
-  
-  if info.directives == nil then parseDirectives(info) end
-  TQ.setOffline(info.directives.offline) 
-  if info.directives.time then local t = info.directives.time  TQ.setTimeOffset(t - os.time()) end
-
-  local env = info.env
-  local os2 = { time = userTime, clock = os.clock, difftime = os.difftime, date = userDate, exit = os.exit, remove = os.remove }
-  local fibaro = { hc3emu = TQ, HC3EMU_VERSION = VERSION, flags = info.directives, DBG = DBG }
-  local args = nil
-  if flags.shellscript then
-    args = {}
-    for i,v in pairs(arg) do if i > 0 then args[#args+1] = v end end
-  end
-  for k,v in pairs({
-    __assert_type = __assert_type, fibaro = fibaro, api = api, json = json, urlencode = urlencode, args=args,
-    setTimeout = function(f,ms) return TQ._setTimeout(f,ms,env) end, -- They need the current environment to report errors
-    setInterval = function(f,ms) return TQ._setInterval(f,ms,env) end, 
-    clearTimeout = TQ.clearTimeout, clearInterval = TQ.clearInterval,
-    collectgarbage = collectgarbage, os = os2, math = math, string = string, table = table, _print = print,
-    getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring,
-    type = luaType, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
-    error = error, assert = assert, pcall = pcall, xpcall = xpcall, bit32 = require("bit32"),
-    dofile = dofile, package = package, _coroutine = coroutine, io = io, rawset = rawset, rawget = rawget,
-    _loadfile = loadfile
-  }) do env[k] = v end
-  
-  env.__TAG = info.directives.name..info.id
-  env._G = env
-  for k,v in pairs(exports) do env[k] = v end
-
-  for _,path in ipairs({"hc3emu.class","hc3emu.fibaro","hc3emu.quickapp","hc3emu.net"}) do
-    DEBUGF('info',"Loading QA library %s",path)
-    if _DEVELOP then
-      path = "src/"..path:match(".-%.(.*)")..".lua"
-    else  path = package.searchpath(path,package.path) end
-    loadfile(path,"t",env)()
-  end
-  
-  function env.print(...) env.fibaro.debug(env.__TAG,...) end
-
-  if flags.speed then TQ.startSpeedTime() end
-
-  for _,lf in ipairs(info.files) do
-    DEBUGF('info',"Loading user file %s",lf.fname)
-    _,lf.src = readFile{file=lf.fname,eval=true,env=env,silent=false}
-  end
-  DEBUGF('info',"Loading user main file %s",info.fname)
-  load(info.src,info.fname,"t",env)()
-  if not TQ.flags.offline then 
-    assert(TQ.URL, TQ.USER and TQ.PASSWORD,"Please define URL, USER, and PASSWORD") -- Early check that creds are available
-  end
-end
-
 function TQ.getNextDeviceId() DEVICEID = DEVICEID + 1 return DEVICEID end
 
+-- Creates a QA device structure and registers it with the HC3 emulator
+-- @param info Table containing configuration information for the QA
 local function createQAstruct(info)
   if info.directives == nil then parseDirectives(info) end
   TQ.setOffline(info.directives.offline) 
@@ -512,6 +472,62 @@ local function createQAstruct(info)
   TQ.registerQA(info)
   
   return info
+end
+
+--- Loads sets up Environment and loads (QA) files into the environment
+-- @param info Table containing configuration information for loading QA files
+local function loadQAFiles(info)
+  
+  if info.directives == nil then parseDirectives(info) end
+  TQ.setOffline(info.directives.offline) 
+  if info.directives.time then local t = info.directives.time  TQ.setTimeOffset(t - os.time()) end
+
+  local env = info.env
+  local os2 = { time = userTime, clock = os.clock, difftime = os.difftime, date = userDate, exit = os.exit, remove = os.remove }
+  local fibaro = { hc3emu = TQ, HC3EMU_VERSION = VERSION, flags = info.directives, DBG = DBG }
+  local args = nil
+  if flags.shellscript then
+    args = {}
+    for i,v in pairs(arg) do if i > 0 then args[#args+1] = v end end
+  end
+  for k,v in pairs({
+    __assert_type = __assert_type, fibaro = fibaro, api = api, json = json, urlencode = urlencode, args=args,
+    setTimeout = function(f,ms) return TQ._setTimeout(f,ms,env) end, -- They need the current environment to report errors
+    setInterval = function(f,ms) return TQ._setInterval(f,ms,env) end, 
+    clearTimeout = TQ.clearTimeout, clearInterval = TQ.clearInterval,
+    collectgarbage = collectgarbage, os = os2, math = math, string = string, table = table, _print = print,
+    getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring,
+    type = luaType, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
+    error = error, assert = assert, pcall = pcall, xpcall = xpcall, bit32 = require("bit32"),
+    dofile = dofile, package = package, _coroutine = coroutine, io = io, rawset = rawset, rawget = rawget,
+    _loadfile = loadfile
+  }) do env[k] = v end
+  
+  env.__TAG = info.directives.name..info.id
+  env._G = env
+  for k,v in pairs(exports) do env[k] = v end
+
+  for _,path in ipairs({"hc3emu.class","hc3emu.fibaro","hc3emu.quickapp","hc3emu.net"}) do
+    DEBUGF('info',"Loading QA library %s",path)
+    if _DEVELOP then
+      path = "src/"..path:match(".-%.(.*)")..".lua"
+    else  path = package.searchpath(path,package.path) end
+    loadfile(path,"t",env)()
+  end
+  
+  function env.print(...) env.fibaro.debug(env.__TAG,...) end
+
+  if flags.speed then TQ.startSpeedTime() end
+
+  for _,lf in ipairs(info.files) do
+    DEBUGF('info',"Loading user file %s",lf.fname)
+    _,lf.src = readFile{file=lf.fname,eval=true,env=env,silent=false}
+  end
+  DEBUGF('info',"Loading user main file %s",info.fname)
+  load(info.src,info.fname,"t",env)()
+  if not TQ.flags.offline then 
+    assert(TQ.URL and TQ.USER and TQ.PASSWORD,"Please define URL, USER, and PASSWORD") -- Early check that creds are available
+  end
 end
 
 function runQA(info) -- The rest is run in a copas tasks...

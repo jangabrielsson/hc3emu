@@ -286,11 +286,15 @@ local function addThread(env,call,...)
   task = TQ.copas.addthread(function(...) 
     TQ.mobdebug.on() 
     TQ.copas.seterrorhandler(errfun)
-    call(...) 
+    local stat,res = pcall(call,...) 
+    if not stat then 
+      ERRORF("Task error: %s",res) 
+      print(TQ.copas.gettraceback("",coroutine.running(),nil))
+    end
     tasks[task]=nil 
     end,...)
   -- Keep track of what QA started what task
-  -- Will allows us to kill all tasks started by a QA when it is deleted
+  -- Will allow us to kill all tasks started by a QA when it is deleted
   TQ.setCoroData(task,'deviceId',(env and env.plugin or {}).mainDeviceId) 
   tasks[task] = true
   return task

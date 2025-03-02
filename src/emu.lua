@@ -294,10 +294,10 @@ function MODULE.net()
 end
 
 function MODULE.db() TQ.require("hc3emu.db") end    -- Database for storing data
-function MODULE.qapi() TQ.require("hc3emu.qapi") end    -- Standard API routes
+function MODULE.emuroute() TQ.require("hc3emu.emuroute") end    -- Emulator API routes
 function MODULE.proxy() TQ.require("hc3emu.proxy") end     -- Proxy creation and Proxy API routes
 function MODULE.offline() TQ.require("hc3emu.offline") end -- Offline API routes
-function MODULE.qafuns() TQ.require("hc3emu.qafuns") end
+function MODULE.timers() TQ.require("hc3emu.timers") end
 function MODULE.ui() TQ.require("hc3emu.ui") end
 function MODULE.tools() TQ.require("hc3emu.tools") end
 
@@ -521,7 +521,11 @@ local function loadQAFiles(info)
 
   for _,lf in ipairs(info.files) do
     DEBUGF('info',"Loading user file %s",lf.fname)
-    _,lf.src = readFile{file=lf.fname,eval=true,env=env,silent=false}
+    if lf.content then
+      load(lf.content,lf.fname,"t",env)()
+    else
+    _,lf.content = readFile{file=lf.fname,eval=true,env=env,silent=false}
+    end
   end
   DEBUGF('info',"Loading user main file %s",info.fname)
   load(info.src,info.fname,"t",env)()

@@ -2,6 +2,12 @@
   -- If false it route to local handler if it exists, otherwise it routes (pass through) to HC3
   -- If true it routes to local handler if it exists, otherwise it returns 501
 
+--[[
+       EmuRoute -> OfflineRoute -> NotImplementedRoute
+       EmuRoute -> ProxyRoute -> HC3Route
+       -- EmuRoute -> HC3Route
+       HC3Route
+--]]
 TQ = TQ
 local fmt = string.format
 local DBG = TQ.DBG
@@ -95,8 +101,8 @@ function Route(passThroughHandler)   -- passThroughHandler is a function that ta
       return value,code
     else -- proxy or no proxy, use route if it exists, otherwise call through
       if handler then
-        if handler then vars[#vars+1]=data vars[#vars+1]=query and parseQuery(query) or {} vars[#vars+1]=flags end
         if not flags.silent and DBG.http then DEBUGF('http',"API: %s%s",method,orgPath) end
+        if handler then vars[#vars+1]=data vars[#vars+1]=query and parseQuery(query) or {} vars[#vars+1]=flags end
         local value,code = handler(method..path,table.unpack(vars))
         if code == 301 then -- handler didn't want to handle it, pass through
           return self.passThroughHandler(method,orgPath,data,flags)  -- redirect to hc3
@@ -111,5 +117,13 @@ function Route(passThroughHandler)   -- passThroughHandler is a function that ta
 
   return self
 end
+
+local NotImplmentedRoute = {
+  call = function(_,_,_,_) return nil,501 end,
+}
+
+local HC3Route = {
+  call = function(method,path,data,flags) return TQ.HC3Call(method,path,data,flags) end,
+}
 
 return Route

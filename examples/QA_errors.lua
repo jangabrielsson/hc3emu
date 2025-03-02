@@ -10,12 +10,12 @@ if require and not QuickApp then require("hc3emu") end
 
 
 local function foo()
-  bar()
+  --bar()
 end
 
 function QuickApp:onInit()
   --bar()
 
-  setTimeout(foo3,0)
+  --setTimeout(foo3,0)
 end
 

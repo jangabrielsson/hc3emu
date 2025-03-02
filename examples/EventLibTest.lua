@@ -4,6 +4,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%name=Event test
 
 --%%file=../fibemu/examples/EventAndTriggerLib.lua:Events
+---@diagnostic disable-next-line: undefined-global
 local Event = Event_std
 Event.id='remote'
 Event{type='fromEventSender'}

@@ -1,4 +1,5 @@
--- Standard api routes
+--[[ Emulator api routes
+--]]
 
 local json = TQ.json
 
@@ -77,9 +78,56 @@ local function getDevices(p,query)
   return qa,200
 end
 
+local function findFile(name,files)
+  for i,f in ipairs(files) do if f.name == name then return i end end
+end
+
+local function getQAfiles(p,id,name) 
+  local qa = TQ.getQA(tonumber(id))
+  if not qa then return nil,301 end
+  if name == nil then
+    local fs = {}
+    for _,f in ipairs(qa.files) do
+      fs[#fs+1] = {name=f.name, type='lua', isMain=false}
+    end
+    fs[#fs+1] = {name='main', type='lua', isMain=true}
+    return fs,200
+  end
+end
+
+local function createQAfile(p,id,data) 
+  local qa = TQ.getQA(tonumber(id))
+  if not qa then return nil,301 end
+  if findFile(data.name,qa.files) then return nil,409 end
+  data.fname="new" -- What fname to give it?
+  table.insert(qa.files,data)
+  qa.env.plugin.restart() -- Restart the QA
+end
+
+local function setQAfiles(p,id,name,data) 
+  local qa = TQ.getQA(tonumber(id))
+  if not qa then return nil,301 end
+  if name then
+    local i = findFile(name,qa.files)
+    if not i then return nil,404 end
+    qa.files[i] = data
+    qa.env.plugin.restart()
+  else return nil,505 end
+end
+
+local function deleteQAfiles(p,id,name) 
+  local qa = TQ.getQA(tonumber(id))
+  if not qa then return nil,301 end
+  local i = findFile(name,qa.files)
+  if i then 
+    table.remove(qa.files,i) 
+    qa.env.plugin.restart()
+  else return nil,404 end
+end
+
 function TQ.addStandardAPIRoutes(route) -- Adds standard API routes to a route object.
 
-  route:addOver('GET/devices',function(p,query,...) return getDevices(p,query,...) end)
+  route:addOver('GET/devices',function(p,query,...) return getDevices(p,query) end)
   route:add('GET/devices/<id>',function(p,id,d)  -- Fetch our local device structure
     local qa = TQ.getQA(tonumber(id))
     if qa == nil then return nil,301 end
@@ -94,10 +142,6 @@ function TQ.addStandardAPIRoutes(route) -- Adds standard API routes to a route o
     return TQ.getFQA(tonumber(id)),200 
   end)
 
-  local function getQAfiles() end
-  local function createQAfile() end
-  local function setQAfiles() end
-  local function deleteQAfiles() end
   -- QuickApp file methods 
   route:add('GET/quickApp/<id>/files', function (p,id) return getQAfiles(id,id,nil) end)
   route:add('GET/quickApp/<id>/files/<name>', function (p,id,name) return getQAfiles(p,id,name) end)
@@ -113,8 +157,3 @@ function TQ.addStandardAPIRoutes(route) -- Adds standard API routes to a route o
   route:add('DELETE/plugins/<id>/variables/<name>', function(p,...) return internalStorageDelete(...) end) --id,key,data
 
 end
-
-TQ.internalStoragePut = internalStoragePut
-TQ.internalStoragePost = internalStoragePost
-TQ.internalStorageGet = internalStorageGet
-TQ.internalStorageDelete = internalStorageDelete

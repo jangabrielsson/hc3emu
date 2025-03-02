@@ -4,13 +4,6 @@ if require and not QuickApp then require("hc3emu") end
 
 local debug = fibaro.hc3emu.luadebug
 
-local oldpcall,last = pcall,nil
-function pcall2(f,...)
-  last = f
-  local r = {oldpcall(f,...)}
-  return table.unpack(r)
-end
-
 local function hook()
   local function myHook(w,...) 
     if w == "call" or w == "return" or w == "line" then
@@ -37,7 +30,7 @@ hook()
 print("Hello from hc3emu")
 
 local function Fopp()
-  t = 99
+  local t = 99
 end
 print("FUN",Fopp)
 function QuickApp:onInit()

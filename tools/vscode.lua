@@ -14,10 +14,6 @@ local function readFile(fn)
   return s
 end
 
-local cmd = args[1]
-local arg = args[2]
-local arg2 = args[3]
-
 local cmds = {}
 
 function cmds.downloadQA()

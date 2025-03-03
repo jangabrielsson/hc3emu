@@ -49,7 +49,11 @@
     "onUIEvent",
     "__onAction",
     "_print",
-    "args"
+    "args",
+    "__emu_setTimeout",
+    "__emu_clearTimeout",
+    "__emu_setInterval",
+    "__emu_clearInterval"
 ],
 "Lua.diagnostics.disable": [
     "duplicate-set-field",

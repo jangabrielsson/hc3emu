@@ -18,6 +18,7 @@ function QuickApp:onInit()
 
   fibaro.hc3emu.loadQAString([[
 --%%name=EventSender
+--%%breakOnLoad=true
 --%%file=../fibemu/examples/EventAndTriggerLib.lua:Events
 
 local Event = Event_std

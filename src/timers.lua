@@ -15,12 +15,16 @@ local function cancelTimers(id)
   end
 end
 
-local _setTimeout
-local _setInterval
+local __setTimeout
+local __setInterval
+local __clearTimeout
+local __clearInterval
 
 if not TQ.flags.speed then
   local function callback(_,args) mobdebug.on() timers[args[2]] = nil args[1]() end
-  local function __setTimeout(rec,fun,ms,env)
+  local function setTimeoutAux(rec,fun,ms,env)
+    local id = TQ.getCoroData(nil,'deviceId')
+    local env = id and TQ.getQA(id).env or nil
     ref = ref+1
     local ref0 = not rec and ref or "n/a"
     local t = copas.timer.new({
@@ -31,7 +35,9 @@ if not TQ.flags.speed then
       callback = callback,
       params = {fun,ref0},
       errorhandler = function(err, coro, skt)
-        env.fibaro.error(tostring(env.__TAG),fmt("setTimeout:%s",tostring(err)))
+        if env then
+          env.fibaro.error(tostring(env.__TAG),fmt("setTimeout:%s",tostring(err)))
+        end
         timers[ref]=nil
         copas.seterrorhandler()
         --print(copas.copas.gettraceback(err,coro,skt))
@@ -44,24 +50,24 @@ if not TQ.flags.speed then
     return ref
   end
   
-  function _setTimeout(fun,ms,env) 
+  function __setTimeout(fun,ms)
     if type(fun) ~= "function" then error("setTimeout: first argument must be a function",2) end
     if type(ms) ~= "number" then error("setTimeout: second argument must be a number",2) end
-    return __setTimeout(false,fun,ms,env)
+    return setTimeoutAux(false,fun,ms)
   end
-  function _setInterval(fun,ms,env) 
+  function __setInterval(fun,ms) 
     if type(fun) ~= "function" then error("setInterval: first argument must be a function",2) end
     if type(ms) ~= "number" then error("setInterval: second argument must be a number",2) end
-    return __setTimeout(true,fun,ms,env) 
+    return setTimeoutAux(true,fun,ms) 
   end
-  function clearTimeout(ref)
+  function __clearTimeout(ref)
     if timers[ref] then
       timers[ref]:cancel()
     end
     timers[ref]=nil
     copas.pause(0)
   end
-  clearInterval = clearTimeout
+  __clearInterval = __clearTimeout
 end
 
 if TQ.flags.speed then
@@ -104,17 +110,19 @@ if TQ.flags.speed then
     return t
   end
   
-  local function __setTimeout(fun,ms,env)
+  local function setTimeoutAux(fun,ms)
+    local id = TQ.getCoroData(nil,'deviceId')
+    local env = id and TQ.getQA(id).env or nil
     local ta = TQ.socket.gettime() + TQ.getTimeOffset() + ms/1000.0
     return insert(ta,fun,env)
   end
-  function _setTimeout(fun,ms,env)
+  function __setTimeout(fun,ms)
     if type(fun) ~= "function" then error("setTimeout: first argument must be a function",2) end
     if type(ms) ~= "number" then error("setTimeout: second argument must be a number",2) end
-    timers[#timers+1] = __setTimeout(fun,ms,env)
+    timers[#timers+1] = setTimeoutAux(fun,ms)
     return #timers
   end
-  function clearTimeout(ref)
+  function __clearTimeout(ref)
     local t = timers[ref]
     if t then
       timers[ref] = nil
@@ -122,22 +130,20 @@ if TQ.flags.speed then
     end
   end
   
-  function _setInterval(fun,ms,env)
+  function __setInterval(fun,ms,env)
     if type(fun) ~= "function" then error("setInterval: first argument must be a function",2) end
     if type(ms) ~= "number" then error("setInterval: second argument must be a number",2) end
     local ref = nil
     local function loop()
       if ref == nil or timers[ref]==nil then return end
       fun()
-      timers[ref] = __setTimeout(loop,ms,env)
+      timers[ref] = __setTimeout(loop,ms)
     end
-    ref = _setTimeout(loop,ms,env)
+    ref = __setTimeout(loop,ms)
     return ref
   end
   
-  function clearInterval(ref)
-    clearTimeout(ref)
-  end
+  __clearInterval = clearTimeout
   
   function TQ.startSpeedTime()
     TQ.addThread(nil,function()
@@ -175,16 +181,15 @@ local function midnightLoop()
     local d = TQ.userDate("*t")
     d.hour,d.min,d.sec = 24,0,0
     midnxt = TQ.userTime(d)
-    _setTimeout(loop,(midnxt-TQ.userTime())*1000,nil)
+    __setTimeout(loop,(midnxt-TQ.userTime())*1000)
   end
-  _setTimeout(loop,(midnxt-TQ.userTime())*1000,nil)
+  __setTimeout(loop,(midnxt-TQ.userTime())*1000)
 end
 
-
-TQ._setTimeout = _setTimeout
-TQ._setInterval = _setInterval
-TQ.clearTimeout = clearTimeout
-TQ.clearInterval = clearInterval
+TQ.exports.__emu_setTimeout = __setTimeout
+TQ.exports.__emu_setInterval = __setInterval
+TQ.exports.__emu_clearTimeout = __clearTimeout
+TQ.exports.__emu_clearInterval = __clearInterval
 TQ.cancelTimers = cancelTimers
 TQ.midnightLoop = midnightLoop
 TQ.startSpeedTime = TQ.startSpeedTime or function() end

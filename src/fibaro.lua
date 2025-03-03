@@ -31,6 +31,28 @@ function fibaro.setOffline(off)
 end
 fibaro.setOffline(fibaro.hc3emu.flags.offline)
 
+function setTimeout(fun,ms)
+  if type(fun) ~= "function" then error("setTimeout: first argument must be a function",2) end
+  if type(ms) ~= "number" then error("setTimeout: second argument must be a number",2) end
+  return __emu_setTimeout(fun,ms)
+end
+
+function clearTimeout(ref)
+  if type(ref) ~= "number" then error("clearTimeout: first argument must be a number",2) end
+  return __emu_clearTimeout(ref)
+end
+
+function setInterval(fun,ms)
+  if type(fun) ~= "function" then error("setInterval: first argument must be a function",2) end
+  if type(ms) ~= "number" then error("setInterval: second argument must be a number",2) end
+  return __emu_setInterval(fun,ms)
+end
+
+function clearInterval(ref)
+  if type(ref) ~= "number" then error("clearInterval: first argument must be a number",2) end
+  return __emu_clearInterval(ref)
+end
+
 function  fibaro.getPartition(id)
   __assert_type(id, "number")
   return __fibaro_get_partition(id)

@@ -88,7 +88,7 @@ local function Route()   -- passThroughHandler is a function that takes method,p
     end
     local handler,vars = self:getRoute(method,flags.lookupPath)
     if not handler then return nil,nil end
-    if not flags.silent and DBG.http then DEBUGF('http',"API: %s%s",method,flags.path) end
+    if not flags.silent and DBG.http then DEBUGF('http',"API: %s%s",method,flags.lookupPath) end
     local args = {flags.callPath,table.unpack(vars)}
     args[#args+1] = data
     args[#args+1] = flags.query

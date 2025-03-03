@@ -52,7 +52,7 @@ local DEBUG,DEBUGF, WARNINGF, ERRORF = TQ.DEBUG, TQ.DEBUGF, TQ.WARNINGF, TQ.ERRO
 local addThread = TQ.addThread
 local DBG = TQ.DBG
 local api = TQ.api
-local exports = {} -- functions to export to QA
+TQ.exports = {} -- functions to export to QA
 
 local fmt = string.format
 
@@ -481,9 +481,6 @@ local function loadQAFiles(info)
   end
   for k,v in pairs({
     __assert_type = __assert_type, fibaro = fibaro, json = json, urlencode = urlencode, args=args,
-    setTimeout = function(f,ms) return TQ._setTimeout(f,ms,env) end, -- They need the current environment to report errors
-    setInterval = function(f,ms) return TQ._setInterval(f,ms,env) end, 
-    clearTimeout = TQ.clearTimeout, clearInterval = TQ.clearInterval,
     collectgarbage = collectgarbage, os = os2, math = math, string = string, table = table, _print = print,
     getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring,
     type = luaType, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
@@ -494,7 +491,7 @@ local function loadQAFiles(info)
   
   env.__TAG = info.directives.name..info.id
   env._G = env
-  for k,v in pairs(exports) do env[k] = v end
+  for k,v in pairs(TQ.exports) do env[k] = v end
 
   for _,path in ipairs({"hc3emu.class","hc3emu.fibaro","hc3emu.quickapp","hc3emu.net"}) do
     DEBUGF('info',"Loading QA library %s",path)

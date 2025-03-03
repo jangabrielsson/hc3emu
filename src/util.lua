@@ -47,6 +47,7 @@ function json.encode(obj,_)
   return r
   end)
   if not stat then error("json.encode error: "..tostring(res),2) end
+  return res
 end
 local function handler(t) if t.__array then t.__array = nil end return t end
 function json.decode(str,_,_) 

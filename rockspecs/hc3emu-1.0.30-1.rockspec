@@ -45,7 +45,7 @@ build = {
       ["hc3emu.route"] = "src/route.lua",
       ["hc3emu.proxy"] = "src/proxy.lua",
       ["hc3emu.offline"] = "src/offline.lua",
-      ["hc3emu.qapi"] = "src/qapi.lua",
+      ["hc3emu.emuroute"] = "src/emuroute.lua",
       ["hc3emu.tools"] = "src/tools.lua",
       ["hc3emu.stdStructs"] = "src/stdStructs.lua",
   },

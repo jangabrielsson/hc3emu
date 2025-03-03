@@ -1,7 +1,7 @@
 --This is a QA running in offline mode and testing some APIs
 
 ---@diagnostic disable: duplicate-set-field
-_DEVELOP = true
+--_DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
 --%%name=OfflineQA
@@ -30,7 +30,6 @@ end
 
 function QuickApp:onInit()
   print("Offline QA started",self.name,self.id)
-  
   local info = api.get("/settings/info")
   printf("SW version:%s",info.currentVersion.version)
   printf("Serial nr:%s",info.serialNumber)

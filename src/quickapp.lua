@@ -325,6 +325,7 @@ function refreshStatePoller(robj) -- Running offline we need a new version of th
   local path = "/refreshStates"
   local last,events
   while robj.running do
+    assert(not fibaro.hc3emu.flags.offline,"refreshStatePoller not implemented for offline")
     local data, status = TQ.HC3Call("GET", last and path..("?last="..last) or path, nil, true)
     if status ~= 200 then
       ERRORF("Failed to get refresh state: %s",status)

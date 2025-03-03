@@ -36,6 +36,7 @@ end
 
 local encode,decode = json.encode,json.decode
 function json.encode(obj,_)
+  local stat,res = pcall(function()
   if obj == nil then return "null" end
   if type(obj) == 'number' then return tostring(obj) end
   if type(obj) == 'string' then return '"'..obj..'"' end
@@ -44,9 +45,15 @@ function json.encode(obj,_)
   local r = encode(obj,'__toJSON')
   setmetatable(obj,omt)
   return r
+  end)
+  if not stat then error("json.encode error: "..tostring(res),2) end
 end
 local function handler(t) if t.__array then t.__array = nil end return t end
-function json.decode(str,_,_) return decode(str,nil,handler) end
+function json.decode(str,_,_) 
+  local stat,res = pcall(decode,str,nil,handler) 
+  if not stat then error("json.decode error: "..tostring(res),2) end
+  return res
+end
 json.util = {}
 function json.util.InitArray(t) 
   local mt = getmetatable(t) or {}
@@ -274,6 +281,8 @@ local function errfun(msg,co,skt)
       dev.env.fibaro.error(tostring(dev.env.__TAG),msg)
       print(TQ.copas.gettraceback("",co,skt))
       return
+    else
+      TQ.ERRORF("Task error: %s",msg)
     end
   end
   local str = TQ.copas.gettraceback(msg,co,skt)
@@ -286,11 +295,11 @@ local function addThread(env,call,...)
   task = TQ.copas.addthread(function(...) 
     TQ.mobdebug.on() 
     TQ.copas.seterrorhandler(errfun)
-    local stat,res = pcall(call,...) 
-    if not stat then 
-      ERRORF("Task error: %s",res) 
-      print(TQ.copas.gettraceback("",coroutine.running(),nil))
-    end
+    local stat,res = call(...) 
+    -- if not stat then 
+    --   ERRORF("Task error: %s",res) 
+    --   print(TQ.copas.gettraceback("",coroutine.running(),nil))
+    -- end
     tasks[task]=nil 
     end,...)
   -- Keep track of what QA started what task

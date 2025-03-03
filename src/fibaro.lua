@@ -18,6 +18,19 @@ function __fibaroSleep(ms)
 end
 function __fibaroUseAsyncHandler(_) return true end
 
+api  = {} -- Different api connections depending if we are offline or not
+local route = fibaro.hc3emu.route
+local connection = route.offlineConnection
+function api.get(...) return connection:call("GET",...) end
+function api.post(...) return connection:call("POST",...) end
+function api.put(...) return connection:call("PUT",...) end
+function api.delete(...) return connection:call("DELETE",...) end
+function fibaro.setOffline(off)
+  if off then connection = route.offlineConnection
+  else connection = route.proxyConnection end
+end
+fibaro.setOffline(fibaro.hc3emu.flags.offline)
+
 function  fibaro.getPartition(id)
   __assert_type(id, "number")
   return __fibaro_get_partition(id)

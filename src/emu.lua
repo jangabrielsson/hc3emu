@@ -264,13 +264,13 @@ function MODULE.net()
     end
   end
   
-  local BLOCK = false
+  local BLOCK = false 
   local function HC3Call(method,path,data,silent)
     if BLOCK then ERRORF("HC3 authentication failed again, Access blocked") return nil, 401, "Blocked" end
     if type(data) == 'table' then data = json.encode(data) end
     assert(TQ.URL,"Missing hc3emu.URL")
     assert(TQ.USER,"Missing hc3emu.USER")
-    assert(TQ.PASSWORD,"Missing hc3emu.PASSSWORD")
+    assert(TQ.PASSWORD,"Missing hc3emu.PASSWORD")
     local t0 = socket.gettime()
     local res,stat,headers = httpRequest(method,TQ.URL.."api"..path,{
       ["Accept"] = '*/*',
@@ -287,13 +287,14 @@ function MODULE.net()
   end
   TQ.HC3Call,TQ.httpRequest = HC3Call,httpRequest
   
-  function api.get(path) return TQ.route:call("GET",path) end
-  function api.post(path,data) return TQ.route:call("POST",path,data) end
-  function api.put(path,data) return TQ.route:call("PUT",path, data) end
-  function api.delete(path,data) return TQ.route:call("DELETE",path,data) end
+  function api.get(...) return TQ.connection:call("GET",...) end
+  function api.post(...) return TQ.connection:call("POST",...) end
+  function api.put(...) return TQ.connection:call("PUT",...) end
+  function api.delete(...) return TQ.connection:call("DELETE",...) end
 end
 
 function MODULE.db() TQ.require("hc3emu.db") end    -- Database for storing data
+function MODULE.route() TQ.require("hc3emu.route") end    -- Route object
 function MODULE.emuroute() TQ.require("hc3emu.emuroute") end    -- Emulator API routes
 function MODULE.proxy() TQ.require("hc3emu.proxy") end     -- Proxy creation and Proxy API routes
 function MODULE.offline() TQ.require("hc3emu.offline") end -- Offline API routes
@@ -310,15 +311,6 @@ function MODULE.qa_manager()
     TQ.store.DB.devices[id] = info.device
   end
   function TQ.getQA(id) return TQ.DIR[id] end
-  
-  function TQ.setOffline(offline)
-    flags.offline = offline
-    if offline then
-      TQ.route = TQ.offlineRoute
-    else
-      TQ.route = TQ.remoteRoute
-    end
-  end
 
   function TQ.saveProject(info)
     local r = {}
@@ -377,9 +369,8 @@ function TQ.userTime(a) return userTime(a) end
 function TQ.userDate(a,b) return userDate(a,b) end
 
 TQ.midnightLoop() -- Setup loop for midnight events
-
-TQ.offlineRoute = TQ.setupOfflineRoutes() -- Setup routes for offline API calls
-TQ.remoteRoute = TQ.setupRemoteRoutes() -- Setup routes for remote API calls (incl proxy)
+TQ.route.createConnections() -- Setup connections for API calls
+TQ.connection = TQ.route.hc3Connection
 
 function TQ.getNextDeviceId() DEVICEID = DEVICEID + 1 return DEVICEID end
 
@@ -387,7 +378,6 @@ function TQ.getNextDeviceId() DEVICEID = DEVICEID + 1 return DEVICEID end
 -- @param info Table containing configuration information for the QA
 local function createQAstruct(info)
   if info.directives == nil then parseDirectives(info) end
-  TQ.setOffline(info.directives.offline) 
   local flags = info.directives
   local env = info.env
   local qvs = json.util.InitArray(flags.var or {})
@@ -437,7 +427,6 @@ local function createQAstruct(info)
   end
   
   if flags.proxy then
-    TQ.route = TQ.require("hc3emu.route")(TQ.HC3Call) -- Need this to do api.calls to setup proxy
     local pname = tostring(flags.proxy)
     local pop = pname:sub(1,1)
     if pop == '-' or pop == '+' then -- delete proxy if name is preceeded with "-" or "+"
@@ -454,11 +443,12 @@ local function createQAstruct(info)
     if flags.proxy then
       deviceStruct = TQ.getProxy(flags.proxy,deviceStruct) -- Get deviceStruct from HC3 proxy
       assert(deviceStruct, "Can't get proxy device")
-      info.env.__TAG = (deviceStruct.name..(deviceStruct.id or "")):upper()
-      api.post("/plugins/updateProperty",{deviceId= deviceStruct.id,propertyName='quickAppVariables',value=qvs})
-      if flags.logUI then TQ.logUI(deviceStruct.id) end
-      TQ.startServer(deviceStruct.id)
-      TQ.HC3Call("POST","/devices/"..deviceStruct.id.."/action/CONNECT",{args={{ip=TQ.emuIP,port=TQ.emuPort}}})
+      local id,name = deviceStruct.id,deviceStruct.name
+      info.env.__TAG = (name..(id or "")):upper()
+      api.post("/plugins/updateProperty",{deviceId=id,propertyName='quickAppVariables',value=qvs})
+      if flags.logUI then TQ.logUI(id) end
+      TQ.startServer(id)
+      api.post("/devices/"..id.."/action/CONNECT",{args={{ip=TQ.emuIP,port=TQ.emuPort}}})
       info.isProxy = true
     end
   end
@@ -479,7 +469,6 @@ end
 local function loadQAFiles(info)
   
   if info.directives == nil then parseDirectives(info) end
-  TQ.setOffline(info.directives.offline) 
   if info.directives.time then local t = info.directives.time  TQ.setTimeOffset(t - os.time()) end
 
   local env = info.env
@@ -491,7 +480,7 @@ local function loadQAFiles(info)
     for i,v in pairs(arg) do if i > 0 then args[#args+1] = v end end
   end
   for k,v in pairs({
-    __assert_type = __assert_type, fibaro = fibaro, api = api, json = json, urlencode = urlencode, args=args,
+    __assert_type = __assert_type, fibaro = fibaro, json = json, urlencode = urlencode, args=args,
     setTimeout = function(f,ms) return TQ._setTimeout(f,ms,env) end, -- They need the current environment to report errors
     setInterval = function(f,ms) return TQ._setInterval(f,ms,env) end, 
     clearTimeout = TQ.clearTimeout, clearInterval = TQ.clearInterval,

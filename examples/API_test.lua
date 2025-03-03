@@ -10,7 +10,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%local=true
 
 local function printf(...) print(string.format(...)) end
-local function setLocal(flag) fibaro.hc3emu.setOffline(flag) end
+local function setLocal(flag) fibaro.setOffline(flag) end
 
 local ignore = {created=true,modified=true}
 local function equal(e1,e2)

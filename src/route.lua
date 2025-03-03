@@ -14,18 +14,29 @@ local DBG = TQ.DBG
 local DEBUGF = TQ.DEBUGF
 
 local function errorWrapper(fun) 
-  return function(...) local r = {pcall(fun,...)} if r[1] then return table.unpack(r,2) else return table.unpack(r[2]) end end 
+  return function(...) 
+    local r = {pcall(fun,...)} 
+    if r[1] then 
+      return table.unpack(r,2) 
+    else
+      local err = r[2]
+      if type(err) == 'table' then
+        return nil,err.code,err.message
+      else
+        return nil,500,err
+      end
+    end
+  end 
 end
 
 local urldecode = function(url)
   return (url:gsub("%%(%x%x)", function(x) return string.char(tonumber(x, 16)) end))
 end
 
-function Route(passThroughHandler)   -- passThroughHandler is a function that takes method,path,data,flags and returns value,code
+local function Route()   -- passThroughHandler is a function that takes method,path,data,flags and returns value,code
   local ROUTEDIR = { GET={}, POST={}, PUT={}, DELETE={} }
   local self = {
     ROUTEDIR = ROUTEDIR,
-    passThroughHandler = passThroughHandler
   }
   
   function self:add(method, path, handler) 
@@ -44,22 +55,6 @@ function Route(passThroughHandler)   -- passThroughHandler is a function that ta
     assert(d._handler == nil,fmt("Duplicate path: %s/%s",method,path))
     d._handler = errorWrapper(handler)
   end
-  
-  function self:addOver(method, path, handler) 
-    if type(path) == 'function' then -- shift args
-      handler = path 
-      method,path = method:match("(.-)(/.+)") -- split method and path
-    end 
-    local path = string.split(path,'/')
-    local d = ROUTEDIR[method:upper()]
-    for _,p in ipairs(path) do
-      p = ({['<id>']=true,['<name>']=true})[p] and '_match' or p
-      local d0 = d[p]
-      if d0 == nil then d[p] = {} end
-      d = d[p]
-    end
-    d._handler = errorWrapper(handler)
-  end
 
   function self:getRoute(method,path)
     local path = string.split(path,'/')
@@ -67,7 +62,7 @@ function Route(passThroughHandler)   -- passThroughHandler is a function that ta
     for _,p in ipairs(path) do
       if d._match and not d[p] then vars[#vars+1] = p p = '_match' end
       local d0 = d[p]
-      if d0 == nil then return nil end
+      if d0 == nil then return nil,vars end
       d = d0
     end
     return d._handler,vars
@@ -84,46 +79,69 @@ function Route(passThroughHandler)   -- passThroughHandler is a function that ta
     return params
   end
 
-  function self:setLocal(lcl) self['local'] = lcl end
-
-  function self:call(method,path,data,flags) 
-    flags = flags or {}
-    local orgPath = path
-    local path2,query = path:match("(.-)%?(.*)") 
-    path = path2 or path
-    local handler,vars = self:getRoute(method,path)
-    if self['local'] then -- offline, if we don't have a handler it's an error (unimplemented)
-      if not flags.silent and DBG.http then DEBUGF('http',"API: %s%s",method,orgPath) end
-      if handler == nil then return nil,501 end
-      if handler then vars[#vars+1]=data vars[#vars+1]=query and parseQuery(query) or {} vars[#vars+1]=flags end
-      local value,code = handler(method..path,table.unpack(vars))
-      if code == 301 then return nil,404 end -- handler didn't want to handle it, return 404
-      return value,code
-    else -- proxy or no proxy, use route if it exists, otherwise call through
-      if handler then
-        if not flags.silent and DBG.http then DEBUGF('http',"API: %s%s",method,orgPath) end
-        if handler then vars[#vars+1]=data vars[#vars+1]=query and parseQuery(query) or {} vars[#vars+1]=flags end
-        local value,code = handler(method..path,table.unpack(vars))
-        if code == 301 then -- handler didn't want to handle it, pass through
-          return self.passThroughHandler(method,orgPath,data,flags)  -- redirect to hc3
-        else
-          return value,code 
-        end
-      else
-        return self.passThroughHandler(method,orgPath,data,flags)
-      end
+  function self:call(method,path,data,flags)
+    if not flags.query then
+      local pathStr,queryStr = path:match("(.-)%?(.*)") 
+      flags.lookupPath = pathStr or path
+      flags.callPath = method..flags.lookupPath
+      flags.query = queryStr and parseQuery(queryStr) or {}
     end
+    local handler,vars = self:getRoute(method,flags.lookupPath)
+    if not handler then return nil,nil end
+    if not flags.silent and DBG.http then DEBUGF('http',"API: %s%s",method,flags.path) end
+    local args = {flags.callPath,table.unpack(vars)}
+    args[#args+1] = data
+    args[#args+1] = flags.query
+    return handler(table.unpack(args))
   end
 
   return self
 end
 
-local NotImplmentedRoute = {
-  call = function(_,_,_,_) return nil,501 end,
+local NotImplementedRoute = {
+  call = function(_,_,_,_,_) return nil,501 end,
 }
 
 local HC3Route = {
-  call = function(method,path,data,flags) return TQ.HC3Call(method,path,data,flags) end,
+  call = function(_,method,path,data,flags) return TQ.HC3Call(method,path,data,flags) end,
 }
 
-return Route
+local function Connection()
+  local self = { routes = {} }
+  function self:addRoute(route) self.routes[#self.routes+1] = route end
+  function self:call(method,path,data)
+    local flags = {}
+    for _,route in ipairs(self.routes) do
+      local value,code = route:call(method,path,data,flags)
+      if not (code == nil or code == 301) then return value,code end
+    end
+    return nil,505
+  end
+  return self
+end
+
+local route
+
+local function createConnections()
+  local con = Connection()
+  con:addRoute(TQ.EmuRoute())
+  con:addRoute(TQ.OfflineRoute())
+  con:addRoute(NotImplementedRoute)
+  route.offlineConnection = con
+
+  con = Connection()
+  con:addRoute(TQ.EmuRoute())
+  con:addRoute(TQ.ProxyRoute())
+  con:addRoute(HC3Route)
+  route.proxyConnection = con
+
+  con = Connection()
+  con:addRoute(HC3Route)
+  route.hc3Connection = con
+end
+
+route = {
+  createRouteObject = Route,
+  createConnections = createConnections,
+}
+TQ.route = route

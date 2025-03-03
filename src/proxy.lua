@@ -15,7 +15,7 @@ function TQ.createProxy(name,devTempl)
 local fmt = string.format
 local con = nil
 local ip,port = nil,nil
-
+  
 function QuickApp:onInit()
   self:debug("Started", self.name, self.id)
   quickApp = self
@@ -33,7 +33,7 @@ function QuickApp:onInit()
     port = con.port
     self:debug("Connected")
   end
-
+  
   function quickApp:actionHandler(action)
     if IGNORE[action.actionName] then
       print(action.actionName)
@@ -121,74 +121,7 @@ end
   return res
 end
 
-local Route = TQ.require('hc3emu.route')
-
-function TQ.setupRemoteRoutes() -- Proxy routes updates both local QA data and remote Proxy data
-  local route = Route(TQ.HC3Call)
-  local proxy = TQ.proxyId
-  
-  local function block(p,data)
-    DEBUGF('blockAPI',"Blocked API: %s",p)
-    return nil,501
-  end
-
-  local function proxyAPI(p,data)
-    DEBUGF('proxyAPI',"proxyAPI: %s",p)
-    if not proxy then return nil,501 end
-    local method,path = p:match("(.-)(/.+)") -- split method and path
-    local res = TQ.callAPIFUN(method:lower(),path,data)
-    local _,d,c = table.unpack(res,1)
-    if type(d)=='function' then d = nil end
-    return d,c
-  end
-
-  local function putProp(p,data)
-    if data.deviceId == proxy then
-      local qa = TQ.getQA(data.deviceId)
-      qa.device.properties[data.propertyName] = data.value
-    end
-    if proxy then return nil,301
-    else return nil,200 end
-  end
-
-  local function blockParentId(p,data)
-    if data.parentId == proxy and not proxy then return block(p,data) end
-    return nil,301
-  end
-
-  local function blockIfEmulated(p,id,data)
-    if TQ.getQA(tonumber(id)) then return block(p,data)
-    else return nil,301 end
-  end
-
-  local function updateView(p,data) --ToDo, update local view
-    return nil,301
-  end
-
-  local function putStruct(p,id,d) -- Update local struct, and then update HC3...
-    local qa = TQ.getQA(tonumber(id))
-    if qa then
-      for k,v in pairs(d) do qa.dev[k] = v end -- update local properties 
-      if proxy then return nil,301 -- and update the HC3 proxy 
-      else return d,200 end
-    else return nil,301 end
-  end
-
-  TQ.addStandardAPIRoutes(route)
-
-  route:add('PUT/devices/<id>',putStruct)
-  route:add('DELETE/devices/<id>',blockIfEmulated)                    -- Block delete
-  route:add('POST/plugins/updateView',updateView)           -- Update local and remote view
-  route:add('POST/plugins/updateProperty',putProp)          -- Update local and remote properties
-  route:add('POST/plugins/createChildDevice',blockParentId) -- Block if it is for local QA and we don't have a proxy
-  route:add('POST/plugins/publishEvent',proxyAPI)           -- Proxy if we have a proxy
-  route:add('POST/plugins/interfaces',proxyAPI)             -- Proxy if we have a proxy
-  
-  return route
-end
-
 function TQ.getProxy(name,devTempl)
-  TQ.route = TQ.require('hc3emu.route')(TQ.HC3Call) -- Setup standard route to HC3, needed to do api.* to install proxy
   local devStruct = api.get("/devices?name="..urlencode(name))
   assert(type(devStruct)=='table',"API error")
   if next(devStruct)==nil then
@@ -213,7 +146,9 @@ function TQ.callAPIFUN(method,path,data)
   local msg = {false,nil,'timeout'}
   local semaphore = copas.semaphore.new(10, 0, 100)
   local args = {id,method,path,data}
-  TQ.HC3Call("POST","/devices/"..plugin.mainDeviceId.."/action/APIFUN",{args=args})
+  local stat,res = pcall(function()
+  TQ.HC3Call("POST","/devices/"..TQ.proxyId.."/action/APIFUN",{args=args})
+  end)
   copas.pause(0)
   callRef[id] = function(data) msg = data; semaphore:give(1) end
   semaphore:take(1)
@@ -225,9 +160,6 @@ local started = false
 function TQ.startServer(id)
   if started then return end
   started = true
-  -- local emuval = json.encode({id = id, ip = TQ.emuIP, port = TQ.emuPort}) -- Update HC3 var with emulator connection data
-  -- api.post("/globalVariables", {name=TQ.EMUVAR, value=emuval})
-  -- api.put("/globalVariables/"..TQ.EMUVAR, {name=TQ.EMUVAR, value=emuval})
   DEBUGF('info',"Server started at %s:%s",TQ.emuIP,TQ.emuPort)
   
   local function handle(skt)
@@ -256,4 +188,78 @@ function TQ.startServer(id)
   if not server then error(fmt("Failed open socket %s: %s",TQ.emuPort,tostring(err))) end
   TQ._server = server
   copas.addserver(server, handle)
+end
+
+------------------- ProxyRoute -------------------------------------
+function TQ.ProxyRoute()
+  local route = TQ.route.createRouteObject()
+  
+  local function block(p,data)
+    DEBUGF('blockAPI',"Blocked API: %s",p)
+    return nil,501
+  end
+  
+  local function proxyAPI(p,data)
+    DEBUGF('proxyAPI',"proxyAPI: %s",p)
+    if not TQ.proxyId then return nil,501 end
+    local method,path = p:match("(.-)(/.+)") -- split method and path
+    local res = TQ.callAPIFUN(method:lower(),path,data)
+    local _,d,c = table.unpack(res,1)
+    if type(d)=='function' then d = nil end
+    return d,c
+  end
+  
+  local function getDevices(p,query)
+    -- Get all devices from HC3
+    local qas = api.get('/devices')
+      -- Add emulated QAs 
+    for id,q in pairs(TQ.DIR) do
+      if id >= 5000 then qas[#qas+1] = q.device end
+    end
+    if next(query) then return TQ.queryFilter(query,qas),200 end   -- if query, filter the list.
+    return qas,200
+  end
+
+  local function putProp(p,data)
+    if data.deviceId == TQ.proxyId then
+      local qa = TQ.getQA(data.deviceId)
+      qa.device.properties[data.propertyName] = data.value
+    end
+    if TQ.proxyId then return nil,301
+    else return nil,200 end
+  end
+  
+  local function blockParentId(p,data)
+    if TQ.getQA(data.parentId) and not TQ.proxyId then return block(p,data) end
+    return nil,301
+  end
+  
+  local function blockIfEmulated(p,id,data)
+    if TQ.getQA(tonumber(id)) then return block(p,data)
+    else return nil,301 end
+  end
+  
+  local function updateView(p,data) --ToDo, update local view
+    return nil,301
+  end
+  
+  local function putStruct(p,id,d) -- Update local struct, and then update HC3...
+    local qa = TQ.getQA(tonumber(id))
+    if qa then
+      for k,v in pairs(d) do qa.dev[k] = v end -- update local properties 
+      if TQ.proxyId then return nil,301 -- and update the HC3 proxy 
+      else return d,200 end
+    else return nil,301 end
+  end
+  
+  route:add('GET/devices',function(p,...) return getDevices(p,...) end)
+  route:add('PUT/devices/<id>',putStruct)
+  route:add('DELETE/devices/<id>',blockIfEmulated)                    -- Block delete
+  route:add('POST/plugins/updateView',updateView)           -- Update local and remote view
+  route:add('POST/plugins/updateProperty',putProp)          -- Update local and remote properties
+  route:add('POST/plugins/createChildDevice',blockParentId) -- Block if it is for local QA and we don't have a proxy
+  route:add('POST/plugins/publishEvent',proxyAPI)           -- Proxy if we have a proxy
+  route:add('POST/plugins/interfaces',proxyAPI)             -- Proxy if we have a proxy
+  
+  return route
 end

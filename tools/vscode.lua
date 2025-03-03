@@ -55,7 +55,7 @@ function cmds.updateFile()
         else 
           printf("Updated QA:%s, file%s, QAfile:%s ",p.id,fn,qn)
         end
-        os.exit(-1)
+        os.exit(0)
       end
     end
     _print(arg," not found in current project")
@@ -71,6 +71,7 @@ else
   local stat,err = pcall(c)
   if not stat then
     _print("Error:",err)
+    os.exit(-1)
   end
 end
-os.exit(-1)
+os.exit(0)

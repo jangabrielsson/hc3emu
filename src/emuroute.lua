@@ -67,17 +67,6 @@ local function callAction(p,id,name,data)
   qa.qa:callAction(name,table.unpack(data.args)) return 'OK',200
 end
 
-local function getDevices(p,query)
-  -- Get all devices from HC3
-  local qa = TQ.HC3Call('GET','/devices')
-    -- Add emulated QAs 
-  for id,q in pairs(TQ.DIR) do
-    if id >= 5000 then qa[#qa+1] = q.device end
-  end
-  if next(query) then return TQ.queryFilter(query,qa),200 end   -- if query, filter the list.
-  return qa,200
-end
-
 local function findFile(name,files)
   for i,f in ipairs(files) do if f.name == name then return i end end
 end
@@ -104,7 +93,7 @@ local function createQAfile(p,id,data)
   qa.env.plugin.restart() -- Restart the QA
 end
 
-local function setQAfiles(p,id,name,data)  -- id,name,data
+local function setQAfiles(p,id,name,data) 
   local qa = TQ.getQA(tonumber(id))
   if not qa then return nil,301 end
   if name then
@@ -125,9 +114,11 @@ local function deleteQAfiles(p,id,name)
   else return nil,404 end
 end
 
-function TQ.addStandardAPIRoutes(route) -- Adds standard API routes to a route object.
+--------------- EmuRoute -----------------------------------------------------------------
 
-  route:addOver('GET/devices',function(p,query,...) return getDevices(p,query) end)
+function TQ.EmuRoute() -- Create emulator route, redirecting API calls to emulated devices
+  local route = TQ.route.createRouteObject()
+
   route:add('GET/devices/<id>',function(p,id,d)  -- Fetch our local device structure
     local qa = TQ.getQA(tonumber(id))
     if qa == nil then return nil,301 end
@@ -156,4 +147,5 @@ function TQ.addStandardAPIRoutes(route) -- Adds standard API routes to a route o
   route:add('GET/plugins/<id>/variables', function(p,id,...) return internalStorageGet(id,...) end) --id,nil,data
   route:add('DELETE/plugins/<id>/variables/<name>', function(p,...) return internalStorageDelete(...) end) --id,key,data
 
+  return route
 end

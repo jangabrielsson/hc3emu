@@ -6,7 +6,7 @@ if require and not QuickApp then require("hc3emu") end
 
 --NOTE: This is a test for the QwikAppChild class you need to have --%%state set so internalStorage data is saved for children
 
---%%name=QwikChilTest
+--%%name=QwikChildTest
 --%%type=com.fibaro.genericDevice
 --%%proxy=QCProxy
 --%%port=8265

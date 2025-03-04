@@ -40,7 +40,7 @@ TQ.emuIP = nil      -- IP of host running the emulator
 TQ.api = {}         -- API functions
 TQ.DBG = { info = true } -- Default flags and debug settings
 TQ.mainFile = MAINFILE
-TQ.require("hc3emu.util")(TQ) -- Utility functions
+TQ.require("hc3emu.util") -- Utility functions
 
 local DEVICEID = 5000 -- Start id for QA devices
 local qaInfo = { fname = TQ.mainFile, env = {} }
@@ -129,10 +129,16 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
   end
   
   local directive = {}
+  --@D name=<name> - Name of the QA
   function directive.name(d,val) flags.name = val end
+  --@D type=<type> - Type of the QA, ex. --%%type=com.fibaro.binarySwitch
   function directive.type(d,val) flags.type = val end
+  --@D id=<id> - Device id for the QA, ex. --%%id=5000. Proxy gets id from HC3.
   function directive.id(d,val) flags.id = eval(val,d) assert(flags.id,"Bad id directive:"..d) end
+  --@D project=<id> - Project id for the QA, ex. --%%project=5566
+  --This the deviceId for the QA on HC3, used to save files back to HC3
   function directive.project(d,val) flags.project = eval(val,d) assert(flags.project,"Bad project directive:"..d) end
+  --@D var=<name>:<expr> - Set a quickAppVariable variable, ex. --%%var=password:"hubba"
   function directive.var(d,val) 
     ---local vs = val:split(",")
     --for _,v in ipairs(vs) do
@@ -143,6 +149,7 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
     if e then flags.var[#flags.var+1] = {name=name,value=e} end
     --end
   end
+  --@D conceal=<name>:<expr> - Change qvar when fqa is saved, ex. --%%conceal:password:"<your password here>"
   function directive.conceal(d,val) 
     ---local vs = val:split(",")
     --for _,v in ipairs(vs) do
@@ -153,11 +160,13 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
     if expr then flags.conceal[name] = expr end
     --end
   end
+  --@D file=<path>:<name> - Add a file to the QA, ex. --%%file=src/lib.lua:lib
   function directive.file(d,val) 
     local path,m = val:match("(.-):(.*)")
     assert(path and m,"Bad file directive: "..d)
     flags.files[#flags.files+1] = {fname=path,name=m}
   end
+  --@D debug=<name>:<expr> - Set debug flag, ex. --%%debug=info:true,http:true,onAction:true,onUIEvent:true
   function directive.debug(d,val) 
     local vs = val:split(",")
     for _,v in ipairs(vs) do
@@ -167,30 +176,51 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
       if e then flags.debug[name] = e end
     end
   end
+  --@D u=<expr> - Adds UI element, ex. --%%u={button='bt1',text="MyButton",onReleased="myButton"}
   function directive.u(d,val) flags.u[#flags.u+1] = eval(val,d) end
+  --@D interfaces=<list expr> - Set interfaces, ex. --%%interfaces={"energy","battery"}
   function directive.interfaces(d,val) flags.interfaces = eval(val,d) end
+  --@D save=<name> - Save QA as fqa at run, ex. --%%save=MyQA.fqa
   function directive.save(d,val) flags.save = tostring(val) assert(flags.save:match("%.fqa$"),"Bad save directive:"..d)end
+  --@D proxy=<name> - Set name of proxy on HC3, ex. --%%proxy=MyProxy
   function directive.proxy(d,val) flags.proxy = tostring(val) end
+  --@D dark=<bool> - Set dark mode,affects log colors, ex. --%%dark=true
   function directive.dark(d,val) flags.dark = eval(val,d) end
+  --@D color=<bool> - Set log in color, ex. --%%color=true
   function directive.color(d,val) flags.logColor = eval(val,d) end
+  --@D speed=<val> - Speeds the emulator for <val> hours, ex. --%%speed=10
   function directive.speed(d,val) flags.speed = eval(val,d) assert(tonumber(flags.speed),"Bad speed directive:"..d)end
+  --@D port=<val> - Set port for HC3 proxy, ex. --%%port=8264
   function directive.port(d,val) TQ.emuPort = eval(val,d) assert(tonumber(TQ.emuPort),"Bad port directive:"..d)end
+  --@D logUI=<bool> - Log UI directives from proxy, ex. --%%logUI=true
   function directive.logUI(d,val) flags.logUI = eval(val,d) end
+  --@D breakOnLoad=<bool> - Break on first line when loading file, ex. --%%breakOnLoad=true
   function directive.breakOnLoad(d,val) flags.breakOnLoad = eval(val,d) end
+  --@D breakOnInit=<bool> - Break on :onInit line, ex. --%%breakOnInit=true
   function directive.breakOnInit(d,val) flags.breakOnInit = eval(val,d) end
+  --@D offline=<bool> - Run in offline mode, no HC3 calls, ex. --%%offline=true
   function directive.offline(d,val) flags.offline = eval(val,d) end
   directive['local'] = function(d,val) flags.offline = eval(val,d) end
+  --@D state=<name> - Set file for saving state between runs, ex. --%%state=state.db
   function directive.state(d,val) flags.state = tostring(val) end
+  --@D nodebug=<bool> - If true don't load debugger, ex. --%%nodebug=true
   function directive.nodebug(d,val) flags.nodebug = eval(val,d) end
+  --@D silent=<bool> - If true minimize log output, ex. --%%silent=true
   function directive.silent(d,val) flags.silent = eval(val,d) end
+  --@D shellscript=<bool> - If true don't load debugger, ex. --%%shellscript=true
   function directive.shellscript(d,val) 
     flags.shellscript = tostring(val)
     flags.nodebug = flags.shellscript
   end
+  --@D tempDir=<path> - Set temp directory, ex. --%%tempDir=/tmp/
   function directive.tempDir(d,val) TQ.tempDir = tostring(val) end
+  --@D stateReadOnly=<bool> - If true state file is read only, ex. --%%stateReadOnly=true
   function directive.stateReadOnly(d,val) flags.stateReadOnly = eval(val,d) end
+  --@D latitude=<val> - Set latitude for time calculations, ex. --%%latitude=59.3
   function directive.latitude(d,val) flags.latitude = tonumber(val) end
+  --@D longitude=<val> - Set longitude for time calculations, ex. --%%longitude=18.1
   function directive.longitude(d,val) flags.longitude = tonumber(val) end
+  --@D time=<val> - Set start time for the emulator, ex. --%%time=12/31 10:00:12
   function directive.time(d,val)
     local D,h = val:match("^(.*) ([%d:]*)$")
     if D == nil and val:match("^[%d/]+$") then D,h = val,os.date("%H:%M:%S")
@@ -364,8 +394,10 @@ function TQ.setTimeOffset(offset,update) timeOffset = offset if update then TQ.p
 function TQ.getTimeOffset() return timeOffset end
 function TQ.milliClock() return socket.gettime() end
 local function userTime(a) return a == nil and math.floor(TQ.milliClock() + timeOffset + 0.5) or orgTime(a) end
+local function userMilli(a) return a == nil and (TQ.milliClock() + timeOffset) or orgTime(a) end
 local function userDate(a, b) return b == nil and os.date(a, userTime()) or orgDate(a, b) end
 function TQ.userTime(a) return userTime(a) end
+function TQ.userMilli(a) return userMilli(a) end
 function TQ.userDate(a,b) return userDate(a,b) end
 
 TQ.midnightLoop() -- Setup loop for midnight events
@@ -503,7 +535,7 @@ local function loadQAFiles(info)
   
   function env.print(...) env.fibaro.debug(env.__TAG,...) end
 
-  if flags.speed then TQ.startSpeedTime() end
+  if flags.speed then TQ.startSpeedTime(flags.speed) end
 
   for _,lf in ipairs(info.files) do
     DEBUGF('info',"Loading user file %s",lf.fname)

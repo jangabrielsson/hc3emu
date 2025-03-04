@@ -53,7 +53,8 @@
     "__emu_setTimeout",
     "__emu_clearTimeout",
     "__emu_setInterval",
-    "__emu_clearInterval"
+    "__emu_clearInterval",
+    "__emu_speed"
 ],
 "Lua.diagnostics.disable": [
     "duplicate-set-field",

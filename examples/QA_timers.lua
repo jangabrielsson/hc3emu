@@ -17,7 +17,22 @@ function QuickApp:onInit()
         self:debug("Timer executed")
     end, 1000)
 
-    setInterval(function()
+    local ref = setInterval(function()
         self:debug("Interval executed")
     end, 2000)
+
+    setTimeout(function()
+        self:debug("Timer2 executed")
+        clearTimeout(ref)
+    end, 6000)
+
+    local ref2,n = nil,0
+    ref2 = setInterval(function()
+        n = n + 1
+        self:debug("Interval2 executed",n)
+        if n == 3 then clearInterval(ref2) end
+    end, 2000)
+
+    self:debug("Set interval with ref:", ref)
+
 end

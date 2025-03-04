@@ -107,6 +107,7 @@ function TQ.getFQA(id) -- Creates FQA structure from installed QA
   }
 end
 
+--@F 
 function TQ.loadQA(path,optionalDirectives)   -- Load QA from file and run it
   local f = io.open(path)
   if f then
@@ -120,6 +121,7 @@ function TQ.loadQA(path,optionalDirectives)   -- Load QA from file and run it
   end
 end
 
+--@F 
 function TQ.loadQAString(src,optionalDirectives) -- Load QA from string and run it
   local path = TQ.tempDir..TQ.createTempName(".lua")
   local f = io.open(path,"w")
@@ -131,6 +133,7 @@ function TQ.loadQAString(src,optionalDirectives) -- Load QA from string and run 
   TQ.runQA(info)
 end
 
+--@F 
 function TQ.saveQA(id,fileName)       -- Save installed QA to disk as .fqa
   local info = TQ.getQA(id)           
   fileName = fileName or info.directives.save
@@ -151,6 +154,7 @@ function TQ.saveQA(id,fileName)       -- Save installed QA to disk as .fqa
   TQ.DEBUG("Saved QuickApp to %s",fileName)
 end
 
+--@F 
 function TQ.installFQA(id,optionalDirectives)          -- Installs QA from HC3 and run it.
   assert(type(id) == "number", "id must be a number")
   local path = TQ.tempDir
@@ -223,17 +227,20 @@ local function unpackFQA(id,fqa,path) -- Unpack fqa and save it to disk
   return mainFilePath
 end
 
+--@F 
 function TQ.downloadFQA(id,path) -- Download QA from HC3,unpack and save it to disk
   assert(type(id) == "number", "id must be a number")
   assert(type(path) == "string", "path must be a string")
   return unpackFQA(id,nil,path)
 end
 
+--@F 
 function TQ.loadFQA(path,optionalDirectives)        -- Load FQA from file and run it (saves as temp files)
   local fqaPath = TQ.unpackFQA(path,TQ.tempDir)
   TQ.loadQA(fqaPath,optionalDirectives)
 end
 
+--@F 
 function TQ.unpackFQA(fqaPath,savePath)        -- Upnack FQA on disk  to lua files
   assert(type(fqaPath) == "string", "path must be a string")
   local f = io.open(fqaPath)
@@ -242,5 +249,4 @@ function TQ.unpackFQA(fqaPath,savePath)        -- Upnack FQA on disk  to lua fil
   f:close()
   local fqa = json.decode(src)
   return unpackFQA(nil,fqa,savePath)
-
 end

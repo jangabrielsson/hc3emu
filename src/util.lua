@@ -1,5 +1,6 @@
+TQ = TQ
 local fmt = string.format 
-local TQ
+local json = TQ.require("hc3emu.json")
 
 local function DEBUG(f,...) if not (TQ.flags or {}).silent then print("[SYS]",fmt(f,...)) end end
 local function DEBUGF(flag,f,...) if TQ.DBG[flag] then DEBUG(f,...) end end
@@ -7,63 +8,6 @@ local function WARNINGF(f,...) print("[SYSWARN]",fmt(f,...)) end
 local function ERRORF(f,...) print("[SYSERR]",fmt(f,...)) end
 local function pcall2(f,...) local res = {pcall(f,...)} if res[1] then return table.unpack(res,2) else return nil end end
 local function ll(fn) local f,e = loadfile(fn) if f then return f() else return not tostring(e):match("such file") and error(e) or nil end end
-
------------------------- json ------------------------------
-local json = require("json") -- Reasonable fast json parser, not to complicated to build...
-local copy
-
-local mt = { __toJSON = function (t) 
-  local isArray = nil
-  if t[1]~=nil then isArray=true 
-  elseif next(t)== nil and (getmetatable(t) or {}).__isARRAY then isArray=true end
-  t = copy(t) 
-  t.__array = isArray
-  return t 
-end 
-}
-
-function copy(t)
-  local r = {}
-  for k, v in pairs(t) do 
-    if type(v) == 'table' then
-      local m = getmetatable(v) 
-      if m then m.__toJSON = mt.__toJSON else setmetatable(v,mt) end
-    end 
-    r[k] = v
-  end
-  return r
-end
-
-local encode,decode = json.encode,json.decode
-function json.encode(obj,_)
-  local stat,res = pcall(function()
-  if obj == nil then return "null" end
-  if type(obj) == 'number' then return tostring(obj) end
-  if type(obj) == 'string' then return '"'..obj..'"' end
-  local omt = getmetatable(obj)
-  setmetatable(obj,mt)
-  local r = encode(obj,'__toJSON')
-  setmetatable(obj,omt)
-  return r
-  end)
-  if not stat then error("json.encode error: "..tostring(res),2) end
-  return res
-end
-local function handler(t) if t.__array then t.__array = nil end return t end
-function json.decode(str,_,_) 
-  local stat,res = pcall(decode,str,nil,handler) 
-  if not stat then error("json.decode error: "..tostring(res),2) end
-  return res
-end
-json.util = {}
-function json.util.InitArray(t) 
-  local mt = getmetatable(t) or {}
-  mt.__isARRAY=true 
-  --print(t)
-  setmetatable(t,mt) 
-  local a = getmetatable(t)
-  return t
-end
 
 local function urlencode(str) -- very useful
   if str then
@@ -274,7 +218,7 @@ end
 
 local tasks = {}
 local function errfun(msg,co,skt)
-   -- Try to figure what QA started this task
+  -- Try to figure what QA started this task
   local deviceId = TQ.getCoroData(co,'deviceId') -- We use that to make the right fibaro.debug call
   if deviceId then
     local dev = TQ.getQA(deviceId)
@@ -302,7 +246,7 @@ local function addThread(env,call,...)
     --   print(TQ.copas.gettraceback("",coroutine.running(),nil))
     -- end
     tasks[task]=nil 
-    end,...)
+  end,...)
   -- Keep track of what QA started what task
   -- Will allow us to kill all tasks started by a QA when it is deleted
   TQ.setCoroData(task,'deviceId',(env and env.plugin or {}).mainDeviceId) 
@@ -323,21 +267,18 @@ local function cancelThreads(id)
   end
 end
 
-return function(_TQ)
-  TQ = _TQ
-  TQ.DEBUG = DEBUG
-  TQ.DEBUGF = DEBUGF
-  TQ.WARNINGF = WARNINGF
-  TQ.ERRORF = ERRORF
-  TQ.pcall2 = pcall2
-  TQ.ll = ll
-  TQ.json = json
-  TQ.urlencode = urlencode
-  TQ.__assert_type = __assert_type
-  TQ.readFile = readFile
-  TQ.sunCalc = sunCalc
-  TQ.EVENT = EVENT
-  TQ.post = post
-  TQ.addThread = addThread
-  TQ.cancelThreads = cancelThreads
-end
+TQ.DEBUG = DEBUG
+TQ.DEBUGF = DEBUGF
+TQ.WARNINGF = WARNINGF
+TQ.ERRORF = ERRORF
+TQ.pcall2 = pcall2
+TQ.ll = ll
+TQ.json = json
+TQ.urlencode = urlencode
+TQ.__assert_type = __assert_type
+TQ.readFile = readFile
+TQ.sunCalc = sunCalc
+TQ.EVENT = EVENT
+TQ.post = post
+TQ.addThread = addThread
+TQ.cancelThreads = cancelThreads

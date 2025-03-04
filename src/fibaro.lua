@@ -31,25 +31,29 @@ function fibaro.setOffline(off)
 end
 fibaro.setOffline(fibaro.hc3emu.flags.offline)
 
-function setTimeout(fun,ms)
-  if type(fun) ~= "function" then error("setTimeout: first argument must be a function",2) end
-  if type(ms) ~= "number" then error("setTimeout: second argument must be a number",2) end
-  return __emu_setTimeout(fun,ms)
+local function __assert_type2(val, typ, msg)
+  if type(val) ~= typ then error(fmt(msg,typ)..". Got: "..type(val),3) end
+end
+
+function setTimeout(fun,ms,tag)
+  __assert_type2(fun, "function", "setTimeout: first argument must be a %s")
+  __assert_type2(ms,"number","setTimeout: second argument must be a %s")
+  return __emu_setTimeout(fun,ms,tag)
 end
 
 function clearTimeout(ref)
-  if type(ref) ~= "number" then error("clearTimeout: first argument must be a number",2) end
+  __assert_type2(ref,"number","clearTimeout: first argument must be a %s")
   return __emu_clearTimeout(ref)
 end
 
 function setInterval(fun,ms)
-  if type(fun) ~= "function" then error("setInterval: first argument must be a function",2) end
-  if type(ms) ~= "number" then error("setInterval: second argument must be a number",2) end
+  __assert_type2(fun, "function", "setInterval: first argument must be a %s")
+  __assert_type2(ms,"number","setInterval: second argument must be a %s")
   return __emu_setInterval(fun,ms)
 end
 
 function clearInterval(ref)
-  if type(ref) ~= "number" then error("clearInterval: first argument must be a number",2) end
+  __assert_type2(ref,"number","clearInterval: first argument must be a %s")
   return __emu_clearInterval(ref)
 end
 

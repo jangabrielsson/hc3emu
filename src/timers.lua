@@ -232,6 +232,19 @@ local function midnightLoop()
   __setTimeout(loop,(midnxt-TQ.userTime())*1000)
 end
 
+local function parseTime(str)
+  local D,h = str:match("^(.*) ([%d:]*)$")
+  if D == nil and str:match("^[%d/]+$") then D,h = str,os.date("%H:%M:%S")
+  elseif D == nil and str:match("^[%d:]+$") then D,h = os.date("%Y/%m/%d"),str
+  elseif D == nil then error("Bad time value: "..str) end
+  local y,m,d = D:match("(%d+)/(%d+)/?(%d*)")
+  if d == "" then y,m,d = os.date("%Y"),y,m end
+  local H,M,S = h:match("(%d+):(%d+):?(%d*)")
+  if S == "" then H,M,S = H,M,0 end
+  assert(y and m and d and H and M and S,"Bad time value: "..str)
+  return os.time({year=y,month=m,day=d,hour=H,min=M,sec=S})
+end
+
 TQ.exports.__emu_setTimeout = __setTimeout
 TQ.exports.__emu_setInterval = __setInterval
 TQ.exports.__emu_clearTimeout = __clearTimeout
@@ -240,3 +253,4 @@ TQ.exports.__emu_speed = __speed
 TQ.cancelTimers = cancelTimers
 TQ.midnightLoop = midnightLoop
 TQ.startSpeedTime = TQ.startSpeedTime or function() end
+TQ.parseTime = parseTime

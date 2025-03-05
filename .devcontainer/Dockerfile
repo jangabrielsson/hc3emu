@@ -1,4 +1,4 @@
-FROM --platform=arm64 alpine:latest
+FROM alpine:latest
 
 RUN apk add --no-cache \
       ca-certificates \
@@ -41,10 +41,9 @@ RUN apk add --no-cache \
     && sudo luarocks install mobdebug \
     && sudo luarocks install hc3emu \
     && apk del gcc make curl wget libc-dev moreutils coreutils \
-    && cp /usr/bin/lua5.4 /usr/bin/lua \
-    && lua5.4 -v
+    && cp /usr/bin/lua5.4 /usr/bin/lua
     
-ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib"
+#ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib"
 
 WORKDIR /develop/
 RUN mkdir db

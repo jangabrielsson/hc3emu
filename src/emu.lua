@@ -221,19 +221,7 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
   --@D longitude=<val> - Set longitude for time calculations, ex. --%%longitude=18.1
   function directive.longitude(d,val) flags.longitude = tonumber(val) end
   --@D time=<val> - Set start time for the emulator, ex. --%%time=12/31 10:00:12
-  function directive.time(d,val)
-    local D,h = val:match("^(.*) ([%d:]*)$")
-    if D == nil and val:match("^[%d/]+$") then D,h = val,os.date("%H:%M:%S")
-    elseif D == nil and val:match("^[%d:]+$") then D,h = os.date("%Y/%m/%d"),val
-    elseif D == nil then error("Bad time directive: "..d) end
-    local y,m,d = D:match("(%d+)/(%d+)/?(%d*)")
-    if d == "" then y,m,d = os.date("%Y"),y,m end
-    local H,M,S = h:match("(%d+):(%d+):?(%d*)")
-    if S == "" then H,M,S = H,M,0 end
-    assert(y and m and d and H and M and S,"Bad time directive: "..d)
-    flags.time = os.time({year=y,month=m,day=d,hour=H,min=M,sec=S})
-    DEBUGF('info',"Time set to %s",os.date("%c",flags.time))
-  end
+  function directive.time(d,val) flags.startTime = val end
   
   local truncCode = info.src:match("(.-)%-%-+ENDOFDIRECTIVES%-%-") or info.src
   if info.extraDirectives then
@@ -390,14 +378,19 @@ end
 luaType = skip(luaType)
 
 local orgTime,orgDate,timeOffset = os.time,os.date,0
-function TQ.setTimeOffset(offset,update) timeOffset = offset if update then TQ.post({type='time_changed'}) end end
+function TQ.setTime(t,update)
+  if type(t) == 'string' then t = TQ.parseTime(t) end
+  timeOffset = t - orgTime() 
+  if update~=false then TQ.post({type='time_changed'}) end
+  TQ.DEBUGF('info',"Time set to %s",TQ.userDate("%c"))
+end
 function TQ.getTimeOffset() return timeOffset end
 function TQ.milliClock() return socket.gettime() end
 local function userTime(a) return a == nil and math.floor(TQ.milliClock() + timeOffset + 0.5) or orgTime(a) end
-local function userMilli(a) return a == nil and (TQ.milliClock() + timeOffset) or orgTime(a) end
+local function userMilli() return TQ.milliClock() + timeOffset end
 local function userDate(a, b) return b == nil and os.date(a, userTime()) or orgDate(a, b) end
 function TQ.userTime(a) return userTime(a) end
-function TQ.userMilli(a) return userMilli(a) end
+function TQ.userMilli() return userMilli() end
 function TQ.userDate(a,b) return userDate(a,b) end
 
 TQ.midnightLoop() -- Setup loop for midnight events
@@ -501,7 +494,10 @@ end
 local function loadQAFiles(info)
   
   if info.directives == nil then parseDirectives(info) end
-  if info.directives.time then local t = info.directives.time  TQ.setTimeOffset(t - os.time()) end
+  if info.directives.startTime then 
+    local t = TQ.parseTime(info.directives.startTime)
+    TQ.setTime(t) 
+  end
 
   local env = info.env
   local os2 = { time = userTime, clock = os.clock, difftime = os.difftime, date = userDate, exit = os.exit, remove = os.remove }

@@ -4,74 +4,81 @@ if require and not QuickApp then require("hc3emu") end
 --%%silent=true
 --%%debug=info:false
 
+--[[
+downloadQA(id,path)
+uploadQA(fname)
+updateFile(fname)
+--]]
+
+local cmds = {}
+
 local function printf(fmt,...) _print(string.format(fmt,...)) end
+local function ERROR(fmt,...) printf("Error: "..fmt,...) os.exit(-1) end
+local function SUCCESS() printf("Success") end
 
 local function readFile(fn)
   local f = io.open(fn,"r")
-  if not f then return nil end
+  assert(f,"File not found: "..tostring(fn))
   local s = f:read("*a")
   f:close()
   return s
 end
 
-local cmd = args[1]
-local arg = args[2]
-local arg2 = args[3]
-
-local cmds = {}
-
-function cmds.downloadQA()
-  printf("Downloading QA: %s",arg) -- id
-  local deviceId = tonumber(arg)
+function cmds.downloadQA(id,path) -- HC3 QA deviceId, dir path
+  printf("Downloading QA: %s",tostring(id)) -- id
+  local deviceId = tonumber(id)
   __assert_type(deviceId, "number")
-  if arg2=="." or arg2=="" then arg2="./" end
-  fibaro.hc3emu.downloadFQA(deviceId,arg2)
+  if path=="." or path=="" then path="./" end
+  fibaro.hc3emu.downloadFQA(deviceId,path)
+  SUCCESS()
 end
 
-function cmds.uploadQA()
-  printf("Downloading QA: %s",arg) -- name
-  printf("Not implemented yet") -- name
+function cmds.uploadQA(fname) -- current buffer file
+  fname = tostring(fname)
+  printf("Uploading QA: %s",fname) -- name
+  local qainfo = fibaro.hc3emu.loadQA(fname,nil,"noRun")
+  if not qainfo then ERROR("loading QA") end
+  fibaro.hc3emu.uploadQA(qainfo.devices.id)
+  SUCCESS()
 end
 
-function cmds.updateFile()
-  printf("Updating QA file: %s",arg) -- fname
+function cmds.updateFile(fname) -- current buffer file, needs .project file
+  printf("Updating QA file: %s",tostring(fname)) -- fname
   local f = io.open(".project","r")
-  if f then 
-    local p = f:read("*a")
-    f:close()
-    p = json.decode(p)
-    for qn,fn in pairs(p.files or {}) do
-      if arg==fn then 
-        local content = readFile(fn)
-        local f = {name=qn, isMain=qn=='main', isOpen=false, type='lua', content=content}
-        local r,err = api.put("/quickApp/"..p.id.."/files/"..qn,f)
-        if not r then 
-          local r,err = api.post("/quickApp/"..p.id.."/files",f)
-          if err then
-            printf("Error  QA:%s, file:%s, QAfile%s",p.id,fn,qn)
-          else
-            printf("Created QA:%s, file:%s, QAfile%s",p.id,fn,qn)
-          end
-        else 
-          printf("Updated QA:%s, file%s, QAfile:%s ",p.id,fn,qn)
+  assert(f,"No .project file found")
+  local p = f:read("*a")
+  f:close()
+  p = json.decode(p)
+  for qn,fn in pairs(p.files or {}) do
+    if fname==fn then 
+      local content = readFile(fn)
+      local f = {name=qn, isMain=qn=='main', isOpen=false, type='lua', content=content}
+      local r,err = api.put("/quickApp/"..p.id.."/files/"..qn,f)
+      if not r then 
+        local r,err = api.post("/quickApp/"..p.id.."/files",f)
+        if err then
+          ERROR("creating QA:%s, file:%s, QAfile%s",p.id,fn,qn)
+        else
+          printf("Created QA:%s, file:%s, QAfile%s",p.id,fn,qn)
         end
-        os.exit(0)
+      else 
+        printf("Updated QA:%s, file%s, QAfile:%s ",p.id,fn,qn)
       end
+      SUCCESS()
+      os.exit(0)
     end
-    _print(arg," not found in current project")
-  else
-    _print("No .project file found")
   end
+  ERROR("%s not found in current project",fname)
 end
 
+local cmd = args[1]
 local c = cmds[cmd]
-if not c then
-  _print("Unknown command:",cmd)
-else
-  local stat,err = pcall(c)
-  if not stat then
-    _print("Error:",err)
-    os.exit(-1)
-  end
+if not c then ERROR("Unknown command: %",tostring(cmd)) end
+
+local stat,err = pcall(c,table.unpack(args,2))
+if not stat then
+  ERROR("%s",err)
+  os.exit(-1)
 end
+
 os.exit(0)

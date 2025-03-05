@@ -6,10 +6,11 @@
 
 -- Get main lua file
 local flag = false
+local file2find = SCRIPTNAME or "%.lua$"
 for i=1,20 do -- We do a search up the stack just in case that different debuggers are used... for mobdebug our offset is 5...
   local inf = debug.getinfo(i)
   if not inf then break end
-  if flag and inf.source:match("%.lua$") then 
+  if flag and inf.source:match(file2find) then 
     MAINFILE = inf.source:match("@*(.*)")
     break 
   end

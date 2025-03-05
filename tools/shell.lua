@@ -1,5 +1,8 @@
 #!/usr/bin/env lua
 
+-- Shell script example, prints property from device on HC3
+-- Usage: tools/shell.lua <deviceId> <property>
+
 if require and not QuickApp then require("hc3emu") end
 --%%color=false
 --%%shellscript=true

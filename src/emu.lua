@@ -401,7 +401,7 @@ function TQ.getNextDeviceId() DEVICEID = DEVICEID + 1 return DEVICEID end
 
 -- Creates a QA device structure and registers it with the HC3 emulator
 -- @param info Table containing configuration information for the QA
-local function createQAstruct(info)
+local function createQAstruct(info,noRun) -- noRun -> Ignore proxy
   if info.directives == nil then parseDirectives(info) end
   local flags = info.directives
   local env = info.env
@@ -451,7 +451,7 @@ local function createQAstruct(info)
     DEBUG("Offline mode, proxy directive ignored")
   end
   
-  if flags.proxy then
+  if flags.proxy and not noRun then
     local pname = tostring(flags.proxy)
     local pop = pname:sub(1,1)
     if pop == '-' or pop == '+' then -- delete proxy if name is preceeded with "-" or "+"
@@ -488,6 +488,7 @@ local function createQAstruct(info)
   
   return info
 end
+TQ.createQAstruct = createQAstruct
 
 --- Loads sets up Environment and loads (QA) files into the environment
 -- @param info Table containing configuration information for loading QA files
@@ -500,7 +501,7 @@ local function loadQAFiles(info)
   end
 
   local env = info.env
-  local os2 = { time = userTime, clock = os.clock, difftime = os.difftime, date = userDate, exit = os.exit, remove = os.remove }
+  local os2 = { time = userTime, clock = os.clock, difftime = os.difftime, date = userDate, exit = os.exit, remove = os.remove, require = require }
   local fibaro = { hc3emu = TQ, HC3EMU_VERSION = VERSION, flags = info.directives, DBG = DBG }
   local args = nil
   if flags.shellscript then

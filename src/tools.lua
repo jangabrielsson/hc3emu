@@ -10,7 +10,7 @@ local __assert_type = TQ.__assert_type
 --]]
 
 local win = (os.getenv('WINDIR') or (os.getenv('OS') or ''):match('[Ww]indows'))
-  and not (os.getenv('OSTYPE') or ''):match('cygwin') -- exclude cygwin
+and not (os.getenv('OSTYPE') or ''):match('cygwin') -- exclude cygwin
 local sep = win and '\\' or '/'
 
 local CRC16Lookup = {
@@ -83,6 +83,7 @@ end
 
 function TQ.getFQA(id) -- Creates FQA structure from installed QA
   local qa = TQ.getQA(id)
+  assert(qa,"QuickApp not found, ID"..tostring(id))
   local dev = qa.device
   local files = {}
   local suffix = ""
@@ -108,14 +109,17 @@ function TQ.getFQA(id) -- Creates FQA structure from installed QA
 end
 
 --@F 
-function TQ.loadQA(path,optionalDirectives)   -- Load QA from file and run it
+function TQ.loadQA(path,optionalDirectives,noRun)   -- Load QA from file and maybe run it
   local f = io.open(path)
   if f then
     local src = f:read("*all")
     f:close()
     local info = { directives = nil, extraDirectives = optionalDirectives, src = src, fname = path, env = { require=true }, files = {} }
----@diagnostic disable-next-line: need-check-nil
-    TQ.runQA(info)
+    if noRun then 
+      return TQ.createQAstruct(info,true)
+    else
+      return TQ.runQA(info)
+    end
   else
     TQ.ERRORF("Could not read file %s",path)
   end
@@ -129,8 +133,8 @@ function TQ.loadQAString(src,optionalDirectives) -- Load QA from string and run 
   f:write(src)
   f:close()
   local info = { directives = nil, extraDirectives = optionalDirectives, src = src, fname = path, env = { require=true }, files = {} }
----@diagnostic disable-next-line: need-check-nil
-  TQ.runQA(info)
+  ---@diagnostic disable-next-line: need-check-nil
+  return TQ.runQA(info)
 end
 
 --@F 
@@ -154,14 +158,79 @@ function TQ.saveQA(id,fileName)       -- Save installed QA to disk as .fqa
   TQ.DEBUG("Saved QuickApp to %s",fileName)
 end
 
+--@F
+function TQ.uploadQA(id)
+  assert(TQ.getQA(id),"QuickApp not installed, ID"..tostring(id))
+  local fqa = TQ.getFQA(id)
+  local res,code = api.post("/quickApp/",fqa)
+  if not code or code > 201 then
+    TQ.ERRORF("Failed to upload QuickApp: %s", res)
+  else
+    TQ.DEBUG("Successfully uploaded QuickApp with ID: %d", id)
+  end
+  return code
+end
+
+--@F
+function TQ.updateQA(emuId,hc3Id,components)
+  components = components or {name=true,interfaces=true,quickVars=true,UI=true,files=true}
+  assert(type(emuId) == "number", "emuId must be a number")
+  assert(type(hc3Id) == "number", "hc3Id must be a number")
+  local hc3qa = api.get("/devices/"..hc3Id)
+  assert(hc3qa,"Failed to get HC3 QuickApp, ID",tostring(hc3Id))
+  local emuqa = TQ.getFQA(emuId)
+  assert(emuqa,"Failed to get emulated QuickApp, ID",tostring(emuId))
+  assert(hc3qa.type == emuqa.type,"QuickApp types no match")
+  -- Update name,interfaces,quickVars,UI,files
+  if components.name then
+  end
+  if components.interfaces then
+  end
+  if components.quickVars then
+  end
+  if components.UI then
+  end
+  if components.files then
+    -- Update files
+    local newFiles = {}
+    local existingFiles = {}
+    local deletedFiles = {}
+    local hfile,hmap = hc3qa.files,{}
+    local efile,emap = emuqa.files,{}
+    for _,f in ipairs(hfile) do hmap[f.name] = f end
+    for _,f in ipairs(efile) do emap[f.name] = f end
+    for _,f in ipairs(efile) do
+      if not hmap[f.name] then newFiles[#newFiles+1] = f
+      else existingFiles[#existingFiles+1] = f end
+    end
+    for _,f in ipairs(hfile) do 
+      if not emap[f.name] then deletedFiles[#deletedFiles+1] = f end
+    end
+    
+    for _,f in ipairs(newFiles) do
+      local res,code = api.post("/quickApp/"..hc3Id.."/files",f)
+      if code > 201 then TQ.ERRORF("Failed to create file %s",f.name) end
+    end
+    
+    local res,code = api.put("/quickApp/"..hc3Id.."/files",existingFiles)
+    if code > 202 then 
+      TQ.ERRORF("Failed to update files for QuickApp %d",hc3Id)
+    end
+    
+    for _,f in ipairs(deletedFiles) do
+      local res,code = api.delete("/quickApp/"..hc3Id.."/files/"..f.name)
+      if code > 202 then TQ.ERRORF("Failed to delete file %s",f.name) end
+    end
+  end
+end
+
 --@F 
 function TQ.installFQA(id,optionalDirectives)          -- Installs QA from HC3 and run it.
   assert(type(id) == "number", "id must be a number")
   local path = TQ.tempDir
   local path = TQ.downloadFQA(id,path)
-  TQ.loadQA(path,optionalDirectives)
+  return TQ.loadQA(path,optionalDirectives)
 end
-
 
 local function unpackFQA(id,fqa,path) -- Unpack fqa and save it to disk
   assert(type(path) == "string", "path must be a string")
@@ -184,7 +253,7 @@ local function unpackFQA(id,fqa,path) -- Unpack fqa and save it to disk
     fname = name:gsub("[%s%-%.%%!%?%(%)]","_")
     if id then if fname:match("_$") then fname = fname..id else fname = fname.."_"..id end end
   end
-
+  
   local mainIndex
   for i,f in ipairs(files) do if files[i].isMain then mainIndex = i break end end
   assert(mainIndex,"No main file found")
@@ -192,7 +261,7 @@ local function unpackFQA(id,fqa,path) -- Unpack fqa and save it to disk
   table.remove(files,mainIndex)
   
   mainContent = mainContent:gsub("(%-%-%%%%.-\n)","") -- Remove old directives
-
+  
   local pr = printBuff()
   pr:printf('if require and not QuickApp then require("hc3emu") end')
   pr:printf('--%%%%name=%s',name)
@@ -203,13 +272,13 @@ local function unpackFQA(id,fqa,path) -- Unpack fqa and save it to disk
   for _,v in ipairs(qvars) do
     pr:printf('--%%%%var=%s:%s',v.name,type(v.value)=='string' and '"'..v.value..'"' or v.value)
   end
-
+  
   for _,f in ipairs(files) do
     local fn = path..fname.."_"..f.name..".lua"
     saveFile(fn,f.content)
     pr:printf("--%%%%file=%s:%s",fn,f.name)
   end
-
+  
   local UI = ""
   if id then
     TQ.logUI(id,function(str) UI = str end)
@@ -219,7 +288,7 @@ local function unpackFQA(id,fqa,path) -- Unpack fqa and save it to disk
   end
   UI = UI:match(".-\n(.*)") or ""
   pr:print(UI)
-
+  
   pr:print("")
   pr:print(mainContent)
   local mainFilePath = path..fname..".lua"
@@ -237,11 +306,11 @@ end
 --@F 
 function TQ.loadFQA(path,optionalDirectives)        -- Load FQA from file and run it (saves as temp files)
   local fqaPath = TQ.unpackFQA(path,TQ.tempDir)
-  TQ.loadQA(fqaPath,optionalDirectives)
+  return TQ.loadQA(fqaPath,optionalDirectives)
 end
 
 --@F 
-function TQ.unpackFQA(fqaPath,savePath)        -- Upnack FQA on disk  to lua files
+function TQ.unpackFQA(fqaPath,savePath)        -- Unpack FQA on disk  to lua files
   assert(type(fqaPath) == "string", "path must be a string")
   local f = io.open(fqaPath)
   assert(f,"Can't open file "..fqaPath)

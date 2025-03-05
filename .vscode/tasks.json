@@ -8,8 +8,8 @@
         "type": "shell",
         "command": "lua",
         "args": [
-          "${userHome}${pathSeparator}/.vscode.lua", // move tools/vscode.lua to ~/.vscode.lua
-          //"tools/vscode.lua",
+          //"${userHome}${pathSeparator}/.vscode.lua", // move tools/vscode.lua to ~/.vscode.lua
+          "tools/vscode.lua",
           "downloadQA",
           "${input:QA_id}",
           "${input:path_id}"

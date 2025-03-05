@@ -15,10 +15,12 @@ hc3emu funs
 V fibaro.hc3emu.getFQA(id)           -- Creates FQA structure from installed QA
 V fibaro.hc3emu.loadQA(path)         -- Load QA from file and run it
 V fibaro.hc3emu.loadQAString(src)    -- Load QA from string and run it (saves as temp file)
-V fibaro.hc3emu.saveQA(id)           -- Save installed QA to disk as .fqa file
-V fibaro.hc3emu.installFQA(id)       -- Installs QA from HC3 and run it. (saves as temp files)
 V fibaro.hc3emu.loadFQA(path)        -- Load FQA from file and run it (saves as temp files)
+V fibaro.hc3emu.installFQA(id)       -- Installs QA from HC3 and run it. (saves as temp files)
 V fibaro.hc3emu.downloadFQA(id,path) -- Download QA from HC3, unpack and save it to disk
+V fibaro.hc3emu.uploadQA(id)         -- Upload emu QA to HC3
+V fibaro.hc3emu.updateQA(emuId,hc3Id,components) -- Update installed QA with new components
+V fibaro.hc3emu.saveQA(id)           -- Save installed QA to disk as .fqa file
 
 ------------ All functions ----------------
 -utf8 missing

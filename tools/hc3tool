@@ -1,10 +1,10 @@
---#!/usr/bin/env lua
+#!/usr/bin/env lua
 
-_DEVELOP = true
+--_DEVELOP = true
 SCRIPTNAME = "hc3tool"
 if require and not QuickApp then require("hc3emu") end
 --%%color=false
---%%shell script=true
+--%%shellscript=true
 --%%silent=true
 --%%debug=info:false
 
@@ -33,18 +33,13 @@ download:option("-f --file", "save to file"):args("?")
 local upload = parser:command("upload", "Upload QuickApp or Scene")
 upload:argument("file", "QuickApp or Scene file, .fqa, .scene")
 
-local call = parser:command("call", "fibaro.call")
-call:argument("id", "QuickApp id"):convert(tonumber)
-call:argument("method", "method")
-call:argument("args", "args"):args("*")
-
 local arg = "list devices 602 -p"
 arg = "list globalVariables A -p"
 arg = "qa 602"
 arg = "qa 602 main"
 arg="-h"
 arg="download qa 602"
-arg="call 3476 turnOn 55 {\"color\":0}"
+--local args = string.split(arg)
 
 if _DEVELOP then args = string.split(arg) end
 args = parser:parse(args)
@@ -62,6 +57,11 @@ function cmds.download(args)
     local scene = api.get("/scene/"..args.id)
     printf("%s",json.encode(scene))
   end
+end
+
+function cmds.unpack(path, savePath)
+  __assert_type(path, "string")
+  TQ.unpackFQA(path,savePath or "./")
 end
 
 function cmds.qa(args)
@@ -97,21 +97,22 @@ function cmds.list(args)
   end
 end
 
-function cmds.call(args)
-  local id = args.id
-  local cmd = args.method
-  local params = {}
-  for _,p in ipairs(args.args) do
-    local c = p:sub(1,1)
-    if c == '"' then params[#params+1] = p:sub(2,-2)
-    elseif c == "{" then params[#params+1] = json.decode(p)
-    elseif tonumber(p) then params[#params+1] = tonumber(p)
-    elseif p == "true" then params[#params+1] = true
-    elseif p == "false" then params[#params+1] = false
-    else params[#params+1] = p end
+function cmds.lua(str)
+  __assert_type(str, "string")
+  local f,err = fibaro.hc3emu.load(str)
+  if not f then
+    printf("Error: %s",err)
+    return
   end
-  local res,code = fibaro.call(id,cmd,table.unpack(params))
-  printf(code)
+  local r = {pcall(f)}
+  if r[1] then
+    for i=2,#r do
+      local v = r[i]
+      printf("%s",type(v)=='table' and json.encode(v) or v)
+    end
+  else
+    printf("Error: %s",r[2])
+  end
 end
 
 local stat,err = pcall(function()

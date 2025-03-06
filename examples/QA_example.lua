@@ -16,6 +16,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%logUI=true
 --%%state=state.db
 --%%save=MyQA.fqa
+--%%project=8898
 --%%var=foo:config.secret
 --%%conceal=foo:<secret>
 --%%debug=sdk:false,info:true,proxyAPI:true,server:true,onAction:true,onUIEvent:true
@@ -26,6 +27,8 @@ if require and not QuickApp then require("hc3emu") end
 --%%u={slider='s1',text="MySlider",onChanged="mySlider"}
 
 local version = "0.1"
+
+local aa = package.searchpath("placeholder.json",package.path) 
 
 local function printf(...) print(string.format(...)) end
 

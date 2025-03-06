@@ -36,6 +36,12 @@
           "updateFile",
           "${relativeFile}"
         ]
+      },
+      {
+        "label": "Test picker",
+        "type": "shell",
+        "command": "echo",
+        "args": [ "${input:pickEnvFile}" ]
       }
     ],
     "inputs": [
@@ -56,6 +62,21 @@
         "id": "QA_name",
         "description": "'.' for open file, or QA path name",
         "default": "."
-      }
+      },
+      {
+        "id": "pickEnvFile",
+        "type": "command",
+        "command": "launch-file-picker.pick",
+        "args": {
+          "options": {
+            "title": "pick env file",
+            "path": ".",
+            "filterExt": ".env"
+          },
+          "output": {
+            "defaultPath": "client/env/dev.env"
+          }
+        }
+      }     
     ]
   }

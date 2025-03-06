@@ -304,9 +304,19 @@ function TQ.downloadFQA(id,path) -- Download QA from HC3,unpack and save it to d
 end
 
 --@F 
-function TQ.loadFQA(path,optionalDirectives)        -- Load FQA from file and run it (saves as temp files)
+function TQ.loadFQA(path,optionalDirectives)        -- Load FQA from file and stuct and run it (saves as temp files)
   local fqaPath = TQ.unpackFQA(path,TQ.tempDir)
   return TQ.loadQA(fqaPath,optionalDirectives)
+end
+
+--@F 
+function TQ.installFQAstruct(fqa,optionalDirectives)        -- Load FQA from file and run it (saves as temp files)
+local path = TQ.tempDir..TQ.createTempName(".fqa")
+  local f = io.open(path,"w")
+  assert(f,"Can't open file "..path)
+  f:write(json.encode(fqa))
+  f:close()  
+  return TQ.loadFQA(path,optionalDirectives)
 end
 
 --@F 

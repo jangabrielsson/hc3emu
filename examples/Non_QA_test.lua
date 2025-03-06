@@ -14,6 +14,7 @@ setTimeout(function() print("Hello again!") end, 1000)
 fibaro.hc3emu.loadQAString([[
 --%%name=Test42
 --%%breakOnInit=true
+--%%save=test.fqa
 function QuickApp:onInit()
     self:debug("onInit",self.name,self.id)
     setInterval(function()

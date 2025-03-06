@@ -157,6 +157,10 @@ end
 
 local function blocked(p) return nil,501 end
 local function refreshState(p) return {},200 end
+local function installFQA(p,data)
+  local info = TQ.installFQAstruct(data)
+  if info then return info.dev,200 else return nil,401 end
+end
 
 function TQ.EVENT.emulator_started() if TQ.flags.offline then updateSunTime() end end
 function TQ.EVENT.midnight() if TQ.flags.offline then updateSunTime() end end
@@ -205,7 +209,9 @@ function TQ.OfflineRoute()
   route:add('POST/customEvents/<name>',blocked)
   
   route:add('GET/refreshStates',refreshState)
-  
+    
+  route:add('POST/quickApp/',installFQA)
+
   return route
 end
 

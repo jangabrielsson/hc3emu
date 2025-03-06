@@ -53,6 +53,7 @@ local addThread = TQ.addThread
 local DBG = TQ.DBG
 local api = TQ.api
 TQ.exports = {} -- functions to export to QA
+TQ.io = io
 
 local fmt = string.format
 
@@ -338,7 +339,7 @@ function MODULE.qa_manager()
     r.main = info.fname
     local f = io.open(".project","w")
     assert(f,"Can't open file "..".project")
-    f:write(json.encode({files=r,id=info.directives.project}))
+    f:write(json.encodeFormated({files=r,id=info.directives.project}))
     f:close()
   end
 end
@@ -552,17 +553,19 @@ end
 function runQA(info) -- The rest is run in a copas tasks...
   mobdebug.on()
   createQAstruct(info)
+  local flags = info.directives or {}
   local firstLine,onInitLine = TQ.findFirstLine(info.src)
-  if info.directives.breakOnLoad and firstLine then TQ.mobdebug.setbreakpoint(info.fname,firstLine) end
+  if flags.breakOnLoad and firstLine then TQ.mobdebug.setbreakpoint(info.fname,firstLine) end
   loadQAFiles(info)
   if flags.save then TQ.saveQA(info.id) end
   if flags.project then TQ.saveProject(info) end
   if info.env.QuickApp.onInit then
-    if info.directives.breakOnInit and onInitLine then TQ.mobdebug.setbreakpoint(info.fname,onInitLine+1) end
+    if flags.breakOnInit and onInitLine then TQ.mobdebug.setbreakpoint(info.fname,onInitLine+1) end
     DEBUGF('info',"Starting QuickApp %s",info.device.name)
     TQ.post({type='quickApp_started',id=info.id},true)
     info.env.quickApp = info.env.QuickApp(info.device) -- quickApp defined first when we return from :onInit()...
   end
+  return info
 end
 TQ.runQA = runQA
 

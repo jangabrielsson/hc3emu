@@ -9,7 +9,8 @@ if require and not QuickApp then require("hc3emu") end
 --%% proxy=MyProxy
 --%%dark=true
 --%%id=5001
---%% offline=true
+--%%save=savestore.fqa
+--%%offline=true
 --%%debug=info:true,http:true,onAction:true,onUIEvent:true,proxyAPI:true
 --%%var=debug:"main,wsc,child,color,battery,speaker,send,late"
 

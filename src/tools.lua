@@ -89,7 +89,7 @@ function TQ.getFQA(id) -- Creates FQA structure from installed QA
   local suffix = ""
   for _,f in ipairs(qa.files) do
     if f.name == "main" then suffix = "99" end -- User has main file already... rename ours to main99
-    files[#files+1] = {name=f.name, isMain=false, isOpen=false, type='lua', content=f.src}
+    files[#files+1] = {name=f.name, isMain=false, isOpen=false, type='lua', content=f.content}
   end
   files[#files+1] = {name="main"..suffix, isMain=true, isOpen=false, type='lua', content=qa.src}
   local initProps = {}

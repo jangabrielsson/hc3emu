@@ -252,6 +252,13 @@ function TQ.ProxyRoute()
     else return nil,301 end
   end
   
+  local function installFQA(p,data)
+    if TQ.installLocal then
+      local info = TQ.installFQAstruct(data)
+      if info then return info.dev,200 else return nil,401 end
+    else return nil,301 end
+  end
+
   route:add('GET/devices',function(p,...) return getDevices(p,...) end)
   route:add('PUT/devices/<id>',putStruct)
   route:add('DELETE/devices/<id>',blockIfEmulated)                    -- Block delete
@@ -261,5 +268,6 @@ function TQ.ProxyRoute()
   route:add('POST/plugins/publishEvent',proxyAPI)           -- Proxy if we have a proxy
   route:add('POST/plugins/interfaces',proxyAPI)             -- Proxy if we have a proxy
   
+  route:add('POST/quickApp/',installFQA)                   -- Install a new FQA
   return route
 end

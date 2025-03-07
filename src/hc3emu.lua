@@ -18,12 +18,13 @@ for i=1,20 do -- We do a search up the stack just in case that different debugge
 end
 assert(MAINFILE,"Cannot find main lua file")
 
-TQ = {}
+TQ = { _PREFIX = "" }
 local prefix = ""
 if type(_DEVELOP)=='string' then
   prefix = _DEVELOP
   if not prefix:match("/$") then prefix = prefix.."/" end
-  _DEVELOP = prefix
+  _DEVELOP = true
+  TQ._PREFIX = prefix
 end
 
 function TQ.require(path)

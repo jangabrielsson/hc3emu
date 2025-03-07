@@ -41,6 +41,8 @@ TQ.api = {}         -- API functions
 TQ.DBG = { info = true } -- Default flags and debug settings
 TQ.mainFile = MAINFILE
 TQ.require("hc3emu.util") -- Utility functions
+TQ._require = require
+TQ.dofile = dofile
 
 local DEVICEID = 5000 -- Start id for QA devices
 local qaInfo = { fname = TQ.mainFile, env = {} }
@@ -542,7 +544,7 @@ local function loadQAFiles(info)
   for _,path in ipairs({"hc3emu.class","hc3emu.fibaro","hc3emu.quickapp","hc3emu.net"}) do
     DEBUGF('info',"Loading QA library %s",path)
     if _DEVELOP then
-      path = _DEVELOP.."src/"..path:match(".-%.(.*)")..".lua"
+      path = TQ._PREFIX.."src/"..path:match(".-%.(.*)")..".lua"
     else  path = package.searchpath(path,package.path) end
     loadfile(path,"t",env)()
   end

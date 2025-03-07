@@ -279,12 +279,13 @@ local function errfun(msg,co,skt)
   if deviceId then
     local dev = TQ.getQA(deviceId)
     if dev then
-      dev.env.fibaro.error(tostring(dev.env.__TAG),msg)
-      print(TQ.copas.gettraceback("",co,skt))
-      return
-    else
-      TQ.ERRORF("Task error: %s",msg)
+      if dev.env.fibaro.error then
+        dev.env.fibaro.error(tostring(dev.env.__TAG),msg)
+        print(TQ.copas.gettraceback("",co,skt))
+        return
+      end
     end
+    TQ.ERRORF("Task error: %s",msg)
   end
   local str = TQ.copas.gettraceback(msg,co,skt)
   TQ.ERRORF(msg)

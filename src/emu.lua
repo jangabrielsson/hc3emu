@@ -27,7 +27,7 @@ of this license document, but changing it is not allowed.
 ---@diagnostic disable-next-line: undefined-global
 _DEVELOP = _DEVELOP
 
-local VERSION = "1.0.35"
+local VERSION = "1.0.36"
 
 local cfgFileName = "hc3emu_cfg.lua"   -- Config file in current directory
 local homeCfgFileName = ".hc3emu.lua"  -- Config file in home directory
@@ -181,6 +181,16 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
   function directive.u(d,val) flags.u[#flags.u+1] = eval(val,d) end
   --@D interfaces=<list expr> - Set interfaces, ex. --%%interfaces={"energy","battery"}
   function directive.interfaces(d,val) flags.interfaces = eval(val,d) end
+  --@D uid=<UID> - Set quickAppUuid property, ex. --%%uid=345345235324
+  function directive.uid(d,val) flags.uid = val end
+  --@D manufacturer=name - Set manufacturer property, ex. --%%manufacturer=Acme Inc
+  function directive.manufacturer(d,val) flags.manufacturer = val end
+  --@D model=name - Set model property, ex. --%%model=standard
+  function directive.model(d,val) flags.model = val end
+  --@D role=<role> - Set deviceRole property, ex. --%%role=Light
+  function directive.role(d,val) flags.role = val end
+  --@D decsription=<text> - Set userDescription property, ex. --%%description=This is a QA
+  function directive.description(d,val) flags.description = val end
   --@D save=<name> - Save QA as fqa at run, ex. --%%save=MyQA.fqa
   function directive.save(d,val) flags.save = tostring(val) assert(flags.save:match("%.fqa$"),"Bad save directive:"..d)end
   --@D proxy=<name> - Set name of proxy on HC3, ex. --%%proxy=MyProxy
@@ -298,6 +308,8 @@ function MODULE.net()
     },
     data,15000,TQ.USER,TQ.PASSWORD)
     if stat == 401 then ERRORF("HC3 authentication failed, Access blocked") BLOCKED = true end
+    if stat == 'closed' then ERRORF("HC3 connection closed %s",path) end
+    if stat == 500 then ERRORF("HC3 error 500 %s",path) end
     local t1 = socket.gettime()
     local jf,data = pcall(json.decode,res)
     local t2 = socket.gettime()
@@ -445,6 +457,10 @@ local function createQAstruct(info,noRun) -- noRun -> Ignore proxy
     created = os.time(),
     modified = os.time()
   }
+  for k,p in pairs({
+    model="model",uid="quickAppUuid",manufacturer="manufacturer",
+    role="deviceRole",description="userDescription"
+  }) do deviceStruct.properties[p] = flags[k] end
   info.env.__TAG = (deviceStruct.name..(deviceStruct.id or "")):upper()
   -- Find or create proxy if specified
   if flags.offline and flags.proxy then
@@ -526,7 +542,7 @@ local function loadQAFiles(info)
   for _,path in ipairs({"hc3emu.class","hc3emu.fibaro","hc3emu.quickapp","hc3emu.net"}) do
     DEBUGF('info',"Loading QA library %s",path)
     if _DEVELOP then
-      path = "src/"..path:match(".-%.(.*)")..".lua"
+      path = _DEVELOP.."src/"..path:match(".-%.(.*)")..".lua"
     else  path = package.searchpath(path,package.path) end
     loadfile(path,"t",env)()
   end

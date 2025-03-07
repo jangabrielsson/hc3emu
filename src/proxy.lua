@@ -42,7 +42,7 @@ function QuickApp:onInit()
     send({deviceId=self.id,type='action',value=action})
   end
   
-  function quickApp:UIHandler(ev) send({type='ui',value=ev}) end
+  function quickApp:UIHandler(ev) send({type='ui',deviceId=self.id,value=ev}) end
   
   function quickApp:APIFUN(id,method,path,data)
     local stat,res,code = pcall(api[method:lower()],path,data)

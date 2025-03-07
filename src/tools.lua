@@ -94,8 +94,9 @@ function TQ.getFQA(id) -- Creates FQA structure from installed QA
   files[#files+1] = {name="main"..suffix, isMain=true, isOpen=false, type='lua', content=qa.src}
   local initProps = {}
   local savedProps = {
-    "uiCallbacks","quickAppVariables","uiView","viewLayout","apiVersion","useEmbededView","manufacturer","useUiView",
-    "model","buildNumber","supportedDeviceRoles","userDescription","typeTemplateInitialized",
+    "uiCallbacks","quickAppVariables","uiView","viewLayout","apiVersion","useEmbededView",
+    "manufacturer","useUiView","model","buildNumber","supportedDeviceRoles",
+    "userDescription","typeTemplateInitialized","quickAppUuid","deviceRole"
   }
   for _,k in ipairs(savedProps) do initProps[k]=dev.properties[k] end
   return {

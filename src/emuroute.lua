@@ -76,6 +76,7 @@ local function putData(p,id,data) -- Update local device properties
       device.properties[k] = v
     end
   end
+  qa.env.plugin.restart(0)
   return true,200
 end
 
@@ -106,7 +107,7 @@ local function createQAfile(p,id,data)
   if findFile(data.name,qa.files) then return nil,409 end
   data.fname="new" -- What fname to give it?
   table.insert(qa.files,data)
-  qa.env.plugin.restart() -- Restart the QA
+  qa.env.plugin.restart(0) -- Restart the QA
 end
 
 local function setQAfiles(p,id,name,data) 
@@ -136,7 +137,7 @@ local function deleteQAfiles(p,id,name)
   local i = findFile(name,qa.files)
   if i then 
     table.remove(qa.files,i) 
-    qa.env.plugin.restart()
+    qa.env.plugin.restart(0)
   else return nil,404 end
 end
 

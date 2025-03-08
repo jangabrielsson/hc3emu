@@ -282,6 +282,12 @@ local function unpackFQA(id,fqa,path) -- Unpack fqa and save it to disk
     pr:printf('--%%%%var=%s:%s',v.name,type(v.value)=='string' and '"'..v.value..'"' or v.value)
   end
   
+  if props.quickAppUuid then pr:printf('--%%%%uid=%s',props.quickAppUuid) end
+  if props.model then pr:printf('--%%%%model=%s',props.model) end
+  if props.manufacturer then pr:printf('--%%%%manufacturer=%s',props.manufacturer) end
+  if props.deviceRole then pr:printf('--%%%%role=%s',props.deviceRole) end
+  if props.userDescription then pr:printf('--%%%%description=%s',props.userDescription) end
+
   for _,f in ipairs(files) do
     local fn = path..fname.."_"..f.name..".lua"
     saveFile(fn,f.content)

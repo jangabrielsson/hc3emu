@@ -60,6 +60,12 @@ local function saveFile(path,content)
   else error("Failed to save file:"..path) end
 end
 
+local function readFile(path)
+  local f,c = io.open(path,"r")
+  if f then c=f:read("*a") f:close() return c
+  else error("Failed to read file:"..path) end
+end
+
 local fileNum = 0
 function TQ.createTempName(suffix)
   fileNum = fileNum + 1
@@ -88,6 +94,7 @@ function TQ.getFQA(id) -- Creates FQA structure from installed QA
   local files = {}
   local suffix = ""
   for _,f in ipairs(qa.files) do
+    if f.content == nil then f.content = readFile(f.fname) end
     if f.name == "main" then suffix = "99" end -- User has main file already... rename ours to main99
     files[#files+1] = {name=f.name, isMain=false, isOpen=false, type='lua', content=f.content}
   end

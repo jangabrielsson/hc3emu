@@ -27,7 +27,7 @@ of this license document, but changing it is not allowed.
 ---@diagnostic disable-next-line: undefined-global
 _DEVELOP = _DEVELOP
 
-local VERSION = "1.0.39"
+local VERSION = "1.0.40"
 
 local cfgFileName = "hc3emu_cfg.lua"   -- Config file in current directory
 local homeCfgFileName = ".hc3emu.lua"  -- Config file in home directory

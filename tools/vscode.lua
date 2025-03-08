@@ -33,6 +33,7 @@ function cmds.downloadQA(id,path) -- HC3 QA deviceId, dir path
   SUCCESS()
 end
 
+--args = {"uploadQA",".","examples/QA_test.lua"}
 function cmds.uploadQA(fname,cf) -- current buffer file
   if fname == '.' then fname = cf end
   fname = tostring(fname)
@@ -43,6 +44,7 @@ function cmds.uploadQA(fname,cf) -- current buffer file
   if dev then
     printf("Uploaded QA: %s, deviceId: %s",fname,dev.id)
     SUCCESS()
+    os.exit(0)
   else
     ERROR("Uploading QA: %s, error: %s",fname,code)
   end

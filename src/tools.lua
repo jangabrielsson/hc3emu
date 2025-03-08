@@ -152,6 +152,7 @@ function TQ.saveQA(id,fileName)       -- Save installed QA to disk as .fqa
   assert(fileName,"No save filename found")
   local fqa = TQ.getFQA(info.id)
   local vars = table.copy(fqa.initialProperties.quickAppVariables)
+  vars = json.util.InitArray(vars)
   fqa.initialProperties.quickAppVariables = vars
   local conceal = info.directives.conceal or {}
   for _,v in ipairs(vars) do

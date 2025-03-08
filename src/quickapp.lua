@@ -18,13 +18,18 @@ function plugin.deleteDevice(deviceId) return api.delete("/devices/"..deviceId) 
 function plugin.getProperty(deviceId, propertyName) return api.get("/devices/"..deviceId).properties[propertyName] end
 function plugin.getChildDevices(deviceId) return api.get("/devices?parentId="..deviceId) end
 function plugin.createChildDevice(opts) return api.post("/plugins/createChildDevice", opts) end
-function plugin.restart() 
+function plugin.restart(t)
+  t = t or 5000
   local id = plugin.mainDeviceId
-  DEBUG("Restarting QuickApp "..id.." in 5 seconds")
+  if t == 0 then
+    DEBUG("Restarting QuickApp "..id)
+  else
+    DEBUG("Restarting QuickApp "..id.." in 5 seconds")
+  end
   local info = TQ.getQA(id)
   TQ.cancelTimers(id) 
   TQ.cancelThreads(id)
-  setTimeout(function() TQ.runQA(info) end,5000)
+  setTimeout(function() TQ.runQA(info) end,t)
 end
 
 local exit = os.exit
@@ -272,9 +277,9 @@ end
 
 function QuickAppBase:UIAction(eventType, elementName, arg)
   local event = {
-      deviceId = self.id, 
-      eventType = eventType,
-      elementName = elementName
+    deviceId = self.id, 
+    eventType = eventType,
+    elementName = elementName
   }
   event.values = arg ~= nil and  { arg } or json.util.InitArray({})
   onUIEvent(self.id, event)
@@ -333,9 +338,9 @@ function refreshStatePoller(robj) -- Running offline we need a new version of th
       return
     end
     assert(data, "No data received")
----@diagnostic disable-next-line: undefined-field
+    ---@diagnostic disable-next-line: undefined-field
     last = math.floor(data.last) or last
----@diagnostic disable-next-line: undefined-field
+    ---@diagnostic disable-next-line: undefined-field
     events = data.events
     if events ~= nil then
       for _, event in pairs(events) do

@@ -23,7 +23,8 @@
           "${userHome}${pathSeparator}/.vscode.lua", // move tools/vscode.lua to ~/.vscode.lua
           //"tools/vscode.lua",
           "uploadQA",
-          "${input:QA_name}"
+          "${input:QA_name}",
+          "${relativeFile}"
         ]
       },
       {

@@ -33,13 +33,19 @@ function cmds.downloadQA(id,path) -- HC3 QA deviceId, dir path
   SUCCESS()
 end
 
-function cmds.uploadQA(fname) -- current buffer file
+function cmds.uploadQA(fname,cf) -- current buffer file
+  if fname == '.' then fname = cf end
   fname = tostring(fname)
   printf("Uploading QA: %s",fname) -- name
   local qainfo = fibaro.hc3emu.loadQA(fname,nil,"noRun")
   if not qainfo then ERROR("loading QA") end
-  fibaro.hc3emu.uploadQA(qainfo.devices.id)
-  SUCCESS()
+  local dev,code = fibaro.hc3emu.uploadQA(qainfo.device.id)
+  if dev then
+    printf("Uploaded QA: %s, deviceId: %s",fname,dev.id)
+    SUCCESS()
+  else
+    ERROR("Uploading QA: %s, error: %s",fname,code)
+  end
 end
 
 function cmds.updateFile(fname) -- current buffer file, needs .project file
@@ -73,7 +79,7 @@ end
 
 local cmd = args[1]
 local c = cmds[cmd]
-if not c then ERROR("Unknown command: %",tostring(cmd)) end
+if not c then ERROR("Unknown command: %s",tostring(cmd)) end
 
 local stat,err = pcall(c,table.unpack(args,2))
 if not stat then

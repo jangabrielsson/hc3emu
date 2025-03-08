@@ -1,6 +1,6 @@
 --[[ Emulator api routes
 --]]
-
+TQ=TQ
 local json = TQ.json
 
 local fmt = string.format
@@ -67,6 +67,18 @@ local function callAction(p,id,name,data)
   qa.qa:callAction(name,table.unpack(data.args)) return 'OK',200
 end
 
+local function putData(p,id,data) -- Update local device properties
+  local qa = TQ.getQA(tonumber(id))
+  if qa == nil then return nil,301 end
+  local device = qa.device
+  if data.properties then
+    for k,v in pairs(data.properties) do
+      device.properties[k] = v
+    end
+  end
+  return true,200
+end
+
 local function findFile(name,files)
   for i,f in ipairs(files) do if f.name == name then return i end end
 end
@@ -77,10 +89,14 @@ local function getQAfiles(p,id,name)
   if name == nil then
     local fs = {}
     for _,f in ipairs(qa.files) do
-      fs[#fs+1] = {name=f.name, type='lua', isMain=false}
+      fs[#fs+1] = {name=f.name, type='lua', isOpen=false, isMain=false}
     end
-    fs[#fs+1] = {name='main', type='lua', isMain=true}
+    fs[#fs+1] = {name='main', type='lua', isOpen=false, isMain=true}
     return fs,200
+  else
+    local i = findFile(name,qa.files)
+    if i then return qa.files[i],200
+    else return nil,404 end
   end
 end
 
@@ -96,12 +112,22 @@ end
 local function setQAfiles(p,id,name,data) 
   local qa = TQ.getQA(tonumber(id))
   if not qa then return nil,301 end
-  if name then
-    local i = findFile(name,qa.files)
+  local files = data
+  if name then files = {data} end
+  for _,f in ipairs(files) do
+    local i = f.name=='main' or findFile(f.name,qa.files)
     if not i then return nil,404 end
-    qa.files[i] = data
-    qa.env.plugin.restart()
-  else return nil,505 end
+  end
+  for _,f in ipairs(files) do
+    if f.name == 'main' then
+      qa.src = f.content
+    else
+      local i = findFile(f.name,qa.files)
+      qa.files[i] = f
+    end
+  end
+  qa.env.plugin.restart(0) -- Restart the QA immediately
+  return true,200
 end
 
 local function deleteQAfiles(p,id,name) 
@@ -124,6 +150,7 @@ function TQ.EmuRoute() -- Create emulator route, redirecting API calls to emulat
     if qa == nil then return nil,301 end
     return qa.device,200 
   end)
+  route:add('PUT/devices/<id>',putData)  -- puta data
   route:add('POST/devices/<id>/action/<name>',callAction)       -- Call to ourself
   route:add('GET/devices/<id>/properties/<name>',getProp) -- Get properties from ourselves, fetch it locally
   

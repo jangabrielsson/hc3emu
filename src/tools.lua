@@ -167,9 +167,9 @@ function TQ.uploadQA(id)
   if not code or code > 201 then
     TQ.ERRORF("Failed to upload QuickApp: %s", res)
   else
-    TQ.DEBUG("Successfully uploaded QuickApp with ID: %d", id)
+    TQ.DEBUG("Successfully uploaded QuickApp with ID: %d -> %s", id,res.id)
   end
-  return code
+  return res,code
 end
 
 --@F

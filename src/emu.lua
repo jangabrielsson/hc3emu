@@ -39,6 +39,7 @@ TQ.emuPort = 8264   -- Port for HC3 proxy to connect to
 TQ.emuIP = nil      -- IP of host running the emulator
 TQ.api = {}         -- API functions
 TQ.DBG = { info = true } -- Default flags and debug settings
+---@diagnostic disable-next-line: undefined-global
 TQ.mainFile = MAINFILE
 TQ.require("hc3emu.util") -- Utility functions
 TQ._require = require
@@ -88,6 +89,7 @@ local homeCfg =TQ.ll(HOME.."/"..homeCfgFileName) or {}
 DEBUGF('info',"Loading project config file ./%s",cfgFileName)
 local cfgFlags = TQ.ll(cfgFileName) or {}
 
+---@diagnostic disable-next-line: undefined-field
 local baseFlags = table.merge(homeCfg,cfgFlags) -- merge with home config
 
 local socket = require("socket")
@@ -165,7 +167,7 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
   end
   --@D file=<path>:<name> - Add a file to the QA, ex. --%%file=src/lib.lua:lib
   function directive.file(d,val) 
-    local path,m = val:match("(.-):(.*)")
+    local path,m = val:match("(.-)[:,](.-)[;\n]")
     assert(path and m,"Bad file directive: "..d)
     flags.files[#flags.files+1] = {fname=path,name=m}
   end
@@ -237,6 +239,17 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
   function directive.time(d,val) flags.startTime = val end
   
   local truncCode = info.src:match("(.-)%-%-+ENDOFDIRECTIVES%-%-") or info.src
+  local include = truncCode:match("%-%-%%%%include=(.-)%s*\n")
+  if include then
+    info.extraDirectives = info.extraDirectives or {}
+    local f = io.open(include)
+    if f then 
+      local src = f:read("*all") f:close()
+      src:gsub("%-%-%%%%(%w-=.-)%s*\n",function(p)
+        table.insert(info.extraDirectives,p)
+      end)
+    else ERRORF("Can't open include file %s",include) end
+  end
   if info.extraDirectives then
     local extras = {}
     for _,d in ipairs(info.extraDirectives) do extras[#extras+1] = fmt("--%%%%%s",d) end
@@ -244,10 +257,13 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
     truncCode = truncCode.."\n"..extraStr.."\n"
   end
 
+  local ignore = {root=true,remote=true,include=true}
   truncCode:gsub("%-%-%%%%(%w-=.-)%s*\n",function(p)
     local f,v = p:match("(%w-)=(.*)")
+    if ignore[f] then return end
     local v1,com = v:match("(.*)%s* %-%- (.*)$") -- remove comments
     if v1 then v = v1 end
+    if f:match("^u%d+$") then f="u" end -- backward compatibility
     if directive[f] then
       directive[f](p,v)
     else WARNINGF("Unknown directive: %s",tostring(f)) end
@@ -445,7 +461,9 @@ local function createQAstruct(info,noRun) -- noRun -> Ignore proxy
   end
 
   if flags.id == nil then flags.id = TQ.getNextDeviceId() end
+---@diagnostic disable-next-line: undefined-field
   local ifs = table.copy(flags.interfaces or {})
+---@diagnostic disable-next-line: undefined-field
   if not table.member(ifs,"quickApp") then ifs[#ifs+1] = "quickApp" end
   local deviceStruct = {
     id=tonumber(flags.id),

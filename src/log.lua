@@ -36,9 +36,11 @@ local function html2ansiColor(str, dfltColor) -- Allows for nested font tags and
   end)..colorEnd
 end
 
+local transformTable
 function TQ.debugOutput(tag, str, typ, time)
   time = time or os.time()
   for _,p in ipairs(TQ.logFilter or {}) do if str:find(p) then return end end
+  str = str:gsub("<table (.-)>(.-)</table>",transformTable) -- Remove table tags
   str = str:gsub("(&nbsp;)", " ")  -- transform html space
   str = str:gsub("</br>", "\n")    -- transform break line
   str = str:gsub("<br>", "\n")     -- transform break line
@@ -58,4 +60,17 @@ function TQ.colorStr(color,str)
   if TQ.flags.logColor~=false then
     return fmt("%s%s%s",TQ.COLORMAP[color] or TQ.extraColors [color],str,colorEnd) 
   else return str end
+end
+
+function transformTable(pref,str)
+  local buff = {}
+  local function out(b,str) table.insert(b,str) end
+  str:gsub("<tr.->(.-)</tr>",function(row)
+    local rowbuff = {}
+    row:gsub("<td.->(.-)</td>",function(cell) 
+      out(rowbuff,cell)
+      end)
+    out(buff,table.concat(rowbuff,"  "))
+  end)
+  return table.concat(buff,"\n")
 end

@@ -28,8 +28,6 @@ if require and not QuickApp then require("hc3emu") end
 
 local version = "0.1"
 
-local aa = package.searchpath("placeholder.json",package.path) 
-
 local function printf(...) print(string.format(...)) end
 
 if fibaro.hc3emu then
@@ -47,7 +45,7 @@ function QuickApp:onInit()
   self:testBasic()
   self:testChildren() -- Only works with proxy
   self:testTCP()
-  self:testMQTT()
+  -- self:testMQTT()
   self:testWebSocket() -- have problem with work with wss
   --self:listFuns()
   print("Done!")

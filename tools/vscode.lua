@@ -1,3 +1,4 @@
+_DEVELOP=true
 if require and not QuickApp then require("hc3emu") end
 --%%color=false
 --%%shellscript=true

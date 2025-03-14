@@ -309,8 +309,20 @@ function mqtt.Client.connect(uri, options)
     return client:disconnect(nil, { callback = (options or {}).callback })
   end
   
+  -- local loop = TQ.require("mqtt.ioloop").get(true, {timeout=0.005})
+  -- --local loop = luamqtt.get_ioloop()
+  -- loop:add(client)
+  -- async(function() mobdebug.on()
+  --   while true do
+  --     loop:iteration()
+  --     copas.sleep(0.05)
+  --   end
+  -- end)
+
   async(function() mobdebug.on() luamqtt.run_sync(client) end)
   
+  -- async(function() mobdebug.on() luamqtt.run_ioloop(client) end)
+
   local pstr = "MQTT object: " .. tostring(mqttClient):match("%s(.*)")
   setmetatable(mqttClient, { __tostring = function(_) return pstr end })
   return mqttClient

@@ -46,12 +46,12 @@ function TQ.debugOutput(tag, str, typ, time)
   str = str:gsub("<br>", "\n")     -- transform break line
   if TQ.flags.logColor==false then
     str = str:gsub("(</?font.->)", "") -- Remove color tags
-    print(fmt("%s[%s][%s]: %s", os.date("[%d.%m.%Y][%H:%M:%S]",time), typ:upper(), tag, str))
+    print(fmt("%s[%s][%s]: %s", os.date("[%d.%m.%Y][%H:%M:%S]",time), typ:upper(), tag:upper(), str))
   else
     local fstr = "<font color='%s'>%s[<font color='%s'>%-6s</font>][%-7s]: %s</font>"
     local txtColor = TQ.SYSCOLORS.text
     local typColor = TQ.SYSCOLORS[typ:lower()] or txtColor
-    local outstr = fmt(fstr,txtColor,os.date("[%d.%m.%Y][%H:%M:%S]",time),typColor,typ:upper(),tag,str)
+    local outstr = fmt(fstr,txtColor,os.date("[%d.%m.%Y][%H:%M:%S]",time),typColor,typ:upper(),tag:upper(),str)
     print(html2ansiColor(outstr,TQ.SYSCOLORS.text))
   end
 end

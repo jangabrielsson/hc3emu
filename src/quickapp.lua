@@ -27,8 +27,8 @@ function plugin.restart(t)
     DEBUG("Restarting QuickApp "..id.." in 5 seconds")
   end
   local info = TQ.getQA(id)
-  TQ.cancelTimers(id) 
-  TQ.cancelThreads(id)
+  TQ.cancelTimers(_G) 
+  TQ.cancelThreads(_G)
   setTimeout(function() TQ.runQA(info) end,t)
 end
 
@@ -232,7 +232,7 @@ end
 function QuickApp:initChildDevices(map)
   map = map or {}
   local children = api.get("/devices?parentId="..self.id)
-  assert(type(children)=='table',"get children failed")
+  -- assert(type(children)=='table',"get children failed")
   local childDevices = self.childDevices
   for _, c in pairs(children) do
     if childDevices[c.id] == nil and map[c.type] then
@@ -293,10 +293,13 @@ function RefreshStateSubscriber:subscribe(filter, handler)
 end
 
 function RefreshStateSubscriber:__init()
+ self.time = os.time() -- Skip events before this time
   self.subscribers = {}
+  self.last = 0
   function self.handle(event)
+    if self.time > event.created+2 then return end -- Allow for 2 seconds mismatch between emulator and HC3
     for sub,_ in pairs(self.subscribers) do
-      if sub.filter(event) then sub.handler(event) end
+      if sub.filter(event) then pcall(sub.handler,event) end
     end
   end
 end
@@ -316,40 +319,8 @@ function RefreshStateSubscriber:unsubscribe(subscription)
   end
 end
 
-function RefreshStateSubscriber:run()
-  if not self.running then 
-    self.running = addThread(_G,refreshStatePoller,self)
-  end
-end
-
-function RefreshStateSubscriber:stop()
-  if self.running then copas.removethread(self.running) self.running = nil end
-end
-
-function refreshStatePoller(robj) -- Running offline we need a new version of this...
-  local path = "/refreshStates"
-  local last,events
-  while robj.running do
-    assert(not fibaro.hc3emu.flags.offline,"refreshStatePoller not implemented for offline")
-    local data, status = TQ.HC3Call("GET", last and path..("?last="..last) or path, nil, true)
-    if status ~= 200 then
-      ERRORF("Failed to get refresh state: %s",status)
-      robj.running = false
-      return
-    end
-    assert(data, "No data received")
-    ---@diagnostic disable-next-line: undefined-field
-    last = math.floor(data.last) or last
-    ---@diagnostic disable-next-line: undefined-field
-    events = data.events
-    if events ~= nil then
-      for _, event in pairs(events) do
-        robj.handle(event)
-      end
-    end
-    copas.pause(TQ._refreshInterval or 2)
-  end
-end
+function RefreshStateSubscriber:run() TQ.addRefreshStateListener(self.handle) end
+function RefreshStateSubscriber:stop() TQ.removeRefreshStateListener(self.handle) end
 
 function __onAction(id, actionName, args)
   print("__onAction", id, actionName, args)

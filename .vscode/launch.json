@@ -11,7 +11,7 @@
       "name": "Debug Local-Lua",
       "program": {
         "lua": "lua",
-        "file": "QA_example.lua"
+        "file": "${relativeFile}"
       },
       "args": [
         "${workspaceFolder}"
@@ -39,6 +39,24 @@
       "sourceEncoding": "UTF-8",
       "interpreter": "lua",
       "arguments": [
+        "${relativeFile}"
+      ],
+      "listenPublicly": true
+    },
+    {
+      "name": "Lua MobDebug: Current QA",
+      "type": "luaMobDebug",
+      "request": "launch",
+      "workingDirectory": "${workspaceFolder}",
+      "sourceBasePath": "${workspaceFolder}",
+      "listenPort": 8172,
+      "stopOnEntry": false,
+      "sourceEncoding": "UTF-8",
+      "interpreter": "lua",
+      "arguments": [
+        //"${userHome}${pathSeparator}/.vscode.lua", // move tools/vscode.lua to ~/.vscode.lua
+        "tools/vscode.lua",
+        "_runQA",
         "${relativeFile}"
       ],
       "listenPublicly": true

@@ -28,6 +28,8 @@ local function merge(a, b)
 end
 
 function table.merge(a,b) return merge(table.copy(a),b) end
+local function maxn(t) local n=0 for _,_ in pairs(t) do n=n+1 end return n end
+function table.map(f,l,s) s = s or 1; local r,m={},maxn(l) for i=s,m do r[#r+1] = f(l[i]) end return r end
 
 function table.copy(obj)
   if type(obj) == 'table' then
@@ -35,6 +37,19 @@ function table.copy(obj)
     return res
   else return obj end
 end
+
+local function equal(e1,e2)
+  if e1==e2 then return true
+  else
+    if type(e1) ~= 'table' or type(e2) ~= 'table' then return false
+    else
+      for k1,v1 in pairs(e1) do if e2[k1] == nil or not equal(v1,e2[k1]) then return false end end
+      for k2,_  in pairs(e2) do if e1[k2] == nil then return false end end
+      return true
+    end
+  end
+end
+table.equal = equal
 
 function table.member(key,tab)
   for i,elm in ipairs(tab) do if key==elm then return i end end
@@ -208,7 +223,7 @@ do -- Used for print device table structs - sortorder for device structs
     local av,bv = sortOrder[a] or a, sortOrder[b] or b
     return av < bv
   end
-
+  
   local function prettyJsonStruct(t0)
     local res = {}
     local function isArray(t) return type(t)=='table' and t[1] end
@@ -253,6 +268,93 @@ do -- Used for print device table structs - sortorder for device structs
   json.encodeFormated = prettyJsonStruct
 end
 
+do
+  local format = string.format
+  local function dateTest(dateStr0)
+    local days = {sun=1,mon=2,tue=3,wed=4,thu=5,fri=6,sat=7}
+    local months = {jan=1,feb=2,mar=3,apr=4,may=5,jun=6,jul=7,aug=8,sep=9,oct=10,nov=11,dec=12}
+    local last,month = {31,28,31,30,31,30,31,31,30,31,30,31},nil
+    
+    local function seq2map(seq) local s = {} for _,v in ipairs(seq) do s[v] = true end return s; end
+    
+    local function flatten(seq,res) -- flattens a table of tables
+      res = res or {}
+      if type(seq) == 'table' then for _,v1 in ipairs(seq) do flatten(v1,res) end else res[#res+1] = seq end
+      return res
+    end
+    
+    local function _assert(test,msg,...) if not test then error(format(msg,...),3) end end
+    
+    local function expandDate(w1,md)
+      local function resolve(id)
+        local res
+        if id == 'last' then month = md res=last[md] 
+        elseif id == 'lastw' then month = md res=last[md]-6 
+        else res= type(id) == 'number' and id or days[id] or months[id] or tonumber(id) end
+        _assert(res,"Bad date specifier '%s'",id) return res
+      end
+      local step = 1
+      local w,m = w1[1],w1[2]
+      local start,stop = w:match("(%w+)%p(%w+)")
+      if (start == nil) then return resolve(w) end
+      start,stop = resolve(start), resolve(stop)
+      local res,res2 = {},{}
+      if w:find("/") then
+        if not w:find("-") then -- 10/2
+          step=stop; stop = m.max
+        else step=(w:match("/(%d+)")) end
+      end
+---@diagnostic disable-next-line: cast-local-type
+      step = tonumber(step)
+      _assert(start>=m.min and start<=m.max and stop>=m.min and stop<=m.max,"illegal date intervall")
+      while (start ~= stop) do -- 10-2
+        res[#res+1] = start
+        start = start+1; if start>m.max then start=m.min end  
+      end
+      res[#res+1] = stop
+      if step > 1 then for i=1,#res,step do res2[#res2+1]=res[i] end; res=res2 end
+      return res
+    end
+    
+    local function parseDateStr(dateStr) --,last)
+      local map = table.map
+      local seq = string.split(dateStr," ")   -- min,hour,day,month,wday
+      local lim = {{min=0,max=59},{min=0,max=23},{min=1,max=31},{min=1,max=12},{min=1,max=7},{min=2000,max=3000}}
+      for i=1,6 do if seq[i]=='*' or seq[i]==nil then seq[i]=tostring(lim[i].min).."-"..lim[i].max end end
+      seq = map(function(w) return string.split(w,",") end, seq)   -- split sequences "3,4"
+      local month0 = os.date("*t",os.time()).month
+      seq = map(function(t) local m = table.remove(lim,1);
+        return flatten(map(function (g) return expandDate({g,m},month0) end, t))
+      end, seq) -- expand intervalls "3-5"
+      return map(seq2map,seq)
+    end
+    local sun,offs,day,sunPatch = dateStr0:match("^(sun%a+) ([%+%-]?%d+)")
+    if sun then
+      sun = sun.."Hour"
+      dateStr0=dateStr0:gsub("sun%a+ [%+%-]?%d+","0 0")
+      sunPatch=function(dateSeq)
+        local h,m = (fibaro.getValue(1,sun)):match("(%d%d):(%d%d)")
+        dateSeq[1]={[(tonumber(h)*60+tonumber(m)+tonumber(offs))%60]=true}
+        dateSeq[2]={[math.floor((tonumber(h)*60+tonumber(m)+tonumber(offs))/60)]=true}
+      end
+    end
+    local dateSeq = parseDateStr(dateStr0)
+    return function() -- Pretty efficient way of testing dates...
+      local t = os.date("*t",os.time())
+      if month and month~=t.month then dateSeq=parseDateStr(dateStr0) end -- Recalculate 'last' every month
+      if sunPatch and (month and month~=t.month or day~=t.day) then sunPatch(dateSeq) day=t.day end -- Recalculate sunset/sunrise
+      return
+      dateSeq[1][t.min] and    -- min     0-59
+      dateSeq[2][t.hour] and   -- hour    0-23
+      dateSeq[3][t.day] and    -- day     1-31
+      dateSeq[4][t.month] and  -- month   1-12
+      dateSeq[5][t.wday] or false      -- weekday 1-7, 1=sun, 7=sat
+    end
+  end
+  
+  TQ.dateTest = dateTest
+end
+
 local eventHandlers = {}
 local EVENT = setmetatable({}, {
   __newindex = function(t,k,v)
@@ -275,20 +377,13 @@ end
 local tasks = {}
 local function errfun(msg,co,skt)
   -- Try to figure what QA started this task
-  local deviceId = TQ.getCoroData(co,'deviceId') -- We use that to make the right fibaro.debug call
-  if deviceId then
-    local dev = TQ.getQA(deviceId)
-    if dev then
-      if dev.env.fibaro.error then
-        dev.env.fibaro.error(tostring(dev.env.__TAG),msg)
-        print(TQ.copas.gettraceback("",co,skt))
-        return
-      end
-    end
-    TQ.ERRORF("Task error: %s",msg)
+  local env = TQ.getCoroData(co,'env') -- We use that to make the right fibaro.debugging call
+  if env then
+    if env._error then env._error(msg) end
+  else
+    ERRORF("Task error: %s",msg)
   end
-  local str = TQ.copas.gettraceback(msg,co,skt)
-  TQ.ERRORF(msg)
+  print(TQ.copas.gettraceback("",co,skt))
 end
 
 local function addThread(env,call,...)
@@ -297,26 +392,28 @@ local function addThread(env,call,...)
   task = TQ.copas.addthread(function(...) 
     TQ.mobdebug.on() 
     TQ.copas.seterrorhandler(errfun)
-    local stat,res = call(...) 
-    -- if not stat then 
-    --   ERRORF("Task error: %s",res) 
-    --   print(TQ.copas.gettraceback("",coroutine.running(),nil))
-    -- end
+    local stat,res = pcall(call,...) 
+    if not stat then
+      local env = TQ.getCoroData(nil,'env')
+      if env then env._error(res)
+      else ERRORF("Task error: %s",res) end
+      print(TQ.copas.gettraceback("",coroutine.running(),nil))
+    end
     tasks[task]=nil 
   end,...)
   -- Keep track of what QA started what task
   -- Will allow us to kill all tasks started by a QA when it is deleted
-  TQ.setCoroData(task,'deviceId',(env and env.plugin or {}).mainDeviceId) 
+  TQ.setCoroData(task,'env',env) 
   tasks[task] = true
   return task
 end
-local function cancelThreads(id) 
-  if id == nil then 
+local function cancelThreads(env) 
+  if env == nil then 
     for t,_ in pairs(tasks) do TQ.copas.removethread(t) end 
     tasks = {}
   else
     for t,_ in pairs(tasks) do 
-      if TQ.getCoroData(t,'deviceId') == id then 
+      if TQ.getCoroData(t,'env') == env then 
         TQ.copas.removethread(t) 
         tasks[t]=nil 
       end 

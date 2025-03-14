@@ -11,21 +11,22 @@ of this license document, but changing it is not allowed.
 --]]
 
 --[[
-  Installation:
-  >luarocks install hc3emu
+Installation:
+>luarocks install hc3emu
 
-  Dependencies:
-   lua >= 5.3, <= 5.4
-   copas >= 4.7.1-1  (luasocket, luasec, timerwheel)
-   luamqtt >= 3.4.3-1
-   lua-json >= 1.0.0-1
-   bit32 >= 5.3.5.1-1
-   lua-websockets-bit32 >= 2.0.1-7
-   mobdebug >= 0.80-1
+Dependencies:
+lua >= 5.3, <= 5.4
+copas >= 4.7.1-1  (luasocket, luasec, timerwheel)
+luamqtt >= 3.4.3-1
+lua-json >= 1.0.0-1
+bit32 >= 5.3.5.1-1
+lua-websockets-bit32 >= 2.0.1-7
+mobdebug >= 0.80-1
 --]]
 ---@diagnostic disable: cast-local-type
 ---@diagnostic disable-next-line: undefined-global
 _DEVELOP = _DEVELOP
+TQ = TQ
 
 local VERSION = "1.0.42"
 
@@ -76,7 +77,7 @@ else error("Could not read main file") end
 if not DBG.silent then DEBUGF('info',"Main QA file %s",TQ.mainFile) end
 
 local win = (os.getenv('WINDIR') or (os.getenv('OS') or ''):match('[Ww]indows'))
-  and not (os.getenv('OSTYPE') or ''):match('cygwin') -- exclude cygwin
+and not (os.getenv('OSTYPE') or ''):match('cygwin') -- exclude cygwin
 TQ.sep = win and '\\' or '/'
 TQ.tempDir = os.getenv("TMPDIR") or os.getenv("TEMP") or os.getenv("TMP") or "/tmp/" -- temp directory
 
@@ -167,7 +168,10 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
   end
   --@D file=<path>:<name> - Add a file to the QA, ex. --%%file=src/lib.lua:lib
   function directive.file(d,val) 
-    local path,m = val:match("(.-)[:,](.-)[;\n]")
+    local path,m = val:match("(.-)[:,](.-);?%s*$")
+    if path:match("%$") then 
+      path = TQ.pathto(path:sub(2))
+    end
     assert(path and m,"Bad file directive: "..d)
     flags.files[#flags.files+1] = {fname=path,name=m}
   end
@@ -237,18 +241,25 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
   function directive.longitude(d,val) flags.longitude = tonumber(val) end
   --@D time=<val> - Set start time for the emulator, ex. --%%time=12/31 10:00:12
   function directive.time(d,val) flags.startTime = val end
+  --@D trigger=<delay>:<trigger> - Trigger for scene, ex. --%%trigger=2:{type='user',property='execute',id=2}
+  function directive.trigger(d,val)
+    flags.triggers = flags.triggers or {}
+    local delay,trigger = val:match("(%d+):(.*)")
+    assert(delay and trigger,"Bad trigger directive: "..d)
+    flags.triggers[#flags.triggers + 1] = {delay = tonumber(delay), trigger = eval(trigger,d)}
+  end
   
   local truncCode = info.src:match("(.-)%-%-+ENDOFDIRECTIVES%-%-") or info.src
+  --@D include=<file> - Include a file with additional directives. Format <direct>=<value>
   local include = truncCode:match("%-%-%%%%include=(.-)%s*\n")
   if include then
     info.extraDirectives = info.extraDirectives or {}
     local f = io.open(include)
-    if f then 
-      local src = f:read("*all") f:close()
-      src:gsub("%-%-%%%%(%w-=.-)%s*\n",function(p)
-        table.insert(info.extraDirectives,p)
-      end)
-    else ERRORF("Can't open include file %s",include) end
+    assert(f,"Can't open include file "..tostring(include))
+    local src = f:read("*all") f:close()
+    src:gsub("%-%-%%%%(%w-=.-)%s*\n",function(p)
+      table.insert(info.extraDirectives,p)
+    end)
   end
   if info.extraDirectives then
     local extras = {}
@@ -256,7 +267,7 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
     local extraStr = table.concat(extras,"\n")
     truncCode = truncCode.."\n"..extraStr.."\n"
   end
-
+  
   local ignore = {root=true,remote=true,include=true}
   truncCode:gsub("%-%-%%%%(%w-=.-)%s*\n",function(p)
     local f,v = p:match("(%w-)=(.*)")
@@ -282,7 +293,7 @@ function MODULE.net()
   mySocket:setpeername(someRandomIP,someRandomPort)
   local myDevicesIpAddress,_ = mySocket:getsockname()-- returns IP and Port
   TQ.emuIP = myDevicesIpAddress == "0.0.0.0" and "127.0.0.1" or myDevicesIpAddress
-
+  
   local function httpRequest(method,url,headers,data,timeout,user,pwd)
     local resp, req = {}, {}
     req.url = url
@@ -302,6 +313,7 @@ function MODULE.net()
       req.headers["Content-Length"] = 0
     end
     local r,status,h
+    local env = TQ.getCoroData(nil,'env')
     if url:starts("https") then r,status,h = copas.https.request(req)
     else r,status,h = copas.http.request(req) end
     if tonumber(status) and status < 300 then
@@ -313,6 +325,7 @@ function MODULE.net()
   
   local BLOCK = false 
   local function HC3Call(method,path,data,silent)
+    --print(path)
     if BLOCK then ERRORF("HC3 authentication failed again, Access blocked") return nil, 401, "Blocked" end
     if type(data) == 'table' then data = json.encode(data) end
     assert(TQ.URL,"Missing hc3emu.URL")
@@ -324,7 +337,7 @@ function MODULE.net()
       ["X-Fibaro-Version"] = 2,
       ["Fibaro-User-PIN"] = TQ.PIN,
     },
-    data,15000,TQ.USER,TQ.PASSWORD)
+    data,35000,TQ.USER,TQ.PASSWORD)
     if stat == 401 then ERRORF("HC3 authentication failed, Access blocked") BLOCKED = true end
     if stat == 'closed' then ERRORF("HC3 connection closed %s",path) end
     if stat == 500 then ERRORF("HC3 error 500 %s",path) end
@@ -347,12 +360,14 @@ function MODULE.route() TQ.require("hc3emu.route") end    -- Route object
 function MODULE.emuroute() TQ.require("hc3emu.emuroute") end    -- Emulator API routes
 function MODULE.proxy() TQ.require("hc3emu.proxy") end     -- Proxy creation and Proxy API routes
 function MODULE.offline() TQ.require("hc3emu.offline") end -- Offline API routes
+function MODULE.refreshstate() TQ.require("hc3emu.refreshstate") end
 function MODULE.timers() TQ.require("hc3emu.timers") end
 function MODULE.ui() TQ.require("hc3emu.ui") end
 function MODULE.tools() TQ.require("hc3emu.tools") end
+function MODULE.scene() TQ.require("hc3emu.scene") end
 
 function MODULE.qa_manager()
-
+  
   function TQ.registerQA(info) -- {id=id,directives=directives,fname=fname,src=src,env=env,device=dev,qa=qa,files=files,proxy=<bool>,child=<bool>}
     local id = info.id
     assert(id,"Can't register QA without id")
@@ -360,7 +375,7 @@ function MODULE.qa_manager()
     TQ.store.DB.devices[id] = info.device
   end
   function TQ.getQA(id) return TQ.DIR[id] end
-
+  
   function TQ.saveProject(info)
     local r = {}
     for _,f in ipairs(info.files) do
@@ -398,16 +413,17 @@ function TQ.setCoroData(co,key,val)
 end
 
 -- Load modules
-for _,m in ipairs(modules) do DEBUGF('info',"Loading emu module %s",m.name) m.fun() end
+for _,m in ipairs(modules) do DEBUGF('modules',"Loading emu module %s",m.name) m.fun() end
 
 local skip = load("return function(f) return function(...) return f(...) end end")()
 local _type = type
 local luaType = function(obj) -- We need to recognize our class objects as 'userdata' (table with __USERDATA key)
   local t = _type(obj)
-  return t == 'table' and rawget(obj,'__USERDATA') and 'userdata' or t
+  local r = t == 'table' and rawget(obj,'__USERDATA') and 'userdata' or t
+  return r
 end
 luaType = skip(luaType)
-
+TQ.luaType = luaType
 local orgTime,orgDate,timeOffset = os.time,os.date,0
 function TQ.setTime(t,update)
   if type(t) == 'string' then t = TQ.parseTime(t) end
@@ -415,11 +431,14 @@ function TQ.setTime(t,update)
   if update~=false then TQ.post({type='time_changed'}) end
   TQ.DEBUGF('info',"Time set to %s",TQ.userDate("%c"))
 end
+
+local function round(x) return math.floor(x+0.5) end
 function TQ.getTimeOffset() return timeOffset end
+function TQ.setTimeOffset(offs) timeOffset = offs end
 function TQ.milliClock() return socket.gettime() end
-local function userTime(a) return a == nil and math.floor(TQ.milliClock() + timeOffset + 0.5) or orgTime(a) end
+local function userTime(a) return a == nil and round(TQ.milliClock() + timeOffset) or orgTime(a) end
 local function userMilli() return TQ.milliClock() + timeOffset end
-local function userDate(a, b) return b == nil and os.date(a, userTime()) or orgDate(a, b) end
+local function userDate(a, b) return b == nil and os.date(a, userTime()) or orgDate(a, round(b)) end
 function TQ.userTime(a) return userTime(a) end
 function TQ.userMilli() return userMilli() end
 function TQ.userDate(a,b) return userDate(a,b) end
@@ -427,11 +446,21 @@ function TQ.userDate(a,b) return userDate(a,b) end
 TQ.midnightLoop() -- Setup loop for midnight events
 TQ.route.createConnections() -- Setup connections for API calls
 TQ.connection = TQ.route.hc3Connection
-
+function setTimeout(fun,ms) return copas.timer.new({name = "SYS",delay = ms / 1000.0, callback = function() mobdebug.on() fun() end}) end
+function clearTimeout(ref) return ref:cancel() end
 function TQ.getNextDeviceId() DEVICEID = DEVICEID + 1 return DEVICEID end
+
+function TQ.loadfile(path,env)
+  if _DEVELOP then
+    path = TQ._PREFIX.."src/"..path:match(".-%.(.*)")..".lua"
+    ---@diagnostic disable-next-line: cast-local-type
+  else  path = package.searchpath(path,package.path) end
+  return loadfile(path,"t",env)()
+end
 
 -- Creates a QA device structure and registers it with the HC3 emulator
 -- @param info Table containing configuration information for the QA
+
 local function createQAstruct(info,noRun) -- noRun -> Ignore proxy
   if info.directives == nil then parseDirectives(info) end
   local flags = info.directives
@@ -459,11 +488,11 @@ local function createQAstruct(info,noRun) -- noRun -> Ignore proxy
     uiView = json.util.InitArray({})
     uiCallbacks = json.util.InitArray({})
   end
-
+  
   if flags.id == nil then flags.id = TQ.getNextDeviceId() end
----@diagnostic disable-next-line: undefined-field
+  ---@diagnostic disable-next-line: undefined-field
   local ifs = table.copy(flags.interfaces or {})
----@diagnostic disable-next-line: undefined-field
+  ---@diagnostic disable-next-line: undefined-field
   if not table.member(ifs,"quickApp") then ifs[#ifs+1] = "quickApp" end
   local deviceStruct = {
     id=tonumber(flags.id),
@@ -520,7 +549,6 @@ local function createQAstruct(info,noRun) -- noRun -> Ignore proxy
   env.plugin = env.plugin or {}
   env.plugin._dev = deviceStruct
   env.plugin.mainDeviceId = deviceStruct.id -- Now we have a deviceId
-  TQ.setCoroData(nil,'deviceId',deviceStruct.id)
   TQ.registerQA(info)
   
   return info
@@ -536,7 +564,7 @@ local function loadQAFiles(info)
     local t = TQ.parseTime(info.directives.startTime)
     TQ.setTime(t) 
   end
-
+  
   local env = info.env
   local os2 = { time = userTime, clock = os.clock, difftime = os.difftime, date = userDate, exit = os.exit, remove = os.remove, require = require }
   local fibaro = { hc3emu = TQ, HC3EMU_VERSION = VERSION, flags = info.directives, DBG = DBG }
@@ -554,29 +582,26 @@ local function loadQAFiles(info)
     dofile = dofile, package = package, _coroutine = coroutine, io = io, rawset = rawset, rawget = rawget,
     _loadfile = loadfile
   }) do env[k] = v end
-  
+  env._error = function(str) env.fibaro.error(env.__TAG,str) end
   env.__TAG = info.directives.name..info.id
   env._G = env
   for k,v in pairs(TQ.exports) do env[k] = v end
-
+  
   for _,path in ipairs({"hc3emu.class","hc3emu.fibaro","hc3emu.quickapp","hc3emu.net"}) do
     DEBUGF('info',"Loading QA library %s",path)
-    if _DEVELOP then
-      path = TQ._PREFIX.."src/"..path:match(".-%.(.*)")..".lua"
-    else  path = package.searchpath(path,package.path) end
-    loadfile(path,"t",env)()
+    TQ.loadfile(path,env)
   end
   
   function env.print(...) env.fibaro.debug(env.__TAG,...) end
-
+  
   if flags.speed then TQ.startSpeedTime(flags.speed) end
-
+  
   for _,lf in ipairs(info.files) do
     DEBUGF('info',"Loading user file %s",lf.fname)
     if lf.content then
       load(lf.content,lf.fname,"t",env)()
     else
-    _,lf.content = readFile{file=lf.fname,eval=true,env=env,silent=false}
+      _,lf.content = readFile{file=lf.fname,eval=true,env=env,silent=false}
     end
   end
   DEBUGF('info',"Loading user main file %s",info.fname)
@@ -589,18 +614,21 @@ end
 function runQA(info) -- The rest is run in a copas tasks...
   mobdebug.on()
   createQAstruct(info)
-  local flags = info.directives or {}
-  local firstLine,onInitLine = TQ.findFirstLine(info.src)
-  if flags.breakOnLoad and firstLine then TQ.mobdebug.setbreakpoint(info.fname,firstLine) end
-  loadQAFiles(info)
-  if flags.save then TQ.saveQA(info.id) end
-  if flags.project then TQ.saveProject(info) end
-  if info.env.QuickApp.onInit then
-    if flags.breakOnInit and onInitLine then TQ.mobdebug.setbreakpoint(info.fname,onInitLine+1) end
-    DEBUGF('info',"Starting QuickApp %s",info.device.name)
-    TQ.post({type='quickApp_started',id=info.id},true)
-    info.env.quickApp = info.env.QuickApp(info.device) -- quickApp defined first when we return from :onInit()...
-  end
+  addThread(info.env,function()
+    TQ.setCoroData(nil,'env',info.env)
+    local flags = info.directives or {}
+    local firstLine,onInitLine = TQ.findFirstLine(info.src)
+    if flags.breakOnLoad and firstLine then TQ.mobdebug.setbreakpoint(info.fname,firstLine) end
+    loadQAFiles(info)
+    if flags.save then TQ.saveQA(info.id) end
+    if flags.project then TQ.saveProject(info) end
+    if info.env.QuickApp.onInit then
+      if flags.breakOnInit and onInitLine then TQ.mobdebug.setbreakpoint(info.fname,onInitLine+1) end
+      DEBUGF('info',"Starting QuickApp %s",info.device.name)
+      TQ.post({type='quickApp_started',id=info.id},true)
+      info.env.quickApp = info.env.QuickApp(info.device) -- quickApp defined first when we return from :onInit()...
+    end
+  end)
   return info
 end
 TQ.runQA = runQA
@@ -609,9 +637,10 @@ if not flags.silent then print(TQ.colorStr('orange',"HC3Emu - Tiny QuickApp emul
 while true do
   local startTime,t0 = os.clock(),os.time()
   TQ._shouldExit = true
-  copas(function() addThread(qaInfo.env,function()
+  copas(function() 
     TQ.post({type='emulator_started'},true)
-    runQA(qaInfo) end) 
+    if qaInfo.directives.type=='scene' then TQ.runScene(qaInfo)
+    else runQA(qaInfo) end
   end)
   DEBUG("Runtime %.3f sec (%s sec absolute time)",os.clock()-startTime,os.time()-t0)
   if TQ._shouldExit then os.exit(0) end

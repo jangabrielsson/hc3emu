@@ -35,10 +35,12 @@ local function __assert_type2(val, typ, msg)
   if type(val) ~= typ then error(fmt(msg,typ)..". Got: "..type(val),3) end
 end
 
+---@diagnostic disable-next-line: lowercase-global
+__emu_timerHook = {}
 function setTimeout(fun,ms,tag)
   __assert_type2(fun, "function", "setTimeout: first argument must be a %s")
   __assert_type2(ms,"number","setTimeout: second argument must be a %s")
-  return __emu_setTimeout(fun,ms,tag)
+  return __emu_setTimeout(fun,ms,tag,__emu_timerHook[1])
 end
 
 function clearTimeout(ref)
@@ -46,10 +48,10 @@ function clearTimeout(ref)
   return __emu_clearTimeout(ref)
 end
 
-function setInterval(fun,ms)
+function setInterval(fun,ms,tag)
   __assert_type2(fun, "function", "setInterval: first argument must be a %s")
   __assert_type2(ms,"number","setInterval: second argument must be a %s")
-  return __emu_setInterval(fun,ms)
+  return __emu_setInterval(fun,ms,tag,__emu_timerHook[1])
 end
 
 function clearInterval(ref)

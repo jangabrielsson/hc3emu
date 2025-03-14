@@ -8,7 +8,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%p roxy=TestProxy
 --%%dark=true
 
-
+--barf()
 local function foo()
   --bar()
 end

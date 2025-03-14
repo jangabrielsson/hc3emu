@@ -40,7 +40,7 @@ function class(name)
     if init then init(obj,...) end
     return obj
   end
-  _G[name] = setmetatable({ __org = cl },cl2)
+  _G[name] = setmetatable({ __org = cl,__USERDATA = true },cl2)
   return function(parent)
     if parent == nil then error("Parent class not found") end
     setmetatable(cl,parent.__org)

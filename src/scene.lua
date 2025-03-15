@@ -52,7 +52,6 @@ local function createSceneStruct(info)
         sunrise = sunrise
       }
     ) end
-    print(TQ.userDate("%c"))
     if flag then
       DEBUGF('scene',"Scene %s triggered by %s",info.id,json.encode(event))
     else

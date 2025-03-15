@@ -1,12 +1,16 @@
 
+TQ = TQ -- hc3emu compat
 if fibaro then fibaro.FILE = fibaro.FILE or {} end
-local format,copy = string.format,table.copy
-local debugFlags = fibaro and fibaro.debugFlags or {post=true}
-if fibaro then fibaro.debugFlags = debugFlags end
 local json = json or TQ.json
-local function DEBUG(...) fibaro.debug(__TAG,format(...)) end
-local function WARNING(...) fibaro.warning(__TAG,format(...)) end
-local function ERRORF(...) if TQ then TQ.ERRORF(...) else fibaro.error(__TAG,format(...)) end end
+local format,copy = string.format,table.copy
+local DEBUG = TQ and TQ.DEBUG or function(...) fibaro.debug(__TAG,format(...)) end
+local WARNING = TQ and TQ.WARNINGF or function(...) fibaro.warning(__TAG,format(...)) end
+local ERRORF = TQ and TQ.ERRORF or function(...) fibaro.error(__TAG,format(...)) end
+local TRACE = TQ and function(tag,str) TQ:DEBUG(str) end or fibaro.trace
+
+local debugFlags = fibaro and fibaro.debugFlags or TQ and TQ.DBG or {}
+if fibaro then fibaro.debugFlags = debugFlags end
+
 local exports = {}
 
 local function equal(e1,e2)
@@ -82,7 +86,7 @@ function exports.postRemote(uuid,id,ev)
     ev._from,ev._time = plugin.mainDeviceId,os.time()
     fibaro.call(id,'RECIEVE_EVENT',{type='EVENT',ev=ev}) -- We need this as the system converts "99" to 99 and other "helpful" conversions
   else
-    -- post to slave box in the future
+    -- post to slave box in the future?
   end
 end
 
@@ -94,8 +98,7 @@ local function post(ev,t,log,hook,customLog)
   end
   if t < 0 then return elseif t < now then t = t+now end
   if debugFlags.post and (type(ev)=='function' or not ev._sh) then 
-    --(customLog or fibaro.trace)(__TAG,format("Posting %s at %s %s",tostring(ev),os.date("%c",t),type(log)=='string' and ("("..log..")") or "")) 
-    print(format("Posting %s at %s %s",tostring(json.encode(ev)),os.date("%c",t),type(log)=='string' and ("("..log..")") or ""))
+    (customLog or TRACE)(__TAG,format("Posting %s at %s %s",tostring(ev),os.date("%c",t),type(log)=='string' and ("("..log..")") or "")) 
   end
   if type(ev) == 'function' then
     return setTimeout(function() ev(ev) end,1000*(t-now),log),t

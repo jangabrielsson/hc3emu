@@ -1,84 +1,111 @@
 local TQ = TQ
 local copas = TQ.copas
+local DEBUGF = TQ.DEBUGF
 local mobdebug = TQ.mobdebug
 
-local ref,timers = 0,{}
 local fmt = string.format
+
+local timerIdx = 0   -- Every timer gets a new number
+local timers = {}    -- Table of all timers, string(idx)->TimerRef
+local function createTimerRef(timer,ms,fun,tag,hook)
+  timerIdx = timerIdx + 1
+  DEBUGF('timer',"createTimerRef:%s",timerIdx)
+  local ref = {
+    ms = ms, -- Time in ms when timer should fire
+    timer = timer, -- Should support timer:cancel()
+    time = TQ.userMilli() + ms/1000.0, -- Absolute time when timer should fire msepoch
+    fun = fun, -- Function to call
+    tag = tag, -- Tag for timer (debug)
+    hook = hook, -- Hook function to call when timer is started or stopped
+    id = timerIdx
+  }
+  timers[tostring(timerIdx)] = ref
+  return timerIdx, ref
+end
+local function getTimerRef(id)
+  return timers[tostring(id)]
+end
+local function setTimerRef(id,ref)
+  timers[tostring(id)] = ref
+end
+local function cancelTimerRef(id)
+  local id = tostring(id)
+  local t = timers[id]
+  if t then
+    DEBUGF('timer',"cancelTimerRef:%s",id)
+    t.timer:cancel()
+    if t.hook then pcall(t.hook,false) end
+    timers[id] = nil
+  end
+end
+
 
 local setTimeoutAuxSpeed
 
 local function cancelTimers(env) 
   if env == nil then 
-    for _,t in pairs(timers) do t.ref:cancel() end timers = {} 
+    for t,_ in pairs(timers) do cancelTimerRef(t) end timers = {} 
   else
-    for r,t in pairs(timers) do 
-      local cenv = TQ.getCoroData(t.ref.co,'env')
-      if cenv == env then 
-        t.ref:cancel() timers[r]= nil 
-      end 
+    for t,_ in pairs(timers) do 
+      local cenv = TQ.getCoroData(t.timer.co,'env')
+      if cenv == env then cancelTimerRef(t) end
     end
   end
 end
 
 local setTimeoutStd
 local setTimeoutSpeed
+local setTimeoutRef
 local setInterval
 local clearTimeout
-local __setTimeout
+local setTimeout
 local __speed
 
-local function callback(_,args) 
+local function callback(_,id) 
   mobdebug.on()
-  local fun,ref,tag,hook = table.unpack(args)
-  timers[ref] = nil 
-  fun()
-  if hook then pcall(hook,false) end
+  local ref = getTimerRef(id)
+  DEBUGF('timer',"timer std expire:%s",id)
+  setTimerRef(id,nil)
+  ref.fun()
+  if ref.hook then pcall(ref.hook,false) end
 end
 
-local function setTimeoutAuxStd(fun,ms,tag,hook)
+local function setTimeoutAuxStd(ref)
   local env = TQ.getCoroData(nil,'env')
-  ref = ref+1
-  local refIdx = tostring(ref)
-  local ref0 = refIdx
+  DEBUGF('timer',"setTimeoutStd:%s %s",ref.id,ref.tag or "")
   local t = copas.timer.new({
-    name = "setTimeout:"..refIdx,
-    delay = ms / 1000.0,
+    name = "setTimeout:"..ref.id,
+    delay = ref.ms / 1000.0,
     recurring = false,
     initial_delay = nil,
     callback = callback,
-    params = {fun,ref0,tag,hook},
+    params = ref.id,
     errorhandler = function(err, coro, skt)
       if env then
         env._error(fmt("setTimeout:%s",tostring(err)))
       end
-      timers[refIdx]=nil
+      setTimerRef(ref.id,nil)
       copas.seterrorhandler()
       --print(copas.copas.gettraceback(err,coro,skt))
     end
   })
-  local ta = TQ.socket.gettime() + TQ.getTimeOffset() + ms/1000.0
-  timers[refIdx] = {ref=t,time=ta,fun=fun,tag=tag,hook=hook}
+  ref.timer = t
   -- Keep track of what QA started what timer
   -- Will allows us to kill all timers started by a QA when it is deleted
   TQ.setCoroData(t.co,'env',env)
-  if hook then pcall(hook,true) end
-  return tonumber(refIdx)
+  return ref.id
 end
 
-function setTimeoutStd(fun,ms,tag,hook) return setTimeoutAuxStd(fun,ms,tag,hook) end
+function setTimeoutStd(ref) return setTimeoutAuxStd(ref) end
 
 function clearTimeout(ref)
-  local refIdx = tostring(ref)
-  local t = timers[refIdx]
-  if t then
-    t.ref:cancel()
-    if t.hook then pcall(t.hook,false) end
-  end
-  timers[refIdx]=nil
+  cancelTimerRef(ref)
   copas.pause(0)
 end
 
-local times = nil
+-------------------- Speed timer -----------------------
+local times = nil -- linked list of sorted timers
+
 local function remove(t)
   --assert(type(ref)=='string',"Invalid timer reference")
   if t and not t.dead then
@@ -94,67 +121,69 @@ local function remove(t)
     end
   end
 end
-local function insert(t,fun,env,idx,tag)
+
+local function insert(time,id,env)
   local v = nil
-  v = {t=t,fun=fun,co=coroutine.running(),cancel=function() remove(v) end,env=env,idx=idx,tag=tag}
+  v = {time=time,id=id,env=env,cancel = function() remove(v) end }
   if not times then times = v return v end
-  if t < times.t then
+  if time < times.time then
     times.prev = v
     v.next = times
     times = v
     return v
   end
   local p = times
-  while p.next and p.next.t < t do p = p.next end
+  while p.next and p.next.time < time do p = p.next end
   v.next = p.next
   if p.next then p.next.prev = v end
   p.next = v
   v.prev = p
   return v
 end
+
 local function pop()
   if not times then return end
   local t = times
-  if t.next then times = t.next times.prev=nil else times = nil end
+  if t.next then times = t.next times.prev = nil else times = nil end
+  t.dead = true
   return t
 end
-local function numTimers()
-  local n = 0
+
+local function printTimers()
+  local n,n2 = 0,0
   local t = times
-  while t do n = n + 1 t = t.next end
-  return n
+  local r1,r2 = {},{}
+  while t do n = n + 1 r1[#r1+1]=tostring(t.id) t = t.next end
+  for t,_ in pairs(timers) do n2=n2+1 r2[#r2+1]=tostring(t) end
+  print("Timers:",n,table.concat(r1,","),n2,table.concat(r2,","))
 end
 
-function setTimeoutAuxSpeed(fun,ms,idx,tag,hook)
+function setTimeoutSpeed(ref)
+  DEBUGF('timer',"setTimeoutSpeed:%s %s",ref.id,ref.tag or "")
   local env = TQ.getCoroData(nil,'env')
-  local ta = TQ.socket.gettime() + TQ.getTimeOffset() + ms/1000.0
-  if hook then pcall(hook,true) end
-  return insert(ta,fun,env,idx,tag)
+  ref.timer = insert(ref.time,ref.id,env)
 end
 
-function setTimeoutSpeed(fun,ms,tag,hook)
-  ref = ref+1
-  local refIdx = tostring(ref)
-  local tr = setTimeoutAuxSpeed(fun,ms,refIdx,tag,hook)
-  timers[refIdx] = {ref=tr,time=tr.t,fun=fun,tag=tag,hook=hook}
-  return tonumber(refIdx)
-end
-
-local function rescheduleTimer(ref,fun,ms,tag,hook)
-  local rs = tostring(ref)
-  local nr = tostring(__setTimeout(fun,ms,tag,hook))
-  timers[rs] = timers[nr]
-  timers[nr] = nil
+local function rescheduleTimer(ref)
+  setTimerRef(tostring(ref.id),ref)
+  assert(ref,"Invalid timer reference")
+  DEBUGF('timer',"rescheduleTimer:%s",ref.id)
+  local time = ref.time-TQ.userMilli()
+  ref.ms = time*1000
+  setTimeoutRef(ref)
 end
 
 function setInterval(fun,ms,tag,hook)
-  local ref = nil
+  tag = tag or "interval"
+  local id
+  local ref
   local function loop()
-    rescheduleTimer(ref,loop,ms,tag,hook)
+    setTimeoutRef(ref)
     fun()
   end
-  ref = __setTimeout(loop,ms,tag,hook)  -- passing tag and hook to __setTimeout
-  return ref
+  id = setTimeout(loop,ms,tag,hook)  
+  ref = getTimerRef(id)
+  return id
 end
 
 local function round(x) return math.floor(x+0.5) end
@@ -166,7 +195,7 @@ function TQ.startSpeedTime(hours)
     local start = TQ.userTime()
     local stop,rs = start + hours*3600,nil
 
-    rs = __setTimeout(function()
+    rs = setTimeout(function()
       rs = nil 
       local thours = round((TQ.userTime()-start)/3600)
       TQ.DEBUG("Speed run ended after %s hours, %s",thours,TQ.userDate("%c"))
@@ -176,16 +205,17 @@ function TQ.startSpeedTime(hours)
     TQ.DEBUG("Speed run started, will run for %s hours, until %s",hours,TQ.userDate("%c",round(stop)))
     while speedFlag do
       if times then
+        if TQ.DBG.timer then printTimers() end
         local t = pop()
         if t then
-          local time = t.t
-          local rr = timers[t.idx]
-          if rr and rr.hook then pcall(rr.hook,false) end
-          timers[t.idx] = nil
-          TQ.setTimeOffset(time-TQ.socket.gettime())
-          local stat,err = pcall(t.fun)
+          local ref = getTimerRef(t.id)
+          setTimerRef(t.id,nil)
+          if ref and ref.hook then pcall(ref.hook,false) end
+          local time = t.time
+          TQ.setTimeOffset(time-TQ.milliClock())
+          local stat,err = pcall(ref.fun)
           if not stat then
-            t.env.fibaro.error(tostring(t.env.__TAG),fmt("setTimeout:%s",tostring(err)))
+            t.env._error(fmt("setTimeout:%s",tostring(err)))
           end
         end
       end
@@ -203,15 +233,9 @@ function __speed(hours,hook) -- Start/stop speeding
   local ns = hours > 0
   if ns == speedFlag then return end
   speedFlag = ns
-  -- if not speedFlag then
-  --   print("speed")
-  -- end
-  for ref,t in pairs(timers) do
-    t.ref:cancel() -- Cancel and reschedule all current timers
-    local time = TQ.userTime()-t.time
-    --print("RESCH:",TQ.userDate("%c",t.time),TQ.userDate("%c",TQ.userTime()))
-   -- rescheduleTimer(ref,t.fun,(t.time-TQ.userTime())*1000.0)
-    rescheduleTimer(ref,t.fun,(t.time-TQ.userTime())*1000.0)
+  for t,ref in pairs(timers) do
+    ref.timer:cancel() -- Cancel and reschedule all current timers
+    rescheduleTimer(ref)
   end
   if speedHook then pcall(speedHook,speedFlag) end
   if speedFlag then TQ.startSpeedTime(hours) end
@@ -219,16 +243,21 @@ end
 
 -------------- Exported functions -------------------
 
-function __setTimeout(fun,ms,tag,hook)
-  if speedFlag then return setTimeoutSpeed(fun,ms,tag,hook)
-  else return setTimeoutStd(fun,ms,tag,hook) end
+function setTimeoutRef(ref)
+  timers[tostring(ref.id)] = ref
+  ref.time = TQ.userMilli() + ref.ms/1000.0
+  if speedFlag then 
+    setTimeoutSpeed(ref) 
+  else 
+    setTimeoutStd(ref)
+  end
+  return ref.id
 end
 
-local function __setInterval(fun,ms,tag,hook) return setInterval(fun,ms,tag,hook) end
-
-local function __clearTimeout(ref) return clearTimeout(ref) end
-
-local function __clearInterval(ref) return clearTimeout(ref) end
+function setTimeout(fun,ms,tag,hook)
+  local _,ref = createTimerRef(nil,ms,fun,tag,hook)
+  return setTimeoutRef(ref)
+end
 
 local function midnightLoop()
   local d = TQ.userDate("*t")
@@ -239,9 +268,9 @@ local function midnightLoop()
     local d = TQ.userDate("*t")
     d.hour,d.min,d.sec = 24,0,0
     midnxt = TQ.userTime(d)
-    __setTimeout(loop,(midnxt-TQ.userTime())*1000,"Midnight")
+    setTimeout(loop,(midnxt-TQ.userTime())*1000,"Midnight")
   end
-  __setTimeout(loop,(midnxt-TQ.userTime())*1000,"Midnight")
+  setTimeout(loop,(midnxt-TQ.userTime())*1000,"Midnight")
 end
 
 local function parseTime(str)
@@ -257,10 +286,10 @@ local function parseTime(str)
   return os.time({year=y,month=m,day=d,hour=H,min=M,sec=S})
 end
 
-TQ.exports.__emu_setTimeout = __setTimeout
-TQ.exports.__emu_setInterval = __setInterval
-TQ.exports.__emu_clearTimeout = __clearTimeout
-TQ.exports.__emu_clearInterval = __clearInterval
+TQ.exports.__emu_setTimeout = setTimeout
+TQ.exports.__emu_setInterval = setInterval
+TQ.exports.__emu_clearTimeout = clearTimeout
+TQ.exports.__emu_clearInterval = clearTimeout
 TQ.exports.__emu_speed = __speed
 TQ.cancelTimers = cancelTimers
 TQ.midnightLoop = midnightLoop

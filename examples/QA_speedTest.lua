@@ -6,6 +6,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%name=SpeedTest
 --%%type=com.fibaro.multilevelSwitch
 --%%dark=true
+--%%debug=timer:true
 --%%local=true
 -- %%speed=24*7 -- One week
 
@@ -15,7 +16,7 @@ function QuickApp:interval()
   end,24*3600*1000)
 end
 
-function QuickApp:onInit()
+function QuickApp:onInit2()
   self:debug("onInit",self.name,self.id)
   setTimeout(function() 
     print("PING")
@@ -28,7 +29,7 @@ function QuickApp:onInit()
   self:interval()
 end
 
-function QuickApp:onInit2()
+function QuickApp:onInit()
   self:debug("onInit",self.name,self.id)
   local n,speed = 0,false
   setInterval(function()

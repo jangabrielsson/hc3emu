@@ -65,11 +65,11 @@ local f = io.open(TQ.mainFile)
 if f then 
   local src = f:read("*all") f:close()
   -- We need to do some pre-look dor directives...
-  if src:match("info:false") then DBG.info = false else DBG.info=true end -- Peek 
-  if src:match("dark=true") then DBG.dark = true end
-  if src:match("nodebug=true") then DBG.nodebug = true end
-  if src:match("shellscript=true") then DBG.nodebug = true DBG.shellscript=true end
-  if src:match("silent=true") then DBG.silent = true end
+  if src:match("%-%-%%%%info:false") then DBG.info = false else DBG.info=true end -- Peek 
+  if src:match("%-%-%%%%dark=true") then DBG.dark = true end
+  if src:match("%-%-%%%%nodebug=true") then DBG.nodebug = true end
+  if src:match("%-%-%%%%shellscript=true") then DBG.nodebug = true DBG.shellscript=true end
+  if src:match("%-%-%%%%silent=true") then DBG.silent = true end
   src = src:gsub("#!/usr/bin/env", "--#!/usr/bin/env") -- Fix shebang
   qaInfo.src = src
 else error("Could not read main file") end

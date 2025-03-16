@@ -39,12 +39,13 @@ call:argument("method", "method")
 call:argument("args", "args"):args("*")
 
 local arg = "list devices 602 -p"
-arg = "list globalVariables A -p"
-arg = "qa 602"
-arg = "qa 602 main"
-arg="-h"
-arg="download qa 602"
-arg="call 3476 turnOn 55 {\"color\":0}"
+local arg = "list devices"
+-- arg = "list globalVariables A -p"
+-- arg = "qa 602"
+-- arg = "qa 602 main"
+-- arg="-h"
+-- arg="download qa 602"
+-- arg="call 3476 turnOn 55 {\"color\":0}"
 
 if _DEVELOP then args = string.split(arg) end
 args = parser:parse(args)

@@ -1,10 +1,10 @@
-#!/usr/bin/env lua
+--#!/usr/bin/env lua
 
---_DEVELOP = true
+_DEVELOP = ".."
 SCRIPTNAME = "hc3tool"
 if require and not QuickApp then require("hc3emu") end
 --%%color=false
---%%shell script=true
+--%%shellscript=true
 --%%silent=true
 --%%debug=info:false
 
@@ -23,6 +23,7 @@ list:flag("-p --pretty", "Pretty print")
 local quickApp = parser:command("qa", "QuickApp operations")
 quickApp:argument("id", "QuickApp id"):convert(tonumber)
 quickApp:argument("file", "QuickApp file"):args("?")
+quickApp:option("-f --file", "save to file"):args("?")
 
 local download = parser:command("download", "Download QuickApp or Scene")
 download:argument("what", "qa or scene"):choices({"qa","scene"})
@@ -37,20 +38,14 @@ call:argument("id", "QuickApp id"):convert(tonumber)
 call:argument("method", "method")
 call:argument("args", "args"):args("*")
 
-local apicmd = parser:command("api", "api call")
-apicmd:argument("method", "method"):choices({"get","post","put","delete"})
-apicmd:argument("path", "path")
-apicmd:argument("data", "data"):args("?")
-apicmd:flag("-p --pretty", "Pretty print")
-
 local arg = "list devices 602 -p"
-arg = "list globalVariables A -p"
-arg = "qa 602"
-arg = "qa 602 main"
-arg="-h"
-arg="download qa 602"
-arg="call 3476 turnOn 55 {\"color\":0}"
-arg="api get devices/602 -p"
+local arg = "list devices"
+-- arg = "list globalVariables A -p"
+-- arg = "qa 602"
+-- arg = "qa 602 main"
+-- arg="-h"
+-- arg="download qa 602"
+-- arg="call 3476 turnOn 55 {\"color\":0}"
 
 if _DEVELOP then args = string.split(arg) end
 args = parser:parse(args)
@@ -118,19 +113,6 @@ function cmds.call(args)
   end
   local res,code = fibaro.call(id,cmd,table.unpack(params))
   printf(code)
-end
-
-function cmds.api(args)
-  local method = args.method
-  local path = args.path
-  local data = args.data
-  if path:sub(1,1) ~= "/" then path = "/"..path end
-  local res,code = api[method](path,data and json.decode(data))
-  if args.pretty then
-    printf("%s %s",code,json.encodeFormated(res))
-  else
-    printf("%s %s",code,json.encode(res))
-  end
 end
 
 local stat,err = pcall(function()

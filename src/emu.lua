@@ -83,8 +83,8 @@ TQ.tempDir = os.getenv("TMPDIR") or os.getenv("TEMP") or os.getenv("TMP") or "/t
 
 -- Get home project file, defaults to {}
 DEBUGF('info',"Loading home config file %s",homeCfgFileName)
-local HOME = os.getenv("HOME") or ""
-local homeCfg =TQ.ll(HOME.."/"..homeCfgFileName) or {}
+local HOME = os.getenv("HOME") or os.getenv("homepath") or ""
+local homeCfg = TQ.ll(HOME.."/"..homeCfgFileName) or {}
 
 -- Get project config file, defaults to {}
 DEBUGF('info',"Loading project config file ./%s",cfgFileName)

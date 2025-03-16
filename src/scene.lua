@@ -38,24 +38,22 @@ local function createSceneStruct(info)
   info.created = os.time()
   
   local eventHandler = function(ev)
+    DEBUGF('scene',"Event handler %s",json.encode(ev.event))
     local event = ev.event
     local flag = false
     if event.property == 'execute' then flag = true
     else 
-      local time = TQ.userTime()
-      local sunrise,sunset = TQ.sunCalc(time)
       flag = info.condTest(
       {
+        tmap = TQ.userDate("*t"),
         event=event,
-        time = time,
-        sunset = sunset,
-        sunrise = sunrise
+        time = TQ.userTime(), -- So all rules are evaluated with the same time...
       }
     ) end
     if flag then
-      DEBUGF('scene',"Scene %s triggered by %s",info.id,json.encode(event))
+      DEBUGF('scene',"Scene %s triggered by %s %s",info.id,json.encode(event),TQ.userDate("%c"))
     else
-      DEBUGF('scene',"Scene %s not triggered by %s",info.id,json.encode(event))
+      DEBUGF('scene',"Scene %s not triggered by %s %s",info.id,json.encode(event),TQ.userDate("%c"))
     end
     if flag then TQ.sceneTrigger(event,info.id) end
   end
@@ -97,8 +95,15 @@ function setupDateEvent(engine,ev,eventHandler)
     local value = ev.value
     local offset = value >= 0 and "+"..value or tostring(value)
     engine.event(ev,eventHandler)
-    --ENV.setTimeout(function() post(ev) end,1000*3600*24)
-    engine.post(ev,"n/"..prop..offset)
+    local function fun()
+      engine.post(ev)                     -- Post event at time
+      engine.post(fun,"n/"..prop..offset) -- and reschedule function for next day
+    end
+    engine.post(fun,"n/"..prop..offset) -- This should repeat every day
+  elseif ev.property == 'cron' then
+    -- setup minute event loop that triggers scene
+  elseif ev.property == 'interval' then
+    -- setup minute event loop that triggers scene
   end
 end
 
@@ -168,7 +173,13 @@ local operators = {
   [">="] = function(a,b) return a>= b end,
   ["<="] = function(a,b) return a<= b end,
   ["!="] = function(a,b) return a~= b end,
-  ["anyValue"] = function(_,_) return true end
+  ["anyValue"] = function(_,_) return true end,
+  ['match>'] = function(a,b) return a > b end,
+  ['match>='] = function(a,b) return a >= b end,
+  ['match<='] = function(a,b) return a <= b end,
+  ['match<'] = function(a,b) return a < b end,
+  ['match=='] = function(a,b) return a == b end,
+  ['match!='] = function(a,b) return a ~= b end,
 }
 
 local compilers = {}
@@ -188,16 +199,51 @@ function compilers.device(cond,trs)
   end
   return function(ctx) return op(a(ctx),b()) end
 end
+
+local function compileDateTest(date,op)
+  local function ign(x) return x=='*' and nil or x end
+  local dmap = { 
+    min = ign(date[1]), hour = ign(date[2]), day = ign(date[3]), 
+    month = ign(date[4]), wday = ign(date[5]), year = ign(date[6]) 
+  }
+  return function(cdmap)
+    for k,v in pairs(dmap) do if not op(cdmap[k],v) then return false end end
+    return true
+  end
+end
+
 function compilers.cron(cond,trs)
+  if cond.operator == 'matchInterval' then return compilers.interval(cond,trs) end
+  local value = cond.value
+  local op = operators[cond.operator]
+  local key = table.concat(value,",")
+  local dateTest = compileDateTest(value,op)
+  if cond.isTrigger then
+    trs['cron'..key] = {type='date',property='cron',value=value}
+  end
+  return function(ctx)
+    return dateTest(ctx.tmap) 
+  end
 end
-function compilers.interval(cond)
+
+function compilers.interval(cond,trs)
+  local value = cond.value.date
+  local interval = cond.value.interval
+  local key = table.concat(value,",")..interval
+  if cond.isTrigger then
+    trs['cron'..key] = {type='date',property='interval',value=value,interval=interval}
+  end
+  return function(ctx)
+    return true  
+  end
 end
+
 function compilers.date(cond,trs)
   if cond.property == 'cron' then return compilers.cron(cond,trs) end
   local typ = cond.property
   local value = cond.value or 0
   local a = function(ctx) 
-    local t = ctx[typ]
+    local t = TQ[typ.."Hour"]
     local h,m = t:match("(%d+):(%d+)")
     return 60*tonumber(h)+tonumber(m)+value
   end
@@ -214,6 +260,7 @@ function compilers.date(cond,trs)
     return a == b  
   end
 end
+
 function compilers.cron(cond,trs)
   local value = cond.value
   local op = cond.operator
@@ -228,10 +275,13 @@ function compilers.cron(cond,trs)
   end
   return function(_) return false end
 end
+
 function compilers.weather(cond)
 end
+
 function compilers.alarm(cond)
 end
+
 compilers['global-variable'] = function(cond,trs)
   local name = cond.property
   local value = cond.value
@@ -243,6 +293,7 @@ compilers['global-variable'] = function(cond,trs)
   end
   return function(ctx) return op(a(),b()) end
 end
+
 compilers['custom-event'] = function(cond,trs)
   local name = cond.name
   local value = cond.value

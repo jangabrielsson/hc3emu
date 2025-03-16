@@ -638,6 +638,7 @@ while true do
   local startTime,t0 = os.clock(),os.time()
   TQ._shouldExit = true
   copas(function() 
+    mobdebug.on()
     TQ.post({type='emulator_started'},true)
     if qaInfo.directives.type=='scene' then TQ.runScene(qaInfo)
     else runQA(qaInfo) end

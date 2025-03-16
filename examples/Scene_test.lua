@@ -3,10 +3,11 @@ if require and not QuickApp then require("hc3emu") end
 
 --%%name=Scene test
 --%%type=scene
---%%debug=info:true,scene:true
+--% %offline=true
+--%%debug=info:true,scene:true,post:true
 --%%trigger=3:{type='user',property='execute',id=2} -- start trigger after 3s
---% %trigger=3:{type='device',id=46,property='centralSceneEvent',value={keyAttribute = "Pressed",keyId = 2}} -- start trigger after 3s
---% %speed=24
+--% %tri gger=3:{type='device',id=46,property='centralSceneEvent',value={keyAttribute = "Pressed",keyId = 2}} -- start trigger after 3s
+--%%speed=78
 
 CONDITIONS = {
   conditions = { 
@@ -21,13 +22,13 @@ CONDITIONS = {
         keyId = 2
       }
     },
-    {
-      isTrigger = true,
-      operator = "<=",
-      property = "A",
-      type = "global-variable",
-      value = "20"
-    },
+    -- {
+    --   isTrigger = true,
+    --   operator = "<=",
+    --   property = "A",
+    --   type = "global-variable",
+    --   value = "20"
+    -- },
     {
       type = "date",
       property = "sunrise",
@@ -40,7 +41,17 @@ CONDITIONS = {
 }
 --__emu_speed(7*24)
 print(json.encode(sourceTrigger))
-print("OK",os.time())
+
+local prop = sourceTrigger.property
+if prop == 'execute' then
+  print("Execute with 3s delay")
+  print("Sunrise today is "..fibaro.getValue(1,"sunriseHour"))
+end
+if prop == 'sunrise' then
+  print("Sunrise triggered with "..sourceTrigger.value.." minutes delay")
+  print("Sunrise today is "..fibaro.getValue(1,"sunriseHour"))
+end
+
 -- local a = (tonumber((fibaro.getGlobalVariable("A"))) or 0)
 -- print("UPP")
 -- print(a)

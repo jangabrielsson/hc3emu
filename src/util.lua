@@ -144,12 +144,13 @@ do
   end
   
   ---@diagnostic disable-next-line: param-type-mismatch
-  local function getTimezone() local now = os.time() return os.difftime(now, os.time(os.date("!*t", now))) end
+  local function getTimezone(now) return os.difftime(now, os.time(os.date("!*t", now))) end
   
   function sunCalc(time,latitude,longitude)
     local lat = latitude or 0
     local lon = longitude or 0
-    local utc = getTimezone() / 3600
+    time = time or os.time()
+    local utc = getTimezone(time) / 3600
     local zenith,zenith_twilight = 90.83, 96.0 -- sunset/sunrise 90°50′, civil twilight 96°0′
     
     local date = os.date("*t",time or os.time())
@@ -322,7 +323,7 @@ do
       local lim = {{min=0,max=59},{min=0,max=23},{min=1,max=31},{min=1,max=12},{min=1,max=7},{min=2000,max=3000}}
       for i=1,6 do if seq[i]=='*' or seq[i]==nil then seq[i]=tostring(lim[i].min).."-"..lim[i].max end end
       seq = map(function(w) return string.split(w,",") end, seq)   -- split sequences "3,4"
-      local month0 = os.date("*t",os.time()).month
+      local month0 = TQ.userDate("*t").month
       seq = map(function(t) local m = table.remove(lim,1);
         return flatten(map(function (g) return expandDate({g,m},month0) end, t))
       end, seq) -- expand intervalls "3-5"
@@ -339,8 +340,8 @@ do
       end
     end
     local dateSeq = parseDateStr(dateStr0)
-    return function() -- Pretty efficient way of testing dates...
-      local t = os.date("*t",os.time())
+    return function(time) -- Pretty efficient way of testing dates...
+      local t = TQ.userDate("*t",time)
       if month and month~=t.month then dateSeq=parseDateStr(dateStr0) end -- Recalculate 'last' every month
       if sunPatch and (month and month~=t.month or day~=t.day) then sunPatch(dateSeq) day=t.day end -- Recalculate sunset/sunrise
       return

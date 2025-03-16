@@ -8,6 +8,8 @@
 --Speed timers - done
 --Sync interfaces declared with proxy's current interfaces..
 --plugins.restart() should only affect the current QA, not the whole emulator. Done
+--Refreshstates emulated (several QAs can poll refreshstates) - Done
+--file directive to incude hc3emu.* files - Done
 
 -------------------------------------------
 hc3emu funs

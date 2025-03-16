@@ -6,7 +6,7 @@ local format,copy = string.format,table.copy
 local DEBUG = TQ and TQ.DEBUG or function(...) fibaro.debug(__TAG,format(...)) end
 local WARNING = TQ and TQ.WARNINGF or function(...) fibaro.warning(__TAG,format(...)) end
 local ERRORF = TQ and TQ.ERRORF or function(...) fibaro.error(__TAG,format(...)) end
-local TRACE = TQ and function(tag,str) TQ:DEBUG(str) end or fibaro.trace
+local TRACE = TQ and function(tag,str) TQ.DEBUG(str) end or fibaro.trace
 
 local debugFlags = fibaro and fibaro.debugFlags or TQ and TQ.DBG or {}
 if fibaro then fibaro.debugFlags = debugFlags end
@@ -46,6 +46,7 @@ local function hm2sec(hmstr,ns)
     else
       hmstr,offs = fibaro.getValue(1,sun.."Hour"), tonumber(offs) or 0
     end
+    --print("SUN",hmstr)
   end
   local sg,h,m,s = hmstr:match("^(%-?)(%d+):(%d+):?(%d*)")
   assert(h and m,"Bad hm2sec string "..hmstr)
@@ -57,7 +58,13 @@ local function toTime(time)
   local p = time:sub(1,2)
   if p == '+/' then return hm2sec(time:sub(3))+os.time()
   elseif p == 'n/' then
-    local t1,t2 = midnight()+hm2sec(time:sub(3),true),os.time()
+    local t1,t2 = midnight()+hm2sec(time:sub(3),false),os.time()
+    --print(os.date("A%c",t1))
+    if time:sub(1,5) == 'n/sun' then
+      if t1 <= t2 then t1 = midnight()+24*3600+hm2sec(time:sub(3),true) end
+      --print(os.date("B%c",t1))
+    end
+    --print(os.date("C%c",t2))
     return t1 > t2 and t1 or t1+24*60*60
   elseif p == 't/' then return  hm2sec(time:sub(3))+midnight()
   else return hm2sec(time) end
@@ -94,11 +101,14 @@ local function post(ev,t,log,hook,customLog)
   local now = os.time()
   t = type(t)=='string' and toTime(t) or t or 0
   if type(t)=='table' then
-    print("BAD!")
+    print("BAD!",json.encodeFast(t))
+  end
+  if type(ev) == 'table' then 
+    setmetatable(ev, { __tostring = function() return json.encodeFast(ev) end, })
   end
   if t < 0 then return elseif t < now then t = t+now end
   if debugFlags.post and (type(ev)=='function' or not ev._sh) then 
-    (customLog or TRACE)(__TAG,format("Posting %s at %s %s",tostring(ev),os.date("%c",t),type(log)=='string' and ("("..log..")") or "")) 
+    (customLog or TRACE)(__TAG,format("Posting %s for %s %s",tostring(ev),os.date("%c",t),type(log)=='string' and ("("..log..")") or "")) 
   end
   if type(ev) == 'function' then
     return setTimeout(function() ev(ev) end,1000*(t-now),log),t

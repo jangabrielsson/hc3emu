@@ -48,6 +48,10 @@ local DB = TQ.store.DB
 local function updateSunTime()
   local longitude,latitude = DB.settings.location.longitude,DB.settings.location.latitude
   local sunrise,sunset = TQ.sunCalc(TQ.userTime(),latitude,longitude)
+  TQ.sunriseHour = sunrise
+  print("UPDATESUN",sunrise,TQ.userDate("%c"))
+  TQ.sunsetHour = sunset
+  TQ.sunsetDate = TQ.userDate("%c")
   DB.devices[1].properties.sunriseHour = sunrise
   DB.devices[1].properties.sunsetHour = sunset
 end
@@ -162,8 +166,8 @@ local function installFQA(p,data)
   if info then return info.dev,200 else return nil,401 end
 end
 
-function TQ.EVENT.emulator_started() if TQ.flags.offline then updateSunTime() end end
-function TQ.EVENT.midnight() if TQ.flags.offline then updateSunTime() end end
+function TQ.EVENT.emulator_started()  updateSunTime() end
+function TQ.EVENT.midnight() updateSunTime() end
 
 ------------------- OfflineRoute -----------------------------
 function TQ.OfflineRoute()

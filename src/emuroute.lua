@@ -55,7 +55,11 @@ local function internalStorageDelete(id,key,data)
 end
 
 local function getProp(p,id,prop) -- fetch local properties
-  local qa = TQ.getQA(tonumber(id))
+  id = tonumber(id)
+  local DB = TQ.store.DB
+  if id == 1 and prop == 'sunriseHour' then return {value=DB.devices[1].properties.sunriseHour},200 end
+  if id == 1 and prop == 'sunsetHour' then return {value=DB.devices[1].properties.sunsetHour},200 end
+  local qa = TQ.getQA(id)
   if qa == nil then return nil,301 end
   local value = qa.device.properties[prop]
   return {value=value,modified = qa.device.modified},200

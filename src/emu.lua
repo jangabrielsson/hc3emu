@@ -28,11 +28,12 @@ mobdebug >= 0.80-1
 _DEVELOP = _DEVELOP
 TQ = TQ
 
-local VERSION = "1.0.44"
+local VERSION = "1.0.45"
 
 local cfgFileName = "hc3emu_cfg.lua"   -- Config file in current directory
 local homeCfgFileName = ".hc3emu.lua"  -- Config file in home directory
 
+local fmt = string.format
 -- TQ defined in src/hc3emu.lua
 TQ.DIR={} -- Directory for all QAs - devicesId -> QAinfo 
 TQ.EMUVAR = "TQEMU" -- HC3 GV with connection data for HC3 proxy
@@ -43,8 +44,8 @@ TQ.DBG = { info = true } -- Default flags and debug settings
 ---@diagnostic disable-next-line: undefined-global
 TQ.mainFile = MAINFILE
 TQ.require("hc3emu.util") -- Utility functions
-TQ._require = require
-TQ.dofile = dofile
+TQ.lua = {require = require, dofile = dofile, io = io } -- used from fibaro.hc3emu.lua.x 
+TQ.exports = {} -- functions to export to QA
 
 local DEVICEID = 5000 -- Start id for QA devices
 local qaInfo = { fname = TQ.mainFile, env = {} }
@@ -56,10 +57,6 @@ local DEBUG,DEBUGF, WARNINGF, ERRORF = TQ.DEBUG, TQ.DEBUGF, TQ.WARNINGF, TQ.ERRO
 local addThread = TQ.addThread
 local DBG = TQ.DBG
 local api = TQ.api
-TQ.exports = {} -- functions to export to QA
-TQ.io = io
-
-local fmt = string.format
 
 local f = io.open(TQ.mainFile)
 if f then 
@@ -283,6 +280,7 @@ local function parseDirectives(info) -- adds {directives=flags,files=files} to i
   info.directives = table.merge(table.copy(baseFlags),flags)
   info.files = flags.files
 end
+TQ.parseDirectives = parseDirectives
 
 function MODULE.log() TQ.require("hc3emu.log") end
 
@@ -374,6 +372,7 @@ function MODULE.qa_manager()
     TQ.DIR[id] = info 
     TQ.store.DB.devices[id] = info.device
   end
+
   function TQ.getQA(id) return TQ.DIR[id] end
   
   function TQ.saveProject(info)
@@ -415,6 +414,7 @@ end
 -- Load modules
 for _,m in ipairs(modules) do DEBUGF('modules',"Loading emu module %s",m.name) m.fun() end
 
+-- Attempt to hide type function for debuggers...
 local skip = load("return function(f) return function(...) return f(...) end end")()
 local _type = type
 local luaType = function(obj) -- We need to recognize our class objects as 'userdata' (table with __USERDATA key)
@@ -424,6 +424,9 @@ local luaType = function(obj) -- We need to recognize our class objects as 'user
 end
 luaType = skip(luaType)
 TQ.luaType = luaType
+
+---------- Time functions --------------------------
+--- User has own time that can be an offset to real time
 local orgTime,orgDate,timeOffset = os.time,os.date,0
 function TQ.setTime(t,update)
   if type(t) == 'string' then t = TQ.parseTime(t) end
@@ -438,16 +441,19 @@ function TQ.setTimeOffset(offs) timeOffset = offs end
 function TQ.milliClock() return socket.gettime() end
 local function userTime(a) return a == nil and round(TQ.milliClock() + timeOffset) or orgTime(a) end
 local function userMilli() return TQ.milliClock() + timeOffset end
-local function userDate(a, b) return b == nil and os.date(a, userTime()) or orgDate(a, round(b)) end
+local function userDate(a, b) return b == nil and orgDate(a, userTime()) or orgDate(a, round(b)) end
 function TQ.userTime(a) return userTime(a) end
 function TQ.userMilli() return userMilli() end
 function TQ.userDate(a,b) return userDate(a,b) end
 
 TQ.midnightLoop() -- Setup loop for midnight events
+
+-------------------------------------------------------------
 TQ.route.createConnections() -- Setup connections for API calls
 TQ.connection = TQ.route.hc3Connection
 function setTimeout(fun,ms) return copas.timer.new({name = "SYS",delay = ms / 1000.0, callback = function() mobdebug.on() fun() end}) end
 function clearTimeout(ref) return ref:cancel() end
+
 function TQ.getNextDeviceId() DEVICEID = DEVICEID + 1 return DEVICEID end
 
 function TQ.loadfile(path,env)
@@ -458,6 +464,7 @@ function TQ.loadfile(path,env)
   return loadfile(path,"t",env)()
 end
 
+-------------------------------- QA setup/start ----------------------------
 -- Creates a QA device structure and registers it with the HC3 emulator
 -- @param info Table containing configuration information for the QA
 
@@ -579,8 +586,7 @@ local function loadQAFiles(info)
     getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring,
     type = luaType, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
     error = error, assert = assert, pcall = pcall, xpcall = xpcall, bit32 = require("bit32"),
-    dofile = dofile, package = package, _coroutine = coroutine, io = io, rawset = rawset, rawget = rawget,
-    _loadfile = loadfile
+    rawset = rawset, rawget = rawget,
   }) do env[k] = v end
   env._error = function(str) env.fibaro.error(env.__TAG,str) end
   env.__TAG = info.directives.name..info.id
@@ -611,7 +617,7 @@ local function loadQAFiles(info)
   end
 end
 
-function runQA(info) -- The rest is run in a copas tasks...
+function runQA(info) -- run QA:  create QA struct, load QA files. Runs in a copas task.
   mobdebug.on()
   createQAstruct(info)
   addThread(info.env,function()
@@ -637,8 +643,8 @@ if not flags.silent then print(TQ.colorStr('orange',"HC3Emu - Tiny QuickApp emul
 while true do
   local startTime,t0 = os.clock(),os.time()
   TQ._shouldExit = true
-  copas(function() 
-    mobdebug.on()
+  copas(function() -- This is the first task we create
+    --mobdebug.on()
     TQ.post({type='emulator_started'},true)
     if qaInfo.directives.type=='scene' then TQ.runScene(qaInfo)
     else runQA(qaInfo) end

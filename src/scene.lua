@@ -16,6 +16,7 @@ local ENV = {}
 local function createSceneStruct(info)
   local env = info.env
   ENV = env
+  if info.directive == nil then TQ.parseDirectives(info) end
   local flags = info.directives or {}
   info.id = flags.id or TQ.nextSceneId()
   local os2 = { time = TQ.userTime, clock = os.clock, difftime = os.difftime, date = TQ.userDate, exit = os.exit, remove = os.remove }
@@ -26,8 +27,7 @@ local function createSceneStruct(info)
     getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring,
     type = TQ.luaType, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
     error = error, assert = assert, pcall = pcall, xpcall = xpcall,
-    dofile = dofile, package = package, _coroutine = coroutine, io = io, rawset = rawset, rawget = rawget,
-    _loadfile = loadfile
+    rawset = rawset, rawget = rawget
   }) do env[k] = v end
   
   env._error = function(str) env.fibaro.error(env.tag,str) end
@@ -141,7 +141,7 @@ local function runScene(info) -- Actually, register scene, run when triggered
   loadSceneFile(info)
   if flags.save then saveScene(info.id) end
   if flags.project then saveSceneProject(info) end
-  DEBUGF('info',"Scene %s registered",flags.name)
+  DEBUGF('info',"Scene '%s' registered",flags.name)
   TQ.post({type='scene_registered',id=info.id},true)
   TQ.Scenes[info.id] = info
   for _,tr in pairs(flags.triggers or {}) do

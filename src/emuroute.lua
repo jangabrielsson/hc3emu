@@ -179,5 +179,14 @@ function TQ.EmuRoute() -- Create emulator route, redirecting API calls to emulat
   route:add('GET/plugins/<id>/variables', function(p,id,...) return internalStorageGet(id,...) end) --id,nil,data
   route:add('DELETE/plugins/<id>/variables/<name>', function(p,...) return internalStorageDelete(...) end) --id,key,data
 
+  route:add("POST/scenes/<id>/<name>" , function(p,id,name,data)
+    local scene = TQ.Scenes[tonumber(id)]
+    if scene then 
+      assert(name=='execute',"Invalid scene action")
+      TQ.sceneTrigger({type='user', property='execute',id=2},scene.id) 
+      return nil,200 
+    end
+    return nil,301
+  end) 
   return route
 end

@@ -8,7 +8,8 @@ if require and not QuickApp then require("hc3emu") end
 --%%silent=true
 --%%debug=info:false
 
-local argparse = os.require("argparse")
+local lua = fibaro.hc3emu.lua
+local argparse = lua.require("argparse")
 
 local function ERROR(fmt,...) print(string.format("Error: "..fmt,...)) os.exit(-1) end
 

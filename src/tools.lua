@@ -133,6 +133,18 @@ function TQ.loadQA(path,optionalDirectives,noRun)   -- Load QA from file and may
   end
 end
 
+function TQ.loadScene(path,optionalDirectives)   -- Load Scene from file and maybe run it
+  local f = io.open(path)
+  if f then
+    local src = f:read("*all")
+    f:close()
+    local info = { directives = nil, extraDirectives = optionalDirectives, src = src, fname = path, env = { require=false }, files = {} }
+    return TQ.runScene(info)
+  else
+    TQ.ERRORF("Could not read file %s",path)
+  end
+end
+
 --@F 
 function TQ.loadQAString(src,optionalDirectives) -- Load QA from string and run it
   local path = TQ.tempDir..TQ.createTempName(".lua")

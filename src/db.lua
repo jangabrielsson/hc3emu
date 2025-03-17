@@ -1,6 +1,7 @@
 
 local json = TQ.json
 local api = TQ.api
+local DEBUGF = TQ.DEBUGF
 
 local function keyMap(list,key)
   if list == nil then return {} end
@@ -28,6 +29,41 @@ if hasState then
     mainStore[TQ.mainFile] = store
   end
 end
+
+do
+  local data = TQ.require("hc3emu.stdStructs")
+  local std = json.decode(data)
+  if not store.settings.info then store.settings.info = std.info end
+  if not store.home then store.home = std.home end
+  if not store.settings.location then store.settings.location = std.location end
+  if not store.devices[1] then store.devices[1] = std.device1 end
+end
+
+local function updateSunTime()
+  local longitude,latitude = store.settings.location.longitude,store.settings.location.latitude
+  local sunrise,sunset = TQ.sunCalc(TQ.userTime(),latitude,longitude)
+  TQ.sunriseHour = sunrise
+  TQ.sunsetHour = sunset
+  TQ.sunsetDate = TQ.userDate("%c")
+  DEBUGF('time',"Suntime updated sunrise:%s, sunset:%s",sunrise,sunset)
+  store.devices[1].properties.sunriseHour = sunrise
+  store.devices[1].properties.sunsetHour = sunset
+end
+
+function TQ.EVENT.emulator_started() -- Update lat,long,suntime at startup
+  if TQ.flags.latitude and TQ.flags.longitude then
+    store.settings.location.latitude = TQ.flags.latitude
+    store.settings.location.longitude = TQ.flags.longitude
+  else
+    if not TQ.flags.offline then
+      local loc = api.get("/settings/location")
+      store.settings.location = loc
+    end
+  end
+  updateSunTime()
+end
+
+function TQ.EVENT.midnight() updateSunTime() end -- Update suntime at midnight
 
 local function stripIndex(t)
   local r = {}

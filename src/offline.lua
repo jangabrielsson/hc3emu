@@ -32,29 +32,8 @@ POST/customEvents/<name>
 
 local json = TQ.json
 
-do
-  local store = TQ.store.DB
-  if not (store.settings.info or store.home or store.settings.location or store.devices[1]) then
-    local data = TQ.require("hc3emu.stdStructs")
-    local stdStructs = json.decode(data)
-    store.settings.info,store.home,store.settings.location,store.devices[1] = stdStructs.info,stdStructs.home,stdStructs.location,stdStructs.device1
-  end
-  if TQ.flags.latitude then store.settings.location.latitude = TQ.flags.latitude end
-  if TQ.flags.longitude then store.settings.location.longitude = TQ.flags.longitude end
-end
-
 local DB = TQ.store.DB
-
-local function updateSunTime()
-  local longitude,latitude = DB.settings.location.longitude,DB.settings.location.latitude
-  local sunrise,sunset = TQ.sunCalc(TQ.userTime(),latitude,longitude)
-  TQ.sunriseHour = sunrise
-  print("UPDATESUN",sunrise,TQ.userDate("%c"))
-  TQ.sunsetHour = sunset
-  TQ.sunsetDate = TQ.userDate("%c")
-  DB.devices[1].properties.sunriseHour = sunrise
-  DB.devices[1].properties.sunsetHour = sunset
-end
+local DEBUG = TQ.DEBUG
 
 local filterkeys = {
   parentId=function(d,v) return d.parentId == v end,
@@ -165,9 +144,6 @@ local function installFQA(p,data)
   local info = TQ.installFQAstruct(data)
   if info then return info.dev,200 else return nil,401 end
 end
-
-function TQ.EVENT.emulator_started()  updateSunTime() end
-function TQ.EVENT.midnight() updateSunTime() end
 
 ------------------- OfflineRoute -----------------------------
 function TQ.OfflineRoute()

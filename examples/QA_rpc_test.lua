@@ -11,7 +11,7 @@ local client = [[
 
 function QuickApp:onInit()
   local Foo = fibaro.rpc(5001,"Foo")
-  print("Sum 4+6",Foo(4,6))
+  print("Sum 4+6 =",Foo(4,6))
 end
 
 ]]

@@ -1,0 +1,5 @@
+1.0.45 
+-- fixed Windows home directory bug
+-- timer bug fix
+-- added support for scenes (not all triggers...yet)
+

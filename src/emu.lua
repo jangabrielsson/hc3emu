@@ -28,7 +28,7 @@ mobdebug >= 0.80-1
 _DEVELOP = _DEVELOP
 TQ = TQ
 
-local VERSION = "1.0.45"
+local VERSION = "1.0.46"
 
 local cfgFileName = "hc3emu_cfg.lua"   -- Config file in current directory
 local homeCfgFileName = ".hc3emu.lua"  -- Config file in home directory

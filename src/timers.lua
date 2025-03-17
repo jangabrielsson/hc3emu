@@ -155,7 +155,7 @@ local function printTimers()
   local r1,r2 = {},{}
   while t do n = n + 1 r1[#r1+1]=tostring(t.id) t = t.next end
   for t,_ in pairs(timers) do n2=n2+1 r2[#r2+1]=tostring(t) end
-  print("Timers:",n,table.concat(r1,","),n2,table.concat(r2,","))
+  print(fmt("Timers: list=%s:%s table=%s:%s",n,table.concat(r1,","),n2,table.concat(r2,",")))
 end
 
 function setTimeoutSpeed(ref)
@@ -167,8 +167,9 @@ end
 local function rescheduleTimer(ref)
   setTimerRef(tostring(ref.id),ref)
   assert(ref,"Invalid timer reference")
-  DEBUGF('timer',"rescheduleTimer:%s",ref.id)
+  DEBUGF('timer',"rescheduleTimer:%s %s",ref.id,ref.tag or "")
   local time = ref.time-TQ.userMilli()
+  --print(TQ.userDate("%c",math.floor(ref.time)),TQ.userDate("%c"))
   ref.ms = time*1000
   setTimeoutRef(ref)
 end
@@ -189,8 +190,9 @@ end
 local function round(x) return math.floor(x+0.5) end
 
 local speedFlag = false
-function TQ.startSpeedTime(hours)
-  TQ.addThread(nil,function()
+
+function TQ.startSpeedTimeAux(hours)
+  --TQ.addThread(nil,function()
     speedFlag = true
     local start = TQ.userTime()
     local stop,rs = start + hours*3600,nil
@@ -223,7 +225,7 @@ function TQ.startSpeedTime(hours)
     end
     if rs then rs = clearTimeout(rs) end
     TQ.DEBUG("Normal speed resumed, %s",TQ.userDate("%c"))
-  end)
+  --end)
 end
 
 local speedHook = nil
@@ -238,8 +240,10 @@ function __speed(hours,hook) -- Start/stop speeding
     rescheduleTimer(ref)
   end
   if speedHook then pcall(speedHook,speedFlag) end
-  if speedFlag then TQ.startSpeedTime(hours) end
+  if speedFlag then TQ.startSpeedTimeAux(hours) end
 end
+
+function TQ.startSpeedTime(hours) __speed(hours) end
 
 -------------- Exported functions -------------------
 
@@ -268,8 +272,10 @@ local function midnightLoop()
     local d = TQ.userDate("*t")
     d.hour,d.min,d.sec = 24,0,0
     midnxt = TQ.userTime(d)
+    --print("MID",TQ.userDate("%c",midnxt))
     setTimeout(loop,(midnxt-TQ.userTime())*1000,"Midnight")
   end
+  --print("MID",TQ.userDate("%c",midnxt))
   setTimeout(loop,(midnxt-TQ.userTime())*1000,"Midnight")
 end
 

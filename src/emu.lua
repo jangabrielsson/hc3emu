@@ -600,7 +600,7 @@ local function loadQAFiles(info)
   
   function env.print(...) env.fibaro.debug(env.__TAG,...) end
   
-  if flags.speed then TQ.startSpeedTime(flags.speed) end
+  -- if flags.speed then TQ.startSpeedTime(flags.speed) end
   
   for _,lf in ipairs(info.files) do
     DEBUGF('info',"Loading user file %s",lf.fname)
@@ -633,6 +633,7 @@ function runQA(info) -- run QA:  create QA struct, load QA files. Runs in a copa
       DEBUGF('info',"Starting QuickApp %s",info.device.name)
       TQ.post({type='quickApp_started',id=info.id},true)
       info.env.quickApp = info.env.QuickApp(info.device) -- quickApp defined first when we return from :onInit()...
+      if flags.speed then TQ.startSpeedTime(flags.speed) end
     end
   end)
   return info

@@ -12,10 +12,8 @@ function TQ.nextSceneId() SCENE_ID = SCENE_ID + 1; return SCENE_ID end
 TQ.Scenes = {}
 local setupDateEvent
 
-local ENV = {}
 local function createSceneStruct(info)
   local env = info.env
-  ENV = env
   if info.directive == nil then TQ.parseDirectives(info) end
   local flags = info.directives or {}
   info.id = flags.id or TQ.nextSceneId()
@@ -38,7 +36,7 @@ local function createSceneStruct(info)
   info.created = os.time()
   
   local eventHandler = function(ev)
-    DEBUGF('scene',"Event handler %s",json.encode(ev.event))
+    DEBUGF('scene',"Event handler %s",json.encodeFast(ev.event))
     local event = ev.event
     local flag = false
     if event.property == 'execute' then flag = true
@@ -69,7 +67,6 @@ local function createSceneStruct(info)
   setTimeout = env.setTimeout
   env.tag = "Scene"..info.id
   env.sceneId = info.id
-  ENV = env
   function env.print(...) 
     env.fibaro.debug(env.tag,...) 
   end
@@ -80,7 +77,7 @@ local function createSceneStruct(info)
   TQ.setCoroData(nil,'env',env)
   engine.event({type='user',property='execute'},eventHandler) -- Add event listener for execute
   for _,ev in pairs(triggers) do -- Add event listeners for the type of events that trigger the scene
-    DEBUGF('scene',"Adding event listener for %s",json.encode(ev))
+    DEBUGF('scene',"Adding event listener for %s",json.encodeFast(ev))
     if ev.type=='date' then setupDateEvent(engine,ev,eventHandler) else engine.event(ev,eventHandler) end
   end 
 end
@@ -90,15 +87,15 @@ local function saveScene(id) end
 local function saveSceneProject(info) end
 
 local minuteFuns,mlr = {},nil
-local function minuteLoop()
+local function minuteLoop(env)
   if mlr then return end
   local m = (TQ.userTime() // 60 + 1)*60
   local function loop()
     for _,f in ipairs(minuteFuns) do f() end
     m = m+60
-    mlr = ENV.setTimeout(loop,(m-TQ.userTime())*1000,"minuteLoop")
+    mlr = env.__emu_setTimeout(loop,(m-TQ.userTime())*1000,"minuteLoop",nil)
   end
-  mlr = ENV.setTimeout(loop,(m-TQ.userTime())*1000,"minuteLoop")
+  mlr = env.__emu_setTimeout(loop,(m-TQ.userTime())*1000,"minuteLoop",nil)
 end
 
 function setupDateEvent(engine,ev,eventHandler)
@@ -114,9 +111,11 @@ function setupDateEvent(engine,ev,eventHandler)
     engine.post(fun,"n/"..prop..offset) -- This should repeat every day
   elseif ev.property == 'cron' then
     local event = {type='date',property='cron',value=ev.value}
+    local test = ev.test
     engine.event(event,eventHandler)
     minuteFuns[#minuteFuns+1] = function() 
-      engine.post(event)
+      local t = TQ.userDate("*t")
+      if test(t) then engine.handleEvent(event) end  
     end
   elseif ev.property == 'interval' then
     -- setup minute event loop that triggers scene
@@ -132,25 +131,26 @@ local function triggerScene(info,trigger)
 
   env.__emu_timerHook[1] = function(start,tag)
     if start then timers = timers + 1 else timers = timers - 1 end
-    if timers == 0 then DEBUG("Scene %s terminated", info.id) end
-    --print(timers,start,tag)
+    if timers == 0  then DEBUG("Scene %s terminated", info.id) end
+    --print(t0,timers,start,tag)
   end
 
-  minuteLoop()
+  minuteLoop(info.env)
 
-  setTimeout = env.setTimeout
-  addThread(env,function()
+  -- addThread(env,function()
+env.setTimeout(function()
     TQ.mobdebug.on()
     TQ.setCoroData(nil,'env',env)
     DEBUGF('info',"Loading user main file %s",info.fname)
     DEBUGF('info',"Running scene %s",info.id)
     load(info.src,info.fname,"t",env)()
     if flags.speed then env.__emu_speed(flags.speed) end
-    if timers == 0 then DEBUG("Scene %s terminated", info.id) end
+    --if timers == 0 then DEBUG("Scene %s terminated", info.id) end
     if not TQ.flags.offline then -- Move!
       assert(TQ.URL and TQ.USER and TQ.PASSWORD,"Please define URL, USER, and PASSWORD") -- Early check that creds are available
     end
-  end)
+  -- end)
+  end,0)
 end
 
 local startTr = {type='user', property='execute', id=2}
@@ -213,7 +213,7 @@ function compilers.device(cond,trs)
   if property == 'centralSceneEvent' then
     a = function(ctx) return ctx.event.value or {} end
   else
-    a = function(_) return ENV.fibaro.getValue(id,property) end
+    a = function(ctx) return ctx.fibaro.getValue(id,property) end
   end
   local b = function() return value end
   local op = operators[cond.operator]
@@ -242,7 +242,7 @@ function compilers.cron(cond,trs)
   local key = table.concat(value,",")
   local dateTest = compileDateTest(value,op)
   if cond.isTrigger then
-    trs['cron'..key] = {type='date',property='cron',value=value}
+    trs['cron'..key] = {type='date',property='cron',value=value,test=dateTest}
   end
   return function(ctx)
     return dateTest(ctx.tmap) 
@@ -293,7 +293,7 @@ end
 compilers['global-variable'] = function(cond,trs)
   local name = cond.property
   local value = cond.value
-  local a = function() return ENV.fibaro.getGlobalVariable(name) end
+  local a = function(ctx) return ctx.env.fibaro.getGlobalVariable(name) end
   local b = function() return value end
   local op = operators[cond.operator]
   if cond.isTrigger then
@@ -305,7 +305,7 @@ end
 compilers['custom-event'] = function(cond,trs)
   local name = cond.name
   local value = cond.value
-  local a = function() return ENV.fibaro.getCustomEvent(name) end
+  local a = function(ctx) return ctx.env.fibaro.getCustomEvent(name) end
   local b = function() return value end
   local op = operators[cond.operator]
   if cond.isTrigger then

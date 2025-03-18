@@ -16,7 +16,8 @@ end
 local sceneEngine = {
   event = event,
   post = post,
-  startRefreshListener = startRefreshListener
+  startRefreshListener = startRefreshListener,
+  handleEvent = EVENT.handleEvent,
 }
 
 ---@diagnostic disable-next-line: lowercase-global

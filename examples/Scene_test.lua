@@ -4,7 +4,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%name=Scene test
 --%%type=scene
 --% %offline=true
---%%debug=info:true,scfene:true,pfost:true
+--%%debug=info:true,scejne:true,pfost:true
 --%%trigger=3:{type='user',property='execute',id=2} -- start trigger after 3s
 --% %tri gger=3:{type='device',id=46,property='centralSceneEvent',value={keyAttribute = "Pressed",keyId = 2}} -- start trigger after 3s
 --%%speed=78

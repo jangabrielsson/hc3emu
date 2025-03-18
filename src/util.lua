@@ -396,6 +396,8 @@ local function addThread(env,call,...)
     local stat,res = pcall(call,...) 
     if not stat then
       local env = TQ.getCoroData(nil,'env')
+      res = tostring(res)
+      res = res:gsub('^%[(string) ',function(s) return "[file " end)
       if env then env._error(res)
       else ERRORF("Task error: %s",res) end
       print(TQ.copas.gettraceback("",coroutine.running(),nil))

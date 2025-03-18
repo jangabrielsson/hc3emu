@@ -17,5 +17,20 @@ function QuickApp:onInit()
   --bar()
 
   --setTimeout(foo3,0)
+  net.HTTPClient():request("http://www.google.com",{
+    options = {
+      method = "GET",
+      headers = {
+        ["Content-Type"] = "application/json"
+      }
+    },
+    success = function(response)
+      --foop()
+      print("Success")
+    end,
+    error = function(err)
+      print("Error",err)
+    end
+  })
 end
 

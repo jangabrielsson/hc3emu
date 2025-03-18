@@ -16,6 +16,7 @@ local function createSceneStruct(info)
   local env = info.env
   if info.directive == nil then TQ.parseDirectives(info) end
   local flags = info.directives or {}
+  if flags.debug.scene then TQ.DBG.scene = true end
   info.id = flags.id or TQ.nextSceneId()
   local os2 = { time = TQ.userTime, clock = os.clock, difftime = os.difftime, date = TQ.userDate, exit = os.exit, remove = os.remove }
   local fibaro = { hc3emu = TQ, HC3EMU_VERSION = TQ.VERSION, flags = info.directives, DBG = TQ.DBG }
@@ -131,11 +132,14 @@ local function triggerScene(info,trigger)
 
   env.__emu_timerHook[1] = function(start,tag)
     if start then timers = timers + 1 else timers = timers - 1 end
-    if timers == 0  then DEBUG("Scene %s terminated", info.id) end
+    if timers == 0  then 
+      DEBUG("Scene %s terminated", info.id) 
+      env.__emu_timerHook[1] = nil
+    end
     --print(t0,timers,start,tag)
   end
 
-  minuteLoop(info.env)
+  if trigger.property=='cron' then print("START") minuteLoop(info.env) end
 
   -- addThread(env,function()
 env.setTimeout(function()

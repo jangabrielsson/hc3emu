@@ -34,7 +34,7 @@ local function cancelTimerRef(id)
   if t then
     DEBUGF('timer',"cancelTimerRef:%s",id)
     t.timer:cancel()
-    if t.hook then pcall(t.hook,false) end
+    if t.hook then pcall(t.hook,false,t.tag) end
     timers[id] = nil
   end
 end
@@ -67,7 +67,7 @@ local function callback(_,id)
   DEBUGF('timer',"timer std expire:%s",id)
   setTimerRef(id,nil)
   ref.fun()
-  if ref.hook then pcall(ref.hook,false) end
+  if ref.hook then pcall(ref.hook,false,ref.tag) end
 end
 
 local function setTimeoutAuxStd(ref)
@@ -212,7 +212,7 @@ function TQ.startSpeedTimeAux(hours)
         if t then
           local ref = getTimerRef(t.id)
           setTimerRef(t.id,nil)
-          if ref and ref.hook then pcall(ref.hook,false) end
+          if ref and ref.hook then pcall(ref.hook,false,ref.tag) end
           local time = t.time
           TQ.setTimeOffset(time-TQ.milliClock())
           local stat,err = pcall(ref.fun)
@@ -225,6 +225,7 @@ function TQ.startSpeedTimeAux(hours)
     end
     if rs then rs = clearTimeout(rs) end
     TQ.DEBUG("Normal speed resumed, %s",TQ.userDate("%c"))
+    --printTimers()
   --end)
 end
 
@@ -239,7 +240,7 @@ function __speed(hours,hook) -- Start/stop speeding
     ref.timer:cancel() -- Cancel and reschedule all current timers
     rescheduleTimer(ref)
   end
-  if speedHook then pcall(speedHook,speedFlag) end
+  if speedHook then pcall(speedHook,speedFlag,"__speed") end
   if speedFlag then TQ.startSpeedTimeAux(hours) end
 end
 
@@ -255,6 +256,7 @@ function setTimeoutRef(ref)
   else 
     setTimeoutStd(ref)
   end
+  if ref.hook then pcall(ref.hook,true,ref.tag) end
   return ref.id
 end
 

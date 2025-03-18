@@ -89,8 +89,20 @@ local function loadSceneFile(info) end
 local function saveScene(id) end
 local function saveSceneProject(info) end
 
+local minuteFuns,mlr = {},nil
+local function minuteLoop()
+  if mlr then return end
+  local m = (TQ.userTime() // 60 + 1)*60
+  local function loop()
+    for _,f in ipairs(minuteFuns) do f() end
+    m = m+60
+    mlr = ENV.setTimeout(loop,(m-TQ.userTime())*1000,"minuteLoop")
+  end
+  mlr = ENV.setTimeout(loop,(m-TQ.userTime())*1000,"minuteLoop")
+end
+
 function setupDateEvent(engine,ev,eventHandler)
-  if ev.property == 'sunrise' or ev.properties == 'sunset' then
+  if ev.property == 'sunrise' or ev.property == 'sunset' then
     local prop = ev.property
     local value = ev.value
     local offset = value >= 0 and "+"..value or tostring(value)
@@ -101,7 +113,11 @@ function setupDateEvent(engine,ev,eventHandler)
     end
     engine.post(fun,"n/"..prop..offset) -- This should repeat every day
   elseif ev.property == 'cron' then
-    -- setup minute event loop that triggers scene
+    local event = {type='date',property='cron',value=ev.value}
+    engine.event(event,eventHandler)
+    minuteFuns[#minuteFuns+1] = function() 
+      engine.post(event)
+    end
   elseif ev.property == 'interval' then
     -- setup minute event loop that triggers scene
   end
@@ -113,18 +129,24 @@ local function triggerScene(info,trigger)
   for k,v in pairs(info.env) do env[k] = v end
   env.sourceTrigger = trigger
   local timers = 0
-  env.__emu_timerHook[1] = function(start)
+
+  env.__emu_timerHook[1] = function(start,tag)
     if start then timers = timers + 1 else timers = timers - 1 end
     if timers == 0 then DEBUG("Scene %s terminated", info.id) end
+    --print(timers,start,tag)
   end
+
+  minuteLoop()
+
   setTimeout = env.setTimeout
   addThread(env,function()
     TQ.mobdebug.on()
     TQ.setCoroData(nil,'env',env)
-    if flags.speed then env.__emu_speed(flags.speed) end
     DEBUGF('info',"Loading user main file %s",info.fname)
     DEBUGF('info',"Running scene %s",info.id)
     load(info.src,info.fname,"t",env)()
+    if flags.speed then env.__emu_speed(flags.speed) end
+    if timers == 0 then DEBUG("Scene %s terminated", info.id) end
     if not TQ.flags.offline then -- Move!
       assert(TQ.URL and TQ.USER and TQ.PASSWORD,"Please define URL, USER, and PASSWORD") -- Early check that creds are available
     end
@@ -178,7 +200,8 @@ local operators = {
   ['match>='] = function(a,b) return a >= b end,
   ['match<='] = function(a,b) return a <= b end,
   ['match<'] = function(a,b) return a < b end,
-  ['match=='] = function(a,b) return a == b end,
+  ['match=='] = function(a,b) return a == b end,  
+  ['match'] = function(a,b) return a == b end,
   ['match!='] = function(a,b) return a ~= b end,
 }
 
@@ -201,7 +224,7 @@ function compilers.device(cond,trs)
 end
 
 local function compileDateTest(date,op)
-  local function ign(x) return x=='*' and nil or x end
+  local function ign(x) return x~='*' and tonumber(x) or nil end
   local dmap = { 
     min = ign(date[1]), hour = ign(date[2]), day = ign(date[3]), 
     month = ign(date[4]), wday = ign(date[5]), year = ign(date[6]) 
@@ -259,21 +282,6 @@ function compilers.date(cond,trs)
     --print(TQ.userDate("%c"),a//60,a%60,b//60,b%60)
     return a == b  
   end
-end
-
-function compilers.cron(cond,trs)
-  local value = cond.value
-  local op = cond.operator
-  if op == 'matchInterval' then
-    local cron = value.date
-    local interval = value.interval
-  else
-    local cron = value
-  end
-  if cond.isTrigger then
-    trs[property] = {type='cron',id=nil,propertyName=property}
-  end
-  return function(_) return false end
 end
 
 function compilers.weather(cond)

@@ -1,5 +1,3 @@
-
-
 -- Generated with Cursor...
 if require and not QuickApp then require("hc3emu") end
 
@@ -29,28 +27,25 @@ function QuickApp:buttonClicked()
     self:updateView("button1", "text", "Clicked!")
 end
 
+-- Calculate seconds until next midnight
+function QuickApp:getSecondsToMidnight()
+    local currentTime = os.date("*t")
+    return ((23 - currentTime.hour) * 3600) + 
+           ((59 - currentTime.min) * 60) + 
+           (60 - currentTime.sec)
+end
+
 -- Setup timer to run at midnight
 function QuickApp:setupMidnightTimer()
-    local currentTime = os.date("*t")
-    -- Calculate time until next midnight
-    local secondsToMidnight = ((23 - currentTime.hour) * 3600) + 
-                             ((59 - currentTime.min) * 60) + 
-                             (60 - currentTime.sec)
+    local secondsToMidnight = self:getSecondsToMidnight()
     
     -- Schedule first run
     self:debug("Scheduling midnight timer, first run in " .. secondsToMidnight .. " seconds")
-    fibaro.setTimeout(secondsToMidnight * 1000, function()
+    setTimeout(function()
         self:onMidnight()
-        -- Setup next run (24 hours = 86400 seconds)
-        self:setupDailyTimer()
-    end)
-end
-
--- Setup the recurring daily timer
-function QuickApp:setupDailyTimer()
-    fibaro.setInterval(86400 * 1000, function()
-        self:onMidnight()
-    end)
+        -- Setup next run by recalculating time to next midnight
+        self:setupMidnightTimer()
+    end, secondsToMidnight * 1000)
 end
 
 -- Midnight handler - add your midnight tasks here

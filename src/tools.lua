@@ -133,6 +133,7 @@ function TQ.loadQA(path,optionalDirectives,noRun)   -- Load QA from file and may
   end
 end
 
+--@F 
 function TQ.loadScene(path,optionalDirectives)   -- Load Scene from file and maybe run it
   local f = io.open(path)
   if f then

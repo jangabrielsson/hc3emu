@@ -1,9 +1,11 @@
 -- Generated with Cursor...
+_DEVELOP=true
 if require and not QuickApp then require("hc3emu") end
 
 -- A basic QuickApp example
 -- This QuickApp demonstrates basic structure and functionality
 --%%speed=72
+--%%silent=true
 
 local version = "0.1"
 

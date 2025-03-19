@@ -2,10 +2,19 @@ TQ = TQ
 local fmt = string.format 
 local json = TQ.require("hc3emu.json")
 
-local function DEBUG(f,...) if not (TQ.flags or {}).silent then print("[SYS]",fmt(f,...)) end end
+-- Try to guess in what environment we are running (used for loading extra console colors)
+TQ.isVscode = package.path:lower():match("vscode") ~= nil
+TQ.isZerobrane = package.path:lower():match("zerobrane") ~= nil
+
+local _print = print
+function print(...) if (TQ.DBG or {}).silent then return end; 
+  _print(...)
+end
+
+local function DEBUG(f,...) print("[SYS]",fmt(f,...)) end
 local function DEBUGF(flag,f,...) if TQ.DBG[flag] then DEBUG(f,...) end end
 local function WARNINGF(f,...) print("[SYSWARN]",fmt(f,...)) end
-local function ERRORF(f,...) print("[SYSERR]",fmt(f,...)) end
+local function ERRORF(f,...) _print("[SYSERR]",fmt(f,...)) end
 local function pcall2(f,...) local res = {pcall(f,...)} if res[1] then return table.unpack(res,2) else return nil end end
 local function ll(fn) local f,e = loadfile(fn) if f then return f() else return not tostring(e):match("such file") and error(e) or nil end end
 
@@ -424,6 +433,7 @@ local function cancelThreads(env)
   end
 end
 
+TQ._print = _print
 TQ.DEBUG = DEBUG
 TQ.DEBUGF = DEBUGF
 TQ.WARNINGF = WARNINGF

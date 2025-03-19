@@ -7,10 +7,14 @@ if require and not QuickApp then require("hc3emu") end
 --%%shellscript=true
 --%%silent=true
 --%%debug=info:false,files:false
-local lua = fibaro.hc3emu.lua
-local argparse = lua.require("argparse")
 
-local function ERROR(fmt,...) print(string.format("Error: "..fmt,...)) os.exit(-1) end
+local lua = fibaro.hc3emu.lua
+local path = lua.package.searchpath("argparse",lua.package.path)
+local argparse = lua.loadfile(path,"t",_G)()
+print = lua.print
+local output = lua.print
+
+local function ERROR(fmt,...) output(string.format("Error: "..fmt,...)) os.exit(-1) end
 
 local parser = argparse("hc3tool", "Script to interact with HC3")
 parser:command_target("command")
@@ -23,12 +27,10 @@ list:flag("-p --pretty", "Pretty print")
 local quickApp = parser:command("qa", "QuickApp operations")
 quickApp:argument("id", "QuickApp id"):convert(tonumber)
 quickApp:argument("file", "QuickApp file"):args("?")
-quickApp:option("-f --file", "save to file"):args("?")
 
 local download = parser:command("download", "Download QuickApp or Scene")
 download:argument("what", "qa or scene"):choices({"qa","scene"})
 download:argument("id", "QuickApp or Scene id"):convert(tonumber)
-download:option("-f --file", "save to file"):args("?")
 
 local upload = parser:command("upload", "Upload QuickApp or Scene")
 upload:argument("file", "QuickApp or Scene file, .fqa, .scene")
@@ -49,9 +51,9 @@ local arg = "list devices"
 
 if _DEVELOP then args = string.split(arg) end
 args = parser:parse(args)
-if _DEVELOP then print(json.encode(args)) end
+if _DEVELOP then output(json.encode(args)) end
 
-local function printf(...) _print(string.format(...)) end
+local function printf(...) output(string.format(...)) end
 
 local cmds = {}
 

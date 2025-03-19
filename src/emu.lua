@@ -44,7 +44,7 @@ TQ.DBG = { info = true } -- Default flags and debug settings
 ---@diagnostic disable-next-line: undefined-global
 TQ.mainFile = MAINFILE
 TQ.require("hc3emu.util") -- Utility functions
-TQ.lua = {require = require, dofile = dofile, io = io } -- used from fibaro.hc3emu.lua.x 
+TQ.lua = {require = require, dofile = dofile, loadfile = loadfile, io = io, print = TQ._print, package = package } -- used from fibaro.hc3emu.lua.x 
 TQ.exports = {} -- functions to export to QA
 
 local DEVICEID = 5000 -- Start id for QA devices
@@ -105,10 +105,6 @@ if not DBG.nodebug then
 end
 TQ.mobdebug = mobdebug
 TQ.luadebug = debug
-
--- Try to guess in what environment we are running (used for loading extra console colors)
-TQ.isVscode = package.path:lower():match("vscode") ~= nil
-TQ.isZerobrane = package.path:lower():match("zerobrane") ~= nil
 
 local modules = {}
 local MODULE = setmetatable({},{__newindex = function(t,k,v)
@@ -391,7 +387,7 @@ end
 parseDirectives(qaInfo)
 flags = qaInfo.directives
 DBG = flags.debug
-TQ.DBG = DBG
+--TQ.DBG = DBG
 
 TQ.USER = (flags.creds or {}).user or TQ.USER -- Get credentials, if available
 TQ.PASSWORD = (flags.creds or {}).password or TQ.PASSWORD

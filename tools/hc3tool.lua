@@ -9,9 +9,12 @@ if require and not QuickApp then require("hc3emu") end
 --%%debug=info:false
 
 local lua = fibaro.hc3emu.lua
-local argparse = lua.require("argparse")
+local path = lua.package.searchpath("argparse",lua.package.path)
+local argparse = lua.loadfile(path,"t",_G)()
+print = lua.print
+local output = lua.print
 
-local function ERROR(fmt,...) print(string.format("Error: "..fmt,...)) os.exit(-1) end
+local function ERROR(fmt,...) output(string.format("Error: "..fmt,...)) os.exit(-1) end
 
 local parser = argparse("hc3tool", "Script to interact with HC3")
 parser:command_target("command")
@@ -41,6 +44,7 @@ call:argument("args", "args"):args("*")
 
 local arg = "list devices 602 -p"
 local arg = "list devices"
+local arg = "--help"
 -- arg = "list globalVariables A -p"
 -- arg = "qa 602"
 -- arg = "qa 602 main"
@@ -49,10 +53,11 @@ local arg = "list devices"
 -- arg="call 3476 turnOn 55 {\"color\":0}"
 
 if _DEVELOP then args = string.split(arg) end
-args = parser:parse(args)
-if _DEVELOP then print(json.encode(args)) end
+local stat,res = pcall(parser.parse,parser,args)
+if not stat then ERROR(res) end
+if _DEVELOP then output(json.encode(args)) end
 
-local function printf(...) _print(string.format(...)) end
+local function printf(...) output(string.format(...)) end
 
 local cmds = {}
 

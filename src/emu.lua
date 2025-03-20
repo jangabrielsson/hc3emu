@@ -33,6 +33,11 @@ local VERSION = "1.0.47"
 local cfgFileName = "hc3emu_cfg.lua"   -- Config file in current directory
 local homeCfgFileName = ".hc3emu.lua"  -- Config file in home directory
 
+local win = (os.getenv('WINDIR') or (os.getenv('OS') or ''):match('[Ww]indows'))
+and not (os.getenv('OSTYPE') or ''):match('cygwin') -- exclude cygwin
+TQ.sep = win and '\\' or '/'
+TQ.tempDir = os.getenv("TMPDIR") or os.getenv("TEMP") or os.getenv("TMP") or "/tmp/" -- temp directory
+
 local fmt = string.format
 -- TQ defined in src/hc3emu.lua
 TQ.DIR={} -- Directory for all QAs - devicesId -> QAinfo 
@@ -73,11 +78,6 @@ else error("Could not read main file") end
 
 if not DBG.silent then DEBUGF('info',"Main QA file %s",TQ.mainFile) end
 
-local win = (os.getenv('WINDIR') or (os.getenv('OS') or ''):match('[Ww]indows'))
-and not (os.getenv('OSTYPE') or ''):match('cygwin') -- exclude cygwin
-TQ.sep = win and '\\' or '/'
-TQ.tempDir = os.getenv("TMPDIR") or os.getenv("TEMP") or os.getenv("TMP") or "/tmp/" -- temp directory
-
 -- Get home project file, defaults to {}
 DEBUGF('info',"Loading home config file %s",homeCfgFileName)
 local HOME = os.getenv("HOME") or os.getenv("homepath") or ""
@@ -96,6 +96,7 @@ local copas = require("copas")
 copas.https = require("ssl.https")
 require("copas.timer")
 require("copas.http")
+
 TQ.socket,TQ.copas = socket,copas
 
 local mobdebug = { on = function() end, start = function(_,_) end }
@@ -387,7 +388,6 @@ end
 parseDirectives(qaInfo)
 flags = qaInfo.directives
 DBG = flags.debug
---TQ.DBG = DBG
 
 TQ.USER = (flags.creds or {}).user or TQ.USER -- Get credentials, if available
 TQ.PASSWORD = (flags.creds or {}).password or TQ.PASSWORD
@@ -411,14 +411,13 @@ end
 for _,m in ipairs(modules) do DEBUGF('modules',"Loading emu module %s",m.name) m.fun() end
 
 -- Attempt to hide type function for debuggers...
-local skip = load("return function(f) return function(...) return f(...) end end")()
-local _type = type
-local luaType = function(obj) -- We need to recognize our class objects as 'userdata' (table with __USERDATA key)
+-- We need to recognize our class objects as 'userdata' (table with __USERDATA key)
+local luaTypeCode = [[return function(obj) 
   local t = _type(obj)
   local r = t == 'table' and rawget(obj,'__USERDATA') and 'userdata' or t
   return r
-end
-luaType = skip(luaType)
+end]]
+local luaType,_ = load(luaTypeCode,nil,"t",{_type=TQ._type,rawget=rawget})()
 TQ.luaType = luaType
 
 ---------- Time functions --------------------------
@@ -442,11 +441,12 @@ function TQ.userTime(a) return userTime(a) end
 function TQ.userMilli() return userMilli() end
 function TQ.userDate(a,b) return userDate(a,b) end
 
-TQ.midnightLoop() -- Setup loop for midnight events
+TQ.midnightLoop() -- Setup loop for midnight events, used to ex. update sunrise/sunset hour
 
 -------------------------------------------------------------
-TQ.route.createConnections() -- Setup connections for API calls
+TQ.route.createConnections() -- Setup connections for API calls, emultor/offline/proxy
 TQ.connection = TQ.route.hc3Connection
+-- Our own setTimout, used by non-user code, not working with speed time
 function setTimeout(fun,ms) return copas.timer.new({name = "SYS",delay = ms / 1000.0, callback = function() mobdebug.on() fun() end}) end
 function clearTimeout(ref) return ref:cancel() end
 
@@ -637,6 +637,7 @@ end
 TQ.runQA = runQA
 
 if not flags.silent then print(TQ.colorStr('orange',"HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..VERSION)) end
+
 while true do
   local startTime,t0 = os.clock(),os.time()
   TQ._shouldExit = true

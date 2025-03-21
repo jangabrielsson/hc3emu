@@ -4,6 +4,8 @@ if require and not QuickApp then require("hc3emu") end
 --%%name=Event test
 
 --%%file=../fibemu/examples/EventAndTriggerLib.lua:Events
+
+------ENDOFDIRECTIVES------
 ---@diagnostic disable-next-line: undefined-global
 local Event = Event_std
 Event.id='remote'
@@ -16,7 +18,7 @@ function QuickApp:onInit()
   self:debug("QuickApp Initialized", self.name, self.id)
   self:setupForRemoteEvents()
 
-  fibaro.hc3emu.loadQAString([[
+  fibaro.hc3emu.tools.loadQAString([[
 --%%name=EventSender
 --%%breakOnLoad=true
 --%%file=../fibemu/examples/EventAndTriggerLib.lua:Events

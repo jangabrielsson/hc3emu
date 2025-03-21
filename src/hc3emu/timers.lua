@@ -70,8 +70,8 @@ local function cancelTimers(env)
   if env == nil then 
     for t,_ in pairs(timers) do cancelTimerRef(t) end timers = {} 
   else
-    for t,_ in pairs(timers) do 
-      local cenv = E:getCoroData(t.timer.co,'env')
+    for t,ref in pairs(timers) do 
+      local cenv = E:getCoroData(ref.timer.co,'env')
       if cenv == env then cancelTimerRef(t) end
     end
   end

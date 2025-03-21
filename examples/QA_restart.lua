@@ -8,7 +8,7 @@ if require and not QuickApp then require("hc3emu") end
 local a = fibaro.hc3emu.getCoroData(nil,'env')
 
 if not api.get("/devices/5002") then
-fibaro.hc3emu.loadQAString([[
+fibaro.hc3emu.tools.loadQAString([[
 function QuickApp:onInit()
   self:debug("B started",self.id)
   self:debug("Memory:",collectgarbage("count"),"KB")
@@ -27,7 +27,6 @@ function QuickApp:onInit()
   self:debug("A started",self.id)
   self:debug("Memory:",collectgarbage("count"),"KB")
 
-  local a = fibaro.hc3emu.getCoroData(nil,'env')
   setTimeout(function()
     print("A Restarting...")
     plugin.restart()

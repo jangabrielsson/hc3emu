@@ -189,10 +189,10 @@ local function EmuRoute() -- Create emulator route, redirecting API calls to emu
   route:add('DELETE/plugins/<id>/variables/<name>', function(p,...) return internalStorageDelete(...) end) --id,key,data
 
   route:add("POST/scenes/<id>/<name>" , function(p,id,name,data)
-    local scene = E.Scenes[tonumber(id)]
+    local scene = E.scene.scenes[tonumber(id)]
     if scene then 
       assert(name=='execute',"Invalid scene action")
-      E:sceneTrigger({type='user', property='execute',id=2},scene.id) 
+      scene:trigger({type='user', property='execute',id=2}) 
       return nil,200 
     end
     return nil,301

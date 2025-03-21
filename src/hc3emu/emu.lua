@@ -23,7 +23,7 @@ bit32 >= 5.3.5.1-1
 lua-websockets-bit32 >= 2.0.1-7
 mobdebug >= 0.80-1
 --]]
-local VERSION = "1.0.48"
+local VERSION = "1.0.49"
 local class = require("hc3emu.class")
 
 local fmt = string.format
@@ -145,7 +145,14 @@ function Emulator:init(debug)
 end
 
 function Emulator:DEBUG(f,...) print("[SYS]",fmt(f,...)) end
-function Emulator:DEBUGF(flag,f,...) if self.DBG[flag] then self:DEBUG(f,...) end end
+function Emulator:DEBUGF(flag,f,...) 
+  local env = self:getCoroData(nil,'env')
+  if env and env.__debugFlags then 
+    local v = env.__debugFlags[flag]
+    if v~=nil then if v then self:DEBUG(f,...) end return end
+  end
+  if self.DBG[flag] then self:DEBUG(f,...) end
+end
 function Emulator:WARNINGF(f,...) print("[SYSWARN]",fmt(f,...)) end
 function Emulator:ERRORF(f,...) _print("[SYSERR]",fmt(f,...)) end
 
@@ -213,7 +220,7 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
       local name,expr = v:match("(.-):(.*)")
       assert(name and expr,"Bad debug directive: "..d) 
       local e = eval(expr,d)
-      if e then flags.debug[name] = e end
+      if e~=nil then flags.debug[name] = e end
     end
   end
   --@D u=<expr> - Adds UI element, ex. --%%u={button='bt1',text="MyButton",onReleased="myButton"}
@@ -577,6 +584,7 @@ function Emulator:runQA(info) -- run QA:  create QA struct, load QA files. Runs 
   self:addThread(info.env,function()
     self:setCoroData(nil,'env',info.env)
     local flags = info.directives or {}
+    info.env.__debugFlags = flags.debug or {}
     local firstLine,onInitLine = self.tools.findFirstLine(info.src)
     if flags.breakOnLoad and firstLine then self.mobdebug.setbreakpoint(info.fname,firstLine) end
     self:loadQAFiles(info)

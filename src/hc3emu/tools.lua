@@ -139,7 +139,7 @@ local function loadScene(path,optionalDirectives)   -- Load Scene from file and 
     local src = f:read("*all")
     f:close()
     local info = { directives = nil, extraDirectives = optionalDirectives, src = src, fname = path, env = { require=false }, files = {} }
-    return E.scene.runScene(info)
+    return E.scene.Scene(info):run()
   else
     E:ERRORF("Could not read file %s",path)
   end

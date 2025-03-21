@@ -12,7 +12,7 @@ if require and not QuickApp then require("hc3emu") end
 
 function QuickApp:onInit()
     self:debug("onInit",self.name,self.id)
-    fibaro.hc3emu.loadQA("examples/QA_test.lua")
+    fibaro.hc3emu.tools.loadQA("examples/QA_test.lua")
     setInterval(function()
       print("PING")
     end,2000)

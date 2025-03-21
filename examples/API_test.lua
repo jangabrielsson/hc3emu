@@ -6,6 +6,7 @@ if require and not QuickApp then require("hc3emu") end
 
 --%%name=APItest
 --%%proxy=TestProxy
+--%%debug=info:false,foo:true
 --%%dark=true
 --%%local=true
 

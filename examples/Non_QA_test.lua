@@ -11,7 +11,7 @@ setTimeout(function() print("Hello again!") end, 1000)
 
 -- Create QA from string and run it
 -- Also, set directive breakOnLoad which will make the debugger stop on the first code line in the QA (in a new window)
-fibaro.hc3emu.loadQAString([[
+fibaro.hc3emu.tools.loadQAString([[
 --%%name=Test42
 --%%breakOnInit=true
 --%%save=test.fqa

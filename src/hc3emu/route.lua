@@ -23,6 +23,7 @@ local function errorWrapper(fun)
       if type(err) == 'table' then
         return nil,err.code,err.message
       else
+        print(err)
         return nil,500,err
       end
     end

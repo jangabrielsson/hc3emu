@@ -30,9 +30,9 @@ function Scene:createSceneStruct()
   local env = self.env
   if self.info.directives == nil then E:parseDirectives(self.info) end
   self.flags = self.info.directives
+  env.__debugFlags = self.flags.debug or {}
   self.name = self.flags.name
   local flags = self.flags
-  if flags.debug.scene then E.DBG.scene = true E.DBG.post = true end
   self.id = flags.id or self:nextId()
   local os2 = { time = userTime, clock = os.clock, difftime = os.difftime, date = userDate, exit = os.exit, remove = os.remove }
   local fibaro = { hc3emu = E, HC3EMU_VERSION = E.VERSION, flags = flags, DBG = E.DBG }
@@ -145,7 +145,7 @@ function Scene:trigger(trigger) -- Start scene
   env.setTimeout(function()
     E.mobdebug.on()
     E:setCoroData(nil,'env',env)
-    E:DEBUGF('info',"Loading user main file %s",self.fname)
+    E:DEBUGF('scene',"Loading user main file %s",self.fname)
     E:DEBUGF('info',"Running scene %s",self.id)
     load(self.src,self.fname,"t",env)()
     if flags.speed then env.__emu_speed(flags.speed) end

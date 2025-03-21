@@ -12,7 +12,14 @@ function print(...) if (E.DBG or {}).silent then return end;
 end
 
 local function DEBUG(f,...) print("[SYS]",fmt(f,...)) end
-local function DEBUGF(flag,f,...) if E.DBG[flag] then DEBUG(f,...) end end
+local function DEBUGF(flag,f,...) 
+  local env = E:getCoroData(nil,'env')
+  if env and env.__debugFlags then 
+    local v = env.__debugFlags[flag]
+    if v~=nil then if v then DEBUG(f,...) end return end
+  end
+  if E.DBG[flag] then DEBUG(f,...) end
+end
 local function WARNINGF(f,...) print("[SYSWARN]",fmt(f,...)) end
 local function ERRORF(f,...) _print("[SYSERR]",fmt(f,...)) end
 local function pcall2(f,...) local res = {pcall(f,...)} if res[1] then return table.unpack(res,2) else return nil end end

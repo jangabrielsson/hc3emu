@@ -15,7 +15,7 @@ function QuickApp:onInit()
 end
 
 ]]
-  fibaro.hc3emu.loadQAString(client)
+  fibaro.hc3emu.tools.loadQAString(client)
 end
 
 function Foo(a,b) return a+b end

@@ -29,7 +29,7 @@ net.HTTPClient():request(url,{
     headers = {
      ['Accept'] = 'application/json',
      ['Content-Type'] = 'application/json',
-     ['Authorization'] = "Bearer "..base64encode("jan@gabrielsson.com:Dani0961!")
+     ['Authorization'] = "Bearer "..base64encode("xxxx")
     },
     checkCertificate = true
   },

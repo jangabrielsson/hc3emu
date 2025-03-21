@@ -1,16 +1,17 @@
-TQ = TQ
-local DEBUGF = TQ.DEBUGF
-local DEBUG = TQ.DEBUG
-local api = TQ.api
-local copas = TQ.copas
-local socket = TQ.socket
-local json = TQ.json
-local mobdebug = TQ.mobdebug
-local urlencode = TQ.urlencode
-
+local exports = {}
+local E = setmetatable({},{ __index=function(t,k) return exports.emulator[k] end, __newindex=function(t,k,v) exports.emulator[k]=v end })
+local json = require("hc3emu.json")
+local copas = require("copas")
+local socket = require("socket")
+local urlencode
 local fmt = string.format
 
-function TQ.createProxy(name,devTempl)
+local function init()
+  urlencode = E.util.urlencode
+  E.route.ProxyRoute = exports.ProxyRoute
+end
+
+local function createProxy(name,devTempl)
   local code = [[
 local fmt = string.format
 local con = nil
@@ -117,37 +118,37 @@ end
     files = {{name="main", isMain=true, isOpen=false, type='lua', content=code}},
   }
   --print(json.encode(fqa))
-  local res,code2 = api.post("/quickApp/", fqa)
+  local res,code2 = E:apipost("/quickApp/", fqa)
   return res
 end
 
-function TQ.getProxy(name,devTempl)
-  local devStruct = api.get("/devices?name="..urlencode(name))
+local function getProxy(name,devTempl)
+  local devStruct = E:apiget("/devices?name="..urlencode(name))
   assert(type(devStruct)=='table',"API error")
   if next(devStruct)==nil then
-    devStruct = TQ.createProxy(name,devTempl)
-    if not devStruct then return TQ.ERROR("Can't create proxy on HC3") end
+    devStruct = createProxy(name,devTempl)
+    if not devStruct then return E:ERROR("Can't create proxy on HC3") end
     devStruct.id = math.floor(devStruct.id)
-    DEBUG("Proxy installed: %s %s",devStruct.id,name)
+    E:DEBUG("Proxy installed: %s %s",devStruct.id,name)
   else
     devStruct = devStruct[1]
     devStruct.id = math.floor(devStruct.id)
-    DEBUG("Proxy found: %s %s",devStruct.id,name)
+    E:DEBUG("Proxy found: %s %s",devStruct.id,name)
   end
-  TQ.proxyId = devStruct.id
+  E.proxyId = devStruct.id
   
   return devStruct
 end
 
 local callRef = {}
 local ref = 0
-function TQ.callAPIFUN(method,path,data)
+local function callAPIFUN(method,path,data)
   local id = ref; ref = ref+1
   local msg = {false,nil,'timeout'}
   local semaphore = copas.semaphore.new(10, 0, 100)
   local args = {id,method,path,data}
   local stat,res = pcall(function()
-  TQ.HC3Call("POST","/devices/"..TQ.proxyId.."/action/APIFUN",{args=args})
+  E:HC3Call("POST","/devices/"..E.proxyId.."/action/APIFUN",{args=args})
   end)
   copas.pause(0)
   callRef[id] = function(data) msg = data; semaphore:give(1) end
@@ -157,53 +158,53 @@ function TQ.callAPIFUN(method,path,data)
 end
 
 local started = false
-function TQ.startServer(id)
+local function startServer(id)
   if started then return end
   started = true
-  DEBUGF('info',"Server started at %s:%s",TQ.emuIP,TQ.emuPort)
-  
+  E:DEBUGF('info',"Server started at %s:%s",E.emuIP,E.emuPort)
+
   local function handle(skt)
-    mobdebug.on()
+    E.mobdebug.on()
     local name = skt:getpeername() or "N/A"
-    TQ._client = skt
-    DEBUGF("server","New connection: %s",name)
+    E._client = skt
+    E:DEBUGF("server","New connection: %s",name)
     while true do
       local reqdata = copas.receive(skt)
       if not reqdata then break end
       local stat,msg = pcall(json.decode,reqdata)
       if stat then
         local deviceId = msg.deviceId
-        local QA = TQ.getQA(deviceId)
+        local QA = E:getQA(deviceId)
         if QA and msg.type == 'action' then QA.env.onAction(msg.value.deviceId,msg.value)
         elseif QA and msg.type == 'ui' then QA.env.onUIEvent(msg.value.deviceId,msg.value)
         elseif msg.type == 'resp' then
           if callRef[msg.id] then local c = callRef[msg.id] callRef[msg.id] = nil pcall(c,msg.value) end
-        else DEBUGF('server',"Unknown data %s",reqdata) end
+        else E:DEBUGF('server',"Unknown data %s",reqdata) end
       end
     end
-    TQ._client = nil
-    DEBUGF("server","Connection closed: %s",name)
+    E._client = nil
+    E:DEBUGF("server","Connection closed: %s",name)
   end
-  local server,err= socket.bind('*', TQ.emuPort)
-  if not server then error(fmt("Failed open socket %s: %s",TQ.emuPort,tostring(err))) end
-  TQ._server = server
+  local server,err = socket.bind('*', E.emuPort)
+  if not server then error(fmt("Failed open socket %s: %s",E.emuPort,tostring(err))) end
+  E._server = server
   copas.addserver(server, handle)
 end
 
 ------------------- ProxyRoute -------------------------------------
-function TQ.ProxyRoute()
-  local route = TQ.route.createRouteObject()
+local function ProxyRoute()
+  local route = E.route.createRouteObject()
   
   local function block(p,data)
-    DEBUGF('blockAPI',"Blocked API: %s",p)
+    E:DEBUGF('blockAPI',"Blocked API: %s",p)
     return nil,501
   end
   
   local function proxyAPI(p,data)
-    DEBUGF('proxyAPI',"proxyAPI: %s",p)
-    if not TQ.proxyId then return nil,501 end
+    E:DEBUGF('proxyAPI',"proxyAPI: %s",p)
+    if not E.proxyId then return nil,501 end
     local method,path = p:match("(.-)(/.+)") -- split method and path
-    local res = TQ.callAPIFUN(method:lower(),path,data)
+    local res = callAPIFUN(method:lower(),path,data)
     local _,d,c = table.unpack(res,1)
     if type(d)=='function' then d = nil end
     return d,c
@@ -211,31 +212,31 @@ function TQ.ProxyRoute()
   
   local function getDevices(p,query)
     -- Get all devices from HC3
-    local qas = api.get('/devices')
+    local qas = E:apiget('/devices')
       -- Add emulated QAs 
-    for id,q in pairs(TQ.DIR) do
+    for id,q in pairs(E.DIR) do
       if id >= 5000 then qas[#qas+1] = q.device end
     end
-    if next(query) then return TQ.queryFilter(query,qas),200 end   -- if query, filter the list.
+    if next(query) then return E.offline.queryFilter(query,qas),200 end   -- if query, filter the list.
     return qas,200
   end
 
   local function putProp(p,data)
-    if data.deviceId == TQ.proxyId then
-      local qa = TQ.getQA(data.deviceId)
+    if data.deviceId == E.proxyId then
+      local qa = E:getQA(data.deviceId)
       qa.device.properties[data.propertyName] = data.value
     end
-    if TQ.proxyId then return nil,301
+    if E.proxyId then return nil,301
     else return nil,200 end
   end
   
   local function blockParentId(p,data)
-    if TQ.getQA(data.parentId) and not TQ.proxyId then return block(p,data) end
+    if E:getQA(data.parentId) and not E.proxyId then return block(p,data) end
     return nil,301
   end
   
   local function blockIfEmulated(p,id,data)
-    if TQ.getQA(tonumber(id)) then return block(p,data)
+    if E:getQA(tonumber(id)) then return block(p,data)
     else return nil,301 end
   end
   
@@ -244,17 +245,17 @@ function TQ.ProxyRoute()
   end
   
   local function putStruct(p,id,d) -- Update local struct, and then update HC3...
-    local qa = TQ.getQA(tonumber(id))
+    local qa = E:getQA(tonumber(id))
     if qa then
       for k,v in pairs(d) do qa.dev[k] = v end -- update local properties 
-      if TQ.proxyId then return nil,301 -- and update the HC3 proxy 
+      if E.proxyId then return nil,301 -- and update the HC3 proxy 
       else return d,200 end
     else return nil,301 end
   end
   
   local function installFQA(p,data)
-    if TQ.installLocal then
-      local info = TQ.installFQAstruct(data)
+    if E.installLocal then
+      local info = E:installFQAstruct(data)
       if info then return info.dev,200 else return nil,401 end
     else return nil,301 end
   end
@@ -271,3 +272,12 @@ function TQ.ProxyRoute()
   route:add('POST/quickApp/',installFQA)                   -- Install a new FQA
   return route
 end
+
+
+exports.createProxy = createProxy
+exports.getProxy = getProxy
+exports.startServer = startServer
+exports.ProxyRoute = ProxyRoute
+exports.init = init
+
+return exports

@@ -1,13 +1,22 @@
 --[[ Emulator api routes
 --]]
-TQ=TQ
-local json = TQ.json
+local exports = {}
+local E = setmetatable({},{ __index=function(t,k) return exports.emulator[k] end })
 
 local fmt = string.format
 
-local getDeviceStore = TQ.store.getDevice
-local flushStore = TQ.store.flush
-local internalStore = TQ.store.DB.internalStorage
+local getDeviceStore
+local flushStore
+local internalStore
+local DB
+
+local function init()
+  getDeviceStore = E.store.getDevice
+  flushStore = E.store.flush
+  internalStore = E.store.DB.internalStorage
+  DB = E.store.DB
+  E.route.EmuRoute = exports.EmuRoute
+end
 
 local function internalStoragePut(id,key,data)
   local store = internalStore[id] or {}
@@ -56,23 +65,23 @@ end
 
 local function getProp(p,id,prop) -- fetch local properties
   id = tonumber(id)
-  local DB = TQ.store.DB
   if id == 1 and prop == 'sunriseHour' then return {value=DB.devices[1].properties.sunriseHour},200 end
   if id == 1 and prop == 'sunsetHour' then return {value=DB.devices[1].properties.sunsetHour},200 end
-  local qa = TQ.getQA(id)
+  local qa = E:getQA(id)
   if qa == nil then return nil,301 end
   local value = qa.device.properties[prop]
   return {value=value,modified = qa.device.modified},200
 end
 
 local function callAction(p,id,name,data)
-  local qa = TQ.getQA(tonumber(id))
+  local qa = E:getQA(tonumber(id))
   if qa == nil then return nil,301 end
-  qa.qa:callAction(name,table.unpack(data.args)) return 'OK',200
+  qa.qa:callAction(name,table.unpack(data.args)) 
+  return 'OK',200
 end
 
 local function putData(p,id,data) -- Update local device properties
-  local qa = TQ.getQA(tonumber(id))
+  local qa = E:getQA(tonumber(id))
   if qa == nil then return nil,301 end
   local device = qa.device
   if data.properties then
@@ -89,7 +98,7 @@ local function findFile(name,files)
 end
 
 local function getQAfiles(p,id,name) 
-  local qa = TQ.getQA(tonumber(id))
+  local qa = E:getQA(tonumber(id))
   if not qa then return nil,301 end
   if name == nil then
     local fs = {}
@@ -106,7 +115,7 @@ local function getQAfiles(p,id,name)
 end
 
 local function createQAfile(p,id,data) 
-  local qa = TQ.getQA(tonumber(id))
+  local qa = E:getQA(tonumber(id))
   if not qa then return nil,301 end
   if findFile(data.name,qa.files) then return nil,409 end
   data.fname="new" -- What fname to give it?
@@ -115,7 +124,7 @@ local function createQAfile(p,id,data)
 end
 
 local function setQAfiles(p,id,name,data) 
-  local qa = TQ.getQA(tonumber(id))
+  local qa = E:getQA(tonumber(id))
   if not qa then return nil,301 end
   local files = data
   if name then files = {data} end
@@ -136,7 +145,7 @@ local function setQAfiles(p,id,name,data)
 end
 
 local function deleteQAfiles(p,id,name) 
-  local qa = TQ.getQA(tonumber(id))
+  local qa = E:getQA(tonumber(id))
   if not qa then return nil,301 end
   local i = findFile(name,qa.files)
   if i then 
@@ -147,11 +156,11 @@ end
 
 --------------- EmuRoute -----------------------------------------------------------------
 
-function TQ.EmuRoute() -- Create emulator route, redirecting API calls to emulated devices
-  local route = TQ.route.createRouteObject()
+local function EmuRoute() -- Create emulator route, redirecting API calls to emulated devices
+  local route = E.route.createRouteObject()
 
   route:add('GET/devices/<id>',function(p,id,d)  -- Fetch our local device structure
-    local qa = TQ.getQA(tonumber(id))
+    local qa = E:getQA(tonumber(id))
     if qa == nil then return nil,301 end
     return qa.device,200 
   end)
@@ -160,9 +169,9 @@ function TQ.EmuRoute() -- Create emulator route, redirecting API calls to emulat
   route:add('GET/devices/<id>/properties/<name>',getProp) -- Get properties from ourselves, fetch it locally
   
   route:add('GET/quickApp/export/<id>',function(p,id,_)  -- Get our local QA
-    local qa = TQ.getQA(tonumber(id))
+    local qa = E:getQA(tonumber(id))
     if qa == nil then return nil,301 end
-    return TQ.getFQA(tonumber(id)),200 
+    return E:getFQA(tonumber(id)),200 
   end)
 
   -- QuickApp file methods 
@@ -180,13 +189,17 @@ function TQ.EmuRoute() -- Create emulator route, redirecting API calls to emulat
   route:add('DELETE/plugins/<id>/variables/<name>', function(p,...) return internalStorageDelete(...) end) --id,key,data
 
   route:add("POST/scenes/<id>/<name>" , function(p,id,name,data)
-    local scene = TQ.Scenes[tonumber(id)]
+    local scene = E.Scenes[tonumber(id)]
     if scene then 
       assert(name=='execute',"Invalid scene action")
-      TQ.sceneTrigger({type='user', property='execute',id=2},scene.id) 
+      E:sceneTrigger({type='user', property='execute',id=2},scene.id) 
       return nil,200 
     end
     return nil,301
   end) 
   return route
 end
+
+exports.init = init
+exports.EmuRoute = EmuRoute
+return exports

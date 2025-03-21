@@ -8,10 +8,10 @@
        -- EmuRoute -> HC3Route
        HC3Route
 --]]
-TQ = TQ
+local exports = {}
+local E = setmetatable({},{ __index=function(t,k) return exports.emulator[k] end })
+
 local fmt = string.format
-local DBG = TQ.DBG
-local DEBUGF = TQ.DEBUGF
 
 local function errorWrapper(fun) 
   return function(...) 
@@ -88,7 +88,7 @@ local function Route()   -- passThroughHandler is a function that takes method,p
     end
     local handler,vars = self:getRoute(method,flags.lookupPath)
     if not handler then return nil,nil end
-    if not flags.silent and DBG.http then DEBUGF('http',"API: %s%s",method,flags.lookupPath) end
+    if not flags.silent and E.DBG.http then E:DEBUGF('http',"API: %s%s",method,flags.lookupPath) end
     local args = {flags.callPath,table.unpack(vars)}
     args[#args+1] = data
     args[#args+1] = flags.query
@@ -103,7 +103,7 @@ local NotImplementedRoute = {
 }
 
 local HC3Route = {
-  call = function(_,method,path,data,flags) return TQ.HC3Call(method,path,data,flags) end,
+  call = function(_,method,path,data,flags) return E:HC3Call(method,path,data,flags) end,
 }
 
 local function Connection()
@@ -124,24 +124,23 @@ local route
 
 local function createConnections()
   local con = Connection()
-  con:addRoute(TQ.EmuRoute())
-  con:addRoute(TQ.OfflineRoute())
+  con:addRoute(E.route.EmuRoute())
+  con:addRoute(E.route.OfflineRoute())
   con:addRoute(NotImplementedRoute)
-  route.offlineConnection = con
+  exports.offlineConnection = con
 
   con = Connection()
-  con:addRoute(TQ.EmuRoute())
-  con:addRoute(TQ.ProxyRoute())
+  con:addRoute(E.route.EmuRoute())
+  con:addRoute(E.route.ProxyRoute())
   con:addRoute(HC3Route)
-  route.proxyConnection = con
+  exports.proxyConnection = con
 
   con = Connection()
   con:addRoute(HC3Route)
-  route.hc3Connection = con
+  exports.hc3Connection = con
 end
 
-route = {
-  createRouteObject = Route,
-  createConnections = createConnections,
-}
-TQ.route = route
+exports.createRouteObject = Route
+exports.createConnections = createConnections
+
+return exports

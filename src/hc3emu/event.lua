@@ -1,14 +1,15 @@
 
-TQ = TQ -- hc3emu compat
+local E = fibaro.hc3emu
 if fibaro then fibaro.FILE = fibaro.FILE or {} end
-local json = json or TQ.json
+local json = json or E.json
+local __TAG = tag or __TAG
 local format,copy = string.format,table.copy
-local DEBUG = TQ and TQ.DEBUG or function(...) fibaro.debug(__TAG,format(...)) end
-local WARNING = TQ and TQ.WARNINGF or function(...) fibaro.warning(__TAG,format(...)) end
-local ERRORF = TQ and TQ.ERRORF or function(...) fibaro.error(__TAG,format(...)) end
-local TRACE = TQ and function(tag,str) TQ.DEBUG(str) end or fibaro.trace
+local DEBUG = function(...) fibaro.debug(__TAG,format(...)) end
+local WARNING = function(...) fibaro.warning(__TAG,format(...)) end
+local ERRORF = function(...) fibaro.error(__TAG,format(...)) end
+local TRACE = function(...) fibaro.trace(__TAG,format(...)) end
 
-local debugFlags = fibaro and fibaro.debugFlags or TQ and TQ.DBG or {}
+local debugFlags = fibaro and fibaro.debugFlags or E and E.DBG or {}
 if fibaro then fibaro.debugFlags = debugFlags end
 
 local exports = {}
@@ -59,12 +60,9 @@ local function toTime(time)
   if p == '+/' then return hm2sec(time:sub(3))+os.time()
   elseif p == 'n/' then
     local t1,t2 = midnight()+hm2sec(time:sub(3),false),os.time()
-    --print(os.date("A%c",t1))
     if time:sub(1,5) == 'n/sun' then
       if t1 <= t2 then t1 = midnight()+24*3600+hm2sec(time:sub(3),true) end
-      --print(os.date("B%c",t1))
     end
-    --print(os.date("C%c",t2))
     return t1 > t2 and t1 or t1+24*60*60
   elseif p == 't/' then return  hm2sec(time:sub(3))+midnight()
   else return hm2sec(time) end
@@ -108,7 +106,11 @@ local function post(ev,t,log,hook,customLog)
   end
   if t < 0 then return elseif t < now then t = t+now end
   if debugFlags.post and (type(ev)=='function' or not ev._sh) then 
-    (customLog or TRACE)(__TAG,format("Posting %s for %s %s",tostring(ev),os.date("%c",t),type(log)=='string' and ("("..log..")") or "")) 
+    local es = tostring(ev)
+    local ds = os.date("%c",t)
+    local ls = type(log)=='string' and ("("..log..")") or ""
+    local foo = format("Posting %s for %s %s",es,ds,ls)
+    TRACE(foo) 
   end
   if type(ev) == 'function' then
     return setTimeout(function() ev(ev) end,1000*(t-now),log),t

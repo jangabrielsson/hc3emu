@@ -1,3 +1,6 @@
+local E = fibaro.hc3emu
+
+
 local fmt = string.format 
 function __ternary(c, t,f) if c then return t else return f end end
 function __fibaro_get_devices() return api.get("/devices/") end
@@ -7,19 +10,19 @@ function __fibaro_get_scene(sceneId) return api.get("/scenes/"..sceneId) end
 function __fibaro_get_global_variable(varName) return api.get("/globalVariables/"..varName) end
 function __fibaro_get_device_property(deviceId, propertyName) return api.get("/devices/"..deviceId.."/properties/"..propertyName) end
 function __fibaro_get_devices_by_type(type) return api.get("/devices?type="..type) end
-function __fibaro_add_debug_message(tag, msg, typ) fibaro.hc3emu.debugOutput(tag, msg, typ, os.time()) end
+function __fibaro_add_debug_message(tag, msg, typ) E.log.debugOutput(tag, msg, typ, os.time()) end
 
 function __fibaro_get_partition(id) return api.get('/alarms/v1/partitions/' .. tostring(id)) end
 function __fibaro_get_partitions() return api.get('/alarms/v1/partitions') end
 function __fibaro_get_breached_partitions() return api.get("/alarms/v1/partitions/breached") end
 function __fibaroSleep(ms)
-  fibaro.hc3emu.WARNINGF("Avoid using fibaro.sleep in QuickApps")
-  fibaro.hc3emu.copas.pause(ms/1000.0)
+  E:WARNINGF("Avoid using fibaro.sleep in QuickApps")
+  E.lua.require("copas").pause(ms/1000.0)
 end
 function __fibaroUseAsyncHandler(_) return true end
 
 api  = {} -- Different api connections depending if we are offline or not
-local route = fibaro.hc3emu.route
+local route = E.route
 local connection = route.offlineConnection
 function api.get(...) return connection:call("GET",...) end
 function api.post(...) return connection:call("POST",...) end
@@ -29,7 +32,7 @@ function fibaro.setOffline(off)
   if off then connection = route.offlineConnection
   else connection = route.proxyConnection end
 end
-fibaro.setOffline(fibaro.hc3emu.flags.offline)
+fibaro.setOffline(E.DBG.offline)
 
 local function __assert_type2(val, typ, msg)
   if type(val) ~= typ then error(fmt(msg,typ)..". Got: "..type(val),3) end

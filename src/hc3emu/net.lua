@@ -1,15 +1,11 @@
-local TQ = fibaro.hc3emu
-local addThread = TQ.addThread
-local copas = TQ.copas
-local socket = TQ.socket
-local httpRequest = TQ.httpRequest
-local mobdebug = TQ.mobdebug
-local json = TQ.json
+local hc3emu = fibaro.hc3emu
+local require = hc3emu.lua.require
+local copas = require("copas")
+local socket = require("socket")
+local mobdebug = require("mobdebug")
 
-local function async(fun,...) return addThread(_G,fun,...) end
------------------------- base ------------------------------
----
----
+local function async(fun,...) return hc3emu:addThread(_G,fun,...) end
+
 ------------------------- net ------------------------------
 net = {}
 -------------- HTTPClient ----------------------------------
@@ -19,7 +15,7 @@ function net.HTTPClient()
     local call = function()
       mobdebug.on()
       local opts = options.options or {}
-      local res, status, headers = httpRequest(opts.method,url,opts.headers,opts.data,opts.timeout)
+      local res, status, headers = hc3emu:httpRequest(opts.method,url,opts.headers,opts.data,opts.timeout)
       if tonumber(status) and status <= 302 and options.success then 
         options.success({status=status,data=res,headers=headers})
       elseif options.error then options.error(status) end
@@ -74,7 +70,7 @@ function net.UDPSocket(opts)
   local self = { opts = opts or {} }
   self.sock = copas.wrap(socket.udp())
   if self.opts.broadcast~=nil then
-    self.sock:setsockname(TQ.IPAddress, 0)
+    self.sock:setsockname(hc3emu.IPAddress, 0)
     self.sock:setoption("broadcast", self.opts.broadcast)
   end
   if tonumber(opts.timeout) then self.sock:settimeout(opts.timeout / 1000) end
@@ -104,7 +100,7 @@ function net.UDPSocket(opts)
 end
 
 -------------- WebSocket ----------------------------------
-local websock = TQ.require("websocket")
+local websock = require("websocket")
 
 if websock then
   
@@ -118,7 +114,7 @@ if websock then
     local conn,err,lt = nil,nil,nil
     local self = { }
     local handlers = {}
-    local ws_client = TQ.require('websocket.client').copas()
+    local ws_client = require('websocket.client').copas()
     self.ws_client = ws_client
     local listen,connected,disconnected
     goptions = goptions or {}
@@ -173,7 +169,7 @@ if websock then
       --{ verify = "none", cafile = "/etc/ssl/cert.pem", protocol="tlsv1_2", mode='client', options = {'all',"no_sslv3"} }
       ssl_params = ssl_params or goptions.ssl_params or { verify = "none", protocol="any", mode='client', options = {'all',"no_sslv3"} }
       conn, err =  ws_client:connect(url, protocols, ssl_params, headers, self.debug)
-      ws_client.sock = TQ.copas.wrap(ws_client.sock)
+      ws_client.sock = copas.wrap(ws_client.sock)
       if conn then async(connected) return true
       else dispatch("error",err) return false,err end
     end
@@ -233,7 +229,7 @@ if websock then
   net.WebSocketClient = net.WebSocketClientTls
 end
 -------------- MQTT ----------------------------------
-local luamqtt = TQ.require("mqtt")
+local luamqtt = require("mqtt")
 mqtt = { interval = 1000, Client = {}, QoS = { EXACTLY_ONCE = 1 } }
 
 mqtt.MSGT = { 
@@ -264,7 +260,7 @@ function mqtt.Client.connect(uri, options)
     keep_alive = options.keepAlivePeriod,
     id = options.clientId,
     secure = secure,
-    connector = TQ.require("mqtt.luasocket-copas"),
+    connector = require("mqtt.luasocket-copas"),
   }
   
   local callbacks = {}
@@ -309,7 +305,7 @@ function mqtt.Client.connect(uri, options)
     return client:disconnect(nil, { callback = (options or {}).callback })
   end
   
-  -- local loop = TQ.require("mqtt.ioloop").get(true, {timeout=0.005})
+  -- local loop = require("mqtt.ioloop").get(true, {timeout=0.005})
   -- --local loop = luamqtt.get_ioloop()
   -- loop:add(client)
   -- async(function() mobdebug.on()
@@ -320,9 +316,7 @@ function mqtt.Client.connect(uri, options)
   -- end)
 
   async(function() mobdebug.on() luamqtt.run_sync(client) end)
-  
   -- async(function() mobdebug.on() luamqtt.run_ioloop(client) end)
-
   local pstr = "MQTT object: " .. tostring(mqttClient):match("%s(.*)")
   setmetatable(mqttClient, { __tostring = function(_) return pstr end })
   return mqttClient

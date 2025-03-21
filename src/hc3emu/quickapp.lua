@@ -1,14 +1,16 @@
-local TQ = fibaro.hc3emu 
-local flags,copas,_type,addThread = TQ.flags,TQ.copas,TQ._type,TQ.addThread
-local DEBUG,ERRORF = TQ.DEBUG,TQ.ERRORF
-local DBG = TQ.DBG
+local hc3emu = fibaro.hc3emu 
+local E = hc3emu
+local json = hc3emu.json
+local _type = E.lua.type
+local copas = E.lua.require("copas")
+local DBG = E.DBG
 local fmt = string.format
 
-function TQ.shutdown(delay)
-  if TQ._server then copas.removeserver(TQ._server) end
-  if TQ._client then copas.close(TQ._client) end
-  TQ.cancelTimers() 
-  TQ.cancelThreads() 
+local function shutdown(delay)
+  if E._server then copas.removeserver(E._server) end
+  if E._client then copas.close(E._client) end
+  E.timers.cancelTimers() 
+  E.util.cancelThreads() 
   copas.pause(delay or 0)
 end
 
@@ -22,29 +24,29 @@ function plugin.restart(t)
   t = t or 5000
   local id = plugin.mainDeviceId
   if t == 0 then
-    DEBUG("Restarting QuickApp "..id)
+    E:DEBUG("Restarting QuickApp "..id)
   else
-    DEBUG("Restarting QuickApp "..id.." in 5 seconds")
+    E:DEBUG("Restarting QuickApp "..id.." in 5 seconds")
   end
-  local info = TQ.getQA(id)
-  TQ.cancelTimers(_G) 
-  TQ.cancelThreads(_G)
-  setTimeout(function() TQ.runQA(info) end,t)
+  local info = E:getQA(id)
+  E.timers.cancelTimers(_G) 
+  E.util.cancelThreads(_G)
+  setTimeout(function() E:runQA(info) end,t)
 end
 
 local exit = os.exit
 function os.exit(code) 
-  DEBUG("Exit %s",code or 0)
+  E:DEBUG("Exit %s",code or 0)
   if code == -1 then exit(-1) end -- Hard exit...
-  TQ._shouldExit = true
-  TQ.shutdown(0)
+  E._shouldExit = true
+  shutdown(0)
 end
 
 class 'QuickAppBase'
 
 function QuickAppBase:__init(dev)
-  if _type(arg) == 'number' then dev = api.get("/devices/" .. dev)
-  elseif not _type(arg) == 'table' then error('expected number or table') end
+  if _type(dev) == 'number' then dev = api.get("/devices/" .. dev)
+  elseif not _type(dev) == 'table' then error('expected number or table') end
   self.id = dev.id
   self.type = dev.type
   self.name = dev.name
@@ -55,9 +57,9 @@ function QuickAppBase:__init(dev)
   self.uiCallbacks = {}
   self.childDevices = {}
   if dev.parentId and dev.parentId > 0 then -- A child device, register it locally
-    TQ.registerQA({id=self.id,device=dev,env=_G,qa=self})
+    E:registerQA({id=self.id,device=dev,env=_G,qa=self})
   else
-    TQ.getQA(dev.id).qa = self
+    E:getQA(dev.id).qa = self
   end
 end
 
@@ -319,8 +321,8 @@ function RefreshStateSubscriber:unsubscribe(subscription)
   end
 end
 
-function RefreshStateSubscriber:run() TQ.addRefreshStateListener(self.handle) end
-function RefreshStateSubscriber:stop() TQ.removeRefreshStateListener(self.handle) end
+function RefreshStateSubscriber:run() E.refreshState.addRefreshStateListener(self.handle) end
+function RefreshStateSubscriber:stop() E.refreshState.removeRefreshStateListener(self.handle) end
 
 function __onAction(id, actionName, args)
   print("__onAction", id, actionName, args)

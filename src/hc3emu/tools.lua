@@ -1,7 +1,6 @@
-TQ = TQ
-local api = TQ.api 
-local json = TQ.json
-local __assert_type = TQ.__assert_type
+local exports = {}
+local E = setmetatable({},{ __index=function(t,k) return exports.emulator[k] end })
+local json = require("hc3emu.json")
 
 --[[
 <name>.lua
@@ -67,12 +66,12 @@ local function readFile(path)
 end
 
 local fileNum = 0
-function TQ.createTempName(suffix)
+local function createTempName(suffix)
   fileNum = fileNum + 1
   return os.date("hc3emu%M%M")..fileNum..suffix
 end
 
-function TQ.findFirstLine(src)
+local function findFirstLine(src)
   local n,first,init = 0,nil,nil
   for line in string.gmatch(src,"([^\r\n]*\r?\n?)") do
     n = n+1
@@ -87,8 +86,8 @@ function TQ.findFirstLine(src)
   return first or 1,init
 end
 
-function TQ.getFQA(id) -- Creates FQA structure from installed QA
-  local qa = TQ.getQA(id)
+local function getFQA(id) -- Creates FQA structure from installed QA
+  local qa = E:getQA(id)
   assert(qa,"QuickApp not found, ID"..tostring(id))
   local dev = qa.device
   local files = {}
@@ -117,53 +116,53 @@ function TQ.getFQA(id) -- Creates FQA structure from installed QA
 end
 
 --@F 
-function TQ.loadQA(path,optionalDirectives,noRun)   -- Load QA from file and maybe run it
+local function loadQA(path,optionalDirectives,noRun)   -- Load QA from file and maybe run it
   local f = io.open(path)
   if f then
     local src = f:read("*all")
     f:close()
     local info = { directives = nil, extraDirectives = optionalDirectives, src = src, fname = path, env = { require=true }, files = {} }
     if noRun then 
-      return TQ.createQAstruct(info,true)
+      return E:createQAstruct(info,true)
     else
-      return TQ.runQA(info)
+      return E:runQA(info)
     end
   else
-    TQ.ERRORF("Could not read file %s",path)
+    E:ERRORF("Could not read file %s",path)
   end
 end
 
 --@F 
-function TQ.loadScene(path,optionalDirectives)   -- Load Scene from file and maybe run it
+local function loadScene(path,optionalDirectives)   -- Load Scene from file and maybe run it
   local f = io.open(path)
   if f then
     local src = f:read("*all")
     f:close()
     local info = { directives = nil, extraDirectives = optionalDirectives, src = src, fname = path, env = { require=false }, files = {} }
-    return TQ.runScene(info)
+    return E.scene.runScene(info)
   else
-    TQ.ERRORF("Could not read file %s",path)
+    E:ERRORF("Could not read file %s",path)
   end
 end
 
 --@F 
-function TQ.loadQAString(src,optionalDirectives) -- Load QA from string and run it
-  local path = TQ.tempDir..TQ.createTempName(".lua")
+local function loadQAString(src,optionalDirectives) -- Load QA from string and run it
+  local path = E.tempDir..createTempName(".lua")
   local f = io.open(path,"w")
   assert(f,"Can't open file "..path)
   f:write(src)
   f:close()
   local info = { directives = nil, extraDirectives = optionalDirectives, src = src, fname = path, env = { require=true }, files = {} }
   ---@diagnostic disable-next-line: need-check-nil
-  return TQ.runQA(info)
+  return E:runQA(info)
 end
 
 --@F 
-function TQ.saveQA(id,fileName)       -- Save installed QA to disk as .fqa
-  local info = TQ.getQA(id)           
+local function saveQA(id,fileName)       -- Save installed QA to disk as .fqa
+  local info = E:getQA(id)           
   fileName = fileName or info.directives.save
   assert(fileName,"No save filename found")
-  local fqa = TQ.getFQA(info.id)
+  local fqa = getFQA(info.id)
   local vars = table.copy(fqa.initialProperties.quickAppVariables)
   vars = json.util.InitArray(vars)
   fqa.initialProperties.quickAppVariables = vars
@@ -177,30 +176,30 @@ function TQ.saveQA(id,fileName)       -- Save installed QA to disk as .fqa
   assert(f,"Can't open file "..fileName)
   f:write(json.encode(fqa))
   f:close()
-  TQ.DEBUG("Saved QuickApp to %s",fileName)
+  E:DEBUG("Saved QuickApp to %s",fileName)
 end
 
 --@F
-function TQ.uploadQA(id)
-  assert(TQ.getQA(id),"QuickApp not installed, ID"..tostring(id))
-  local fqa = TQ.getFQA(id)
-  local res,code = api.post("/quickApp/",fqa)
+local function uploadQA(id)
+  assert(E:getQA(id),"QuickApp not installed, ID"..tostring(id))
+  local fqa = getFQA(id)
+  local res,code = E:apipost("/quickApp/",fqa)
   if not code or code > 201 then
-    TQ.ERRORF("Failed to upload QuickApp: %s", res)
+    E:ERRORF("Failed to upload QuickApp: %s", res)
   else
-    TQ.DEBUG("Successfully uploaded QuickApp with ID: %d -> %s", id,res.id)
+    E:DEBUG("Successfully uploaded QuickApp with ID: %d -> %s", id,res.id)
   end
   return res,code
 end
 
 --@F
-function TQ.updateQA(emuId,hc3Id,components)
+local function updateQA(emuId,hc3Id,components)
   components = components or {name=true,interfaces=true,quickVars=true,UI=true,files=true}
   assert(type(emuId) == "number", "emuId must be a number")
   assert(type(hc3Id) == "number", "hc3Id must be a number")
-  local hc3qa = api.get("/devices/"..hc3Id)
+  local hc3qa = E:apiget("/devices/"..hc3Id)
   assert(hc3qa,"Failed to get HC3 QuickApp, ID",tostring(hc3Id))
-  local emuqa = TQ.getFQA(emuId)
+  local emuqa = getFQA(emuId)
   assert(emuqa,"Failed to get emulated QuickApp, ID",tostring(emuId))
   assert(hc3qa.type == emuqa.type,"QuickApp types no match")
   -- Update name,interfaces,quickVars,UI,files
@@ -230,34 +229,34 @@ function TQ.updateQA(emuId,hc3Id,components)
     end
     
     for _,f in ipairs(newFiles) do
-      local res,code = api.post("/quickApp/"..hc3Id.."/files",f)
-      if code > 201 then TQ.ERRORF("Failed to create file %s",f.name) end
+      local res,code = E:apipost("/quickApp/"..hc3Id.."/files",f)
+      if code > 201 then E:ERRORF("Failed to create file %s",f.name) end
     end
     
-    local res,code = api.put("/quickApp/"..hc3Id.."/files",existingFiles)
+    local res,code = E:apiput("/quickApp/"..hc3Id.."/files",existingFiles)
     if code > 202 then 
-      TQ.ERRORF("Failed to update files for QuickApp %d",hc3Id)
+      E:ERRORF("Failed to update files for QuickApp %d",hc3Id)
     end
     
     for _,f in ipairs(deletedFiles) do
-      local res,code = api.delete("/quickApp/"..hc3Id.."/files/"..f.name)
-      if code > 202 then TQ.ERRORF("Failed to delete file %s",f.name) end
+      local res,code = E:apidelete("/quickApp/"..hc3Id.."/files/"..f.name)
+      if code > 202 then E:ERRORF("Failed to delete file %s",f.name) end
     end
   end
 end
 
 --@F 
-function TQ.installFQA(id,optionalDirectives)          -- Installs QA from HC3 and run it.
+local function installFQA(id,optionalDirectives)          -- Installs QA from HC3 and run it.
   assert(type(id) == "number", "id must be a number")
-  local path = TQ.tempDir
-  local path = TQ.downloadFQA(id,path)
-  return TQ.loadQA(path,optionalDirectives)
+  local path = E.tempDir
+  local path = exports.downloadFQA(id,path)
+  return exports.loadQA(path,optionalDirectives)
 end
 
-local function unpackFQA(id,fqa,path) -- Unpack fqa and save it to disk
+local function unpackFQAAux(id,fqa,path) -- Unpack fqa and save it to disk
   assert(type(path) == "string", "path must be a string")
   local fname = ""
-  fqa = fqa or api.get("/quickApp/export/"..id)
+  fqa = fqa or E:apiget("/quickApp/export/"..id)
   assert(fqa, "Failed to download fqa")
   local name = fqa.name
   local typ = fqa.type
@@ -309,10 +308,10 @@ local function unpackFQA(id,fqa,path) -- Unpack fqa and save it to disk
   
   local UI = ""
   if id then
-    TQ.logUI(id,function(str) UI = str end)
+    E.ui.logUI(id,function(str) UI = str end)
   else
-    local UIstruct = TQ.viewLayout2UI(props.viewLayout,props.uiCallbacks or {})
-    TQ.dumpUI(UIstruct,function(str) UI = str end)
+    local UIstruct = E.ui.viewLayout2UI(props.viewLayout,props.uiCallbacks or {})
+    E.ui.dumpUI(UIstruct,function(str) UI = str end)
   end
   UI = UI:match(".-\n(.*)") or ""
   pr:print(UI)
@@ -325,35 +324,53 @@ local function unpackFQA(id,fqa,path) -- Unpack fqa and save it to disk
 end
 
 --@F 
-function TQ.downloadFQA(id,path) -- Download QA from HC3,unpack and save it to disk
+local function downloadFQA(id,path) -- Download QA from HC3,unpack and save it to disk
   assert(type(id) == "number", "id must be a number")
   assert(type(path) == "string", "path must be a string")
-  return unpackFQA(id,nil,path)
+  return unpackFQAAux(id,nil,path)
 end
 
 --@F 
-function TQ.loadFQA(path,optionalDirectives)        -- Load FQA from file and stuct and run it (saves as temp files)
-  local fqaPath = TQ.unpackFQA(path,TQ.tempDir)
-  return TQ.loadQA(fqaPath,optionalDirectives)
+local function loadFQA(path,optionalDirectives)        -- Load FQA from file and stuct and run it (saves as temp files)
+  local fqaPath = exports.unpackFQA(path,E.tempDir)
+  return exports.loadQA(fqaPath,optionalDirectives)
 end
 
 --@F 
-function TQ.installFQAstruct(fqa,optionalDirectives)        -- Load FQA from file and run it (saves as temp files)
-local path = TQ.tempDir..TQ.createTempName(".fqa")
+local function installFQAstruct(fqa,optionalDirectives)        -- Load FQA from file and run it (saves as temp files)
+local path = E.tempDir..createTempName(".fqa")
   local f = io.open(path,"w")
   assert(f,"Can't open file "..path)
   f:write(json.encode(fqa))
   f:close()  
-  return TQ.loadFQA(path,optionalDirectives)
+  return exports.loadFQA(path,optionalDirectives)
 end
 
 --@F 
-function TQ.unpackFQA(fqaPath,savePath)        -- Unpack FQA on disk  to lua files
+local function unpackFQA(fqaPath,savePath)        -- Unpack FQA on disk  to lua files
   assert(type(fqaPath) == "string", "path must be a string")
   local f = io.open(fqaPath)
   assert(f,"Can't open file "..fqaPath)
   local src = f:read("*all")
   f:close()
   local fqa = json.decode(src)
-  return unpackFQA(nil,fqa,savePath)
+  return unpackFQAAux(nil,fqa,savePath)
 end
+
+exports.getFQA = getFQA
+exports.createTempName = createTempName
+exports.crc16 = crc16
+exports.findFirstLine = findFirstLine
+exports.loadQA = loadQA
+exports.loadScene = loadScene
+exports.loadQAString = loadQAString
+exports.saveQA = saveQA
+exports.uploadQA = uploadQA
+exports.updateQA = updateQA
+exports.installFQA = installFQA
+exports.unpackFQA = unpackFQA
+exports.downloadFQA = downloadFQA
+exports.loadFQA = loadFQA
+exports.installFQAstruct = installFQAstruct
+
+return exports

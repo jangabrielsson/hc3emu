@@ -1,102 +1,189 @@
-TQ = TQ
-local mobdebug = TQ.mobdebug
-local DEBUGF = TQ.DEBUGF
-local DEBUG = TQ.DEBUG
-local json = TQ.json
-local addThread = TQ.addThread
+local exports = {}
+local E = setmetatable({},{ __index=function(t,k) return exports.emulator[k] end })
+local json = require("hc3emu.json")
+local userTime,userDate
+
+local function init()
+  userTime,userDate = E.timers.userTime,E.timers.userDate
+end
 
 local SCENE_ID = 6000
 local compileCond
-function TQ.nextSceneId() SCENE_ID = SCENE_ID + 1; return SCENE_ID end
+local scenes = {}
+local setupDateEvent, sceneTrigger, minuteLoop, minuteFuns
 
-TQ.Scenes = {}
-local setupDateEvent
+---------------------- Scene class ---------------------------------------
+class 'Scene'
+local Scene = _G['Scene']; _G['Scene'] = nil
+function Scene:__init(info)
+  E.mobdebug.on()
+  self.info = info
+  self.fname = info.fname
+  self.src = info.src
+  self.env = info.env
+  self:createSceneStruct()
+end
 
-local function createSceneStruct(info)
-  local env = info.env
-  if info.directive == nil then TQ.parseDirectives(info) end
-  local flags = info.directives or {}
-  if flags.debug.scene then TQ.DBG.scene = true end
-  info.id = flags.id or TQ.nextSceneId()
-  local os2 = { time = TQ.userTime, clock = os.clock, difftime = os.difftime, date = TQ.userDate, exit = os.exit, remove = os.remove }
-  local fibaro = { hc3emu = TQ, HC3EMU_VERSION = TQ.VERSION, flags = info.directives, DBG = TQ.DBG }
+function Scene:nextId() SCENE_ID = SCENE_ID + 1; return SCENE_ID end
+
+function Scene:createSceneStruct()
+  local env = self.env
+  if self.info.directives == nil then E:parseDirectives(self.info) end
+  self.flags = self.info.directives
+  self.name = self.flags.name
+  local flags = self.flags
+  if flags.debug.scene then E.DBG.scene = true E.DBG.post = true end
+  self.id = flags.id or self:nextId()
+  local os2 = { time = userTime, clock = os.clock, difftime = os.difftime, date = userDate, exit = os.exit, remove = os.remove }
+  local fibaro = { hc3emu = E, HC3EMU_VERSION = E.VERSION, flags = flags, DBG = E.DBG }
   for k,v in pairs({
-    __assert_type = __assert_type, fibaro = fibaro, json = json, urlencode = TQ.urlencode, args=args,
+    __assert_type = __assert_type, fibaro = fibaro, json = json, urlencode = E.util.urlencode, args=args,
     collectgarbage = collectgarbage, os = os2, math = math, string = string, table = table, _print = print,
     getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring,
-    type = TQ.luaType, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
+    type = E.luaType, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
     error = error, assert = assert, pcall = pcall, xpcall = xpcall,
     rawset = rawset, rawget = rawget
   }) do env[k] = v end
   
   env._error = function(str) env.fibaro.error(env.tag,str) end
-  local conditions = info.src:match("CONDITIONS%s*=%s*(%b{})") or "{}"
-  info.conditions = load("return "..conditions,nil,"t",env)()
+  local conditions = self.src:match("CONDITIONS%s*=%s*(%b{})") or "{}"
+  self.conditions = load("return "..conditions,nil,"t",env)()
   local triggers = {}
-  info.condTest = compileCond(info.conditions,triggers)
-  info.created = os.time()
+  self.condTest = compileCond(self.conditions,triggers)
+  self.created = os.time()
   
   local eventHandler = function(ev)
-    DEBUGF('scene',"Event handler %s",json.encodeFast(ev.event))
+    E:DEBUGF('scene',"Event handler %s",json.encodeFast(ev.event))
     local event = ev.event
     local flag = false
     if event.property == 'execute' then flag = true
     else 
-      flag = info.condTest(
+      flag = self.condTest(
       {
-        tmap = TQ.userDate("*t"),
+        tmap = userDate("*t"),
         event=event,
-        time = TQ.userTime(), -- So all rules are evaluated with the same time...
+        time = userTime(), -- So all rules are evaluated with the same time...
       }
     ) end
     if flag then
-      DEBUGF('scene',"Scene %s triggered by %s %s",info.id,json.encode(event),TQ.userDate("%c"))
+      E:DEBUGF('scene',"Scene %s triggered by %s %s",self.id,json.encode(event),userDate("%c"))
     else
-      DEBUGF('scene',"Scene %s not triggered by %s %s",info.id,json.encode(event),TQ.userDate("%c"))
+      E:DEBUGF('scene',"Scene %s not triggered by %s %s",self.id,json.encode(event),userDate("%c"))
     end
-    if flag then TQ.sceneTrigger(event,info.id) end
+    if flag then sceneTrigger(event,self.id) end
   end
   
   env._G = env
-  for k,v in pairs(TQ.exports) do env[k] = v end
+  for k,v in pairs(E.exports) do env[k] = v end
   
+  env.tag = "Scene"..self.id
+  env.sceneId = self.id
+
   for _,path in ipairs({"hc3emu.fibaro","hc3emu.net","hc3emu.sceneengine"}) do
-    DEBUGF('info',"Loading Scene library %s",path)
-    TQ.loadfile(path,env)
+    E:DEBUGF('info',"Loading Scene library %s",path)
+    E:loadfile(path,env)
   end
   
   setTimeout = env.setTimeout
-  env.tag = "Scene"..info.id
-  env.sceneId = info.id
   function env.print(...) 
     env.fibaro.debug(env.tag,...) 
   end
   
   local engine = env.__emu_sceneEngine
-  if engine then engine.startRefreshListener(info) end
+  if engine then engine.startRefreshListener(self) end
   
-  TQ.setCoroData(nil,'env',env)
+  E:setCoroData(nil,'env',env)
   engine.event({type='user',property='execute'},eventHandler) -- Add event listener for execute
   for _,ev in pairs(triggers) do -- Add event listeners for the type of events that trigger the scene
-    DEBUGF('scene',"Adding event listener for %s",json.encodeFast(ev))
+    E:DEBUGF('scene',"Adding event listener for %s",json.encodeFast(ev))
     if ev.type=='date' then setupDateEvent(engine,ev,eventHandler) else engine.event(ev,eventHandler) end
   end 
 end
 
-local function loadSceneFile(info) end
-local function saveScene(id) end
-local function saveSceneProject(info) end
+function Scene:run() -- Actually, register scene, run when triggered
+  local flags = self.flags
+  local firstLine = E.tools.findFirstLine(self.src)
+  if flags.breakOnLoad and firstLine then E.mobdebug.setbreakpoint(self.fname,firstLine) end
+  self:loadFiles() -- nop
+  if flags.save then self:save() end
+  if flags.project then self:saveProject() end
+  E:DEBUGF('info',"Scene '%s' registered",self.name)
+  E:post({type='scene_registered',id=self.id},true)
+  scenes[self.id] = self
+  for _,tr in pairs(flags.triggers or {}) do
+    self.env.setTimeout(function() 
+      self.env.__emu_sceneEngine.post(tr.trigger)
+    end,1000*tr.delay)
+  end
+  --E:DEBUGF('info',"Scene '%s' run completed",self.name)
+  return self
+end
 
-local minuteFuns,mlr = {},nil
-local function minuteLoop(env)
+function Scene:register() return self:run() end
+
+function Scene:trigger(trigger) -- Start scene
+  trigger = trigger or {type='user',property='execute', id=2}
+  local env = {} -- New fresh environment
+  local flags = self.flags
+  -- copy all globals from the scene environment
+  for k,v in pairs(self.env) do env[k] = v end 
+  env.sourceTrigger = trigger
+  local timers = 0
+  
+  env.__emu_timerHook[1] = function(start,tag)
+    if start then timers = timers + 1 else timers = timers - 1 end
+    if timers == 0  then 
+      E:DEBUG("Scene %s terminated", self.id) 
+      env.__emu_timerHook[1] = nil
+    end
+    --print(t0,timers,start,tag)
+  end
+  
+  minuteLoop(self.env)
+  
+  -- addThread(env,function()
+  env.setTimeout(function()
+    E.mobdebug.on()
+    E:setCoroData(nil,'env',env)
+    E:DEBUGF('info',"Loading user main file %s",self.fname)
+    E:DEBUGF('info',"Running scene %s",self.id)
+    load(self.src,self.fname,"t",env)()
+    if flags.speed then env.__emu_speed(flags.speed) end
+    --if timers == 0 then DEBUG("Scene %s terminated", info.id) end
+    if not E.DBG.offline then -- Move!
+      assert(E.URL and E.USER and E.PASSWORD,"Please define URL, USER, and PASSWORD") -- Early check that creds are available
+    end
+    -- end)
+  end,0)
+end
+
+function Scene:loadFiles() end
+function Scene:save() end
+function Scene:saveProject() end
+
+-------------------------------------------------------------------------
+---
+
+function sceneTrigger(trigger,id)
+  if id then 
+    local scene = scenes[id]
+    assert(scene,"Scene %d not found",id)
+    scene:trigger(trigger)
+  end
+end
+
+minuteFuns = {}
+local mlr = nil
+function minuteLoop(env)
   if mlr then return end
-  local m = (TQ.userTime() // 60 + 1)*60
+  E:DEBUGF('scene',"Starting cron loop")
+  local m = (userTime() // 60 + 1)*60
   local function loop()
     for _,f in ipairs(minuteFuns) do f() end
     m = m+60
-    mlr = env.__emu_setTimeout(loop,(m-TQ.userTime())*1000,"minuteLoop",nil)
+    mlr = env.__emu_setTimeout(loop,(m-userTime())*1000,"minuteLoop",nil)
   end
-  mlr = env.__emu_setTimeout(loop,(m-TQ.userTime())*1000,"minuteLoop",nil)
+  mlr = env.__emu_setTimeout(loop,(m-userTime())*1000,"minuteLoop",nil)
 end
 
 function setupDateEvent(engine,ev,eventHandler)
@@ -115,7 +202,7 @@ function setupDateEvent(engine,ev,eventHandler)
     local test = ev.test
     engine.event(event,eventHandler)
     minuteFuns[#minuteFuns+1] = function() 
-      local t = TQ.userDate("*t")
+      local t = userDate("*t")
       if test(t) then engine.handleEvent(event) end  
     end
   elseif ev.property == 'interval' then
@@ -123,69 +210,7 @@ function setupDateEvent(engine,ev,eventHandler)
   end
 end
 
-local function triggerScene(info,trigger)
-  local env = {} -- New fresh environment
-  local flags = info.directives or {}
-  for k,v in pairs(info.env) do env[k] = v end
-  env.sourceTrigger = trigger
-  local timers = 0
-
-  env.__emu_timerHook[1] = function(start,tag)
-    if start then timers = timers + 1 else timers = timers - 1 end
-    if timers == 0  then 
-      DEBUG("Scene %s terminated", info.id) 
-      env.__emu_timerHook[1] = nil
-    end
-    --print(t0,timers,start,tag)
-  end
-
-  if trigger.property=='cron' then print("START") minuteLoop(info.env) end
-
-  -- addThread(env,function()
-env.setTimeout(function()
-    TQ.mobdebug.on()
-    TQ.setCoroData(nil,'env',env)
-    DEBUGF('info',"Loading user main file %s",info.fname)
-    DEBUGF('info',"Running scene %s",info.id)
-    load(info.src,info.fname,"t",env)()
-    if flags.speed then env.__emu_speed(flags.speed) end
-    --if timers == 0 then DEBUG("Scene %s terminated", info.id) end
-    if not TQ.flags.offline then -- Move!
-      assert(TQ.URL and TQ.USER and TQ.PASSWORD,"Please define URL, USER, and PASSWORD") -- Early check that creds are available
-    end
-  -- end)
-  end,0)
-end
-
-local startTr = {type='user', property='execute', id=2}
-local function runScene(info) -- Actually, register scene, run when triggered
-  mobdebug.on()
-  createSceneStruct(info)
-  local flags = info.directives or {}
-  local firstLine = TQ.findFirstLine(info.src)
-  if flags.breakOnLoad and firstLine then TQ.mobdebug.setbreakpoint(info.fname,firstLine) end
-  loadSceneFile(info)
-  if flags.save then saveScene(info.id) end
-  if flags.project then saveSceneProject(info) end
-  DEBUGF('info',"Scene '%s' registered",flags.name)
-  TQ.post({type='scene_registered',id=info.id},true)
-  TQ.Scenes[info.id] = info
-  for _,tr in pairs(flags.triggers or {}) do
-    info.env.setTimeout(function() 
-      info.env.__emu_sceneEngine.post(tr.trigger)
-    end,1000*tr.delay)
-  end
-  return info
-end
-
-function TQ.sceneTrigger(trigger,id)
-  if id then 
-    local scene = TQ.Scenes[id]
-    assert(scene,"Scene %d not found",id)
-    triggerScene(scene,trigger)
-  end
-end
-
+-------------------- Conditions compiler ---------------------------------------
 local function map(f,lst,trs)
   local res = {}
   for _,v in ipairs(lst) do table.insert(res,f(v,trs)) end
@@ -270,12 +295,12 @@ function compilers.date(cond,trs)
   local typ = cond.property
   local value = cond.value or 0
   local a = function(ctx) 
-    local t = TQ[typ.."Hour"]
+    local t = E[typ.."Hour"]
     local h,m = t:match("(%d+):(%d+)")
     return 60*tonumber(h)+tonumber(m)+value
   end
   local b = function(ctx)
-    local h,m = TQ.userDate("%H:%M",ctx.time):match("(%d+):(%d+)")
+    local h,m = userDate("%H:%M",ctx.time):match("(%d+):(%d+)")
     return 60*tonumber(h)+tonumber(m)
   end
   if cond.isTrigger then
@@ -283,7 +308,7 @@ function compilers.date(cond,trs)
   end
   return function (ctx)
     local a,b = a(ctx),b(ctx)
-    --print(TQ.userDate("%c"),a//60,a%60,b//60,b%60)
+    --print(userDate("%c"),a//60,a%60,b//60,b%60)
     return a == b  
   end
 end
@@ -337,4 +362,9 @@ function compileCond(cond,trs)
   end
 end
 
-TQ.runScene = runScene
+exports.Scene = Scene
+exports.scenes = scenes
+exports.trigger = sceneTrigger -- (trigger,id)
+exports.init = init
+
+return exports

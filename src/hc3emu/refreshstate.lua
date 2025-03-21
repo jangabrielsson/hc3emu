@@ -1,19 +1,17 @@
-TQ = TQ
-local copas = TQ.copas
-local json = TQ.json
-local addThread = TQ.addThread
-local ERRORF = TQ.ERRORF
+local exports = {}
+local E = setmetatable({},{ __index=function(t,k) return exports.emulator[k] end })
+local copas = require("copas")
 
 local queue = {}
 local last,first = 1,0
 local setupRefreshState
 
 local listeners = {}
-function TQ.addRefreshStateListener(listener)
+local function addRefreshStateListener(listener)
   setupRefreshState()
   listeners[listener] = true
 end
-function TQ.removeRefreshStateListener(listener) listeners[listener] = nil end
+local function removeRefreshStateListener(listener) listeners[listener] = nil end
 
 local function addEvent(event)
   if not event.created then event.created = os.time() end
@@ -45,10 +43,10 @@ local function refreshStatePoller()
   local last,events=1,nil
   local suffix = "&lang=en&rand=7784634785"
   while true do
-    local data, status = TQ.HC3Call("GET", (last and path..("?last="..last) or path) .. suffix, nil, true)
+    local data, status = E:HC3Call("GET", (last and path..("?last="..last) or path) .. suffix, nil, true)
     --print(status)
     if status ~= 200 then
-      ERRORF("Failed to get refresh state: %s",status)
+      E:ERRORF("Failed to get refresh state: %s",status)
       return
     end
     assert(data, "No data received")
@@ -62,17 +60,21 @@ local function refreshStatePoller()
         addEvent(event)
       end
     end
-    copas.pause(TQ._refreshInterval or 0.01)
+    copas.pause(E._refreshInterval or 0.01)
   end
 end
 
 local inited = false
 function setupRefreshState()
   if inited then return else inited = true end
-  if not TQ.flags.offline then
-    addThread(_G,refreshStatePoller)
+  if not E.DBG.offline then
+    E:addThread(_G,refreshStatePoller)
   end
 end
 
-TQ.getRefreshStateEvents = getEvents -- (last)
-TQ.addRefreshStateEvent = addEvent -- (event)
+exports.addRefreshStateListener = addRefreshStateListener
+exports.removeRefreshStateListener = removeRefreshStateListener
+exports.getRefreshStateEvents = getEvents -- (last)
+exports.addRefreshStateEvent = addEvent -- (event)
+
+return exports

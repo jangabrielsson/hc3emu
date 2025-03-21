@@ -1,22 +1,21 @@
-TQ = TQ
+local exports = {}
+local E = setmetatable({},{ __index=function(t,k) return exports.emulator[k] end })
+
+local json = require("hc3emu.json")
+local copas = require("copas")
+local mobdebug = require("mobdebug")
+
 local fmt = string.format 
-local json = TQ.require("hc3emu.json")
-
--- Try to guess in what environment we are running (used for loading extra console colors)
-TQ.isVscode = package.path:lower():match("vscode") ~= nil
-TQ.isZerobrane = package.path:lower():match("zerobrane") ~= nil
-
 local _print = print
-function print(...) if (TQ.DBG or {}).silent then return end; 
+function print(...) if (E.DBG or {}).silent then return end; 
   _print(...)
 end
 
 local function DEBUG(f,...) print("[SYS]",fmt(f,...)) end
-local function DEBUGF(flag,f,...) if TQ.DBG[flag] then DEBUG(f,...) end end
+local function DEBUGF(flag,f,...) if E.DBG[flag] then DEBUG(f,...) end end
 local function WARNINGF(f,...) print("[SYSWARN]",fmt(f,...)) end
 local function ERRORF(f,...) _print("[SYSERR]",fmt(f,...)) end
 local function pcall2(f,...) local res = {pcall(f,...)} if res[1] then return table.unpack(res,2) else return nil end end
-local function ll(fn) local f,e = loadfile(fn) if f then return f() else return not tostring(e):match("such file") and error(e) or nil end end
 
 local function urlencode(str) -- very useful
   if str then
@@ -156,9 +155,9 @@ do
   local function getTimezone(now) return os.difftime(now, os.time(os.date("!*t", now))) end
   
   function sunCalc(time,latitude,longitude)
-    local lat = latitude or api.get("/settings/location").latitude or 0
-    local lon = longitude or api.get("/settings/location").longitude or 0
-    time = time or TQ.userTime()
+    local lat = latitude or E:apiget("/settings/location").latitude or 0
+    local lon = longitude or E:apiget("/settings/location").longitude or 0
+    time = time or E.timers.userTime()
     local utc = getTimezone(time) / 3600
     local zenith,zenith_twilight = 90.83, 96.0 -- sunset/sunrise 90°50′, civil twilight 96°0′
     
@@ -278,9 +277,10 @@ do -- Used for print device table structs - sortorder for device structs
   json.encodeFormated = prettyJsonStruct
 end
 
+local dateTest
 do
   local format = string.format
-  local function dateTest(dateStr0)
+  function dateTest(dateStr0)
     local days = {sun=1,mon=2,tue=3,wed=4,thu=5,fri=6,sat=7}
     local months = {jan=1,feb=2,mar=3,apr=4,may=5,jun=6,jul=7,aug=8,sep=9,oct=10,nov=11,dec=12}
     local last,month = {31,28,31,30,31,30,31,31,30,31,30,31},nil
@@ -332,7 +332,7 @@ do
       local lim = {{min=0,max=59},{min=0,max=23},{min=1,max=31},{min=1,max=12},{min=1,max=7},{min=2000,max=3000}}
       for i=1,6 do if seq[i]=='*' or seq[i]==nil then seq[i]=tostring(lim[i].min).."-"..lim[i].max end end
       seq = map(function(w) return string.split(w,",") end, seq)   -- split sequences "3,4"
-      local month0 = TQ.userDate("*t").month
+      local month0 = E.timers.userDate("*t").month
       seq = map(function(t) local m = table.remove(lim,1);
         return flatten(map(function (g) return expandDate({g,m},month0) end, t))
       end, seq) -- expand intervalls "3-5"
@@ -350,7 +350,7 @@ do
     end
     local dateSeq = parseDateStr(dateStr0)
     return function(time) -- Pretty efficient way of testing dates...
-      local t = TQ.userDate("*t",time)
+      local t = E.timers.userDate("*t",time)
       if month and month~=t.month then dateSeq=parseDateStr(dateStr0) end -- Recalculate 'last' every month
       if sunPatch and (month and month~=t.month or day~=t.day) then sunPatch(dateSeq) day=t.day end -- Recalculate sunset/sunrise
       return
@@ -361,8 +361,6 @@ do
       dateSeq[5][t.wday] or false      -- weekday 1-7, 1=sun, 7=sat
     end
   end
-  
-  TQ.dateTest = dateTest
 end
 
 local eventHandlers = {}
@@ -381,71 +379,73 @@ local function post(event,immidiate) ---{type=..., ...}
       if not stat then ERRORF("Event handler error: %s",err) end
     end 
   end
-  if not immidiate then TQ.addThread(nil,poster) else poster() end
+  if not immidiate then E:addThread(nil,poster) else poster() end
 end
 
 local tasks = {}
 local function errfun(msg,co,skt)
   -- Try to figure what QA started this task
-  local env = TQ.getCoroData(co,'env') -- We use that to make the right fibaro.debugging call
+  local env = E:getCoroData(co,'env') -- We use that to make the right fibaro.debugging call
   if env then
     if env._error then env._error(msg) end
   else
     ERRORF("Task error: %s",msg)
   end
-  print(TQ.copas.gettraceback("",co,skt))
+  print(copas.gettraceback("",co,skt))
 end
 
 local function addThread(env,call,...)
-  TQ.mobdebug.on()
+  mobdebug.on()
   local task = 42
-  task = TQ.copas.addthread(function(...) 
-    TQ.mobdebug.on() 
-    TQ.copas.seterrorhandler(errfun)
+  task = copas.addthread(function(...) 
+    mobdebug.on() 
+    copas.seterrorhandler(errfun)
     local stat,res = pcall(call,...) 
     if not stat then
-      local env = TQ.getCoroData(nil,'env')
+      local env = E:getCoroData(nil,'env')
       res = tostring(res)
       res = res:gsub('^%[(string) ',function(s) return "[file " end)
       if env then env._error(res)
       else ERRORF("Task error: %s",res) end
-      print(TQ.copas.gettraceback("",coroutine.running(),nil))
+      print(copas.gettraceback("",coroutine.running(),nil))
     end
     tasks[task]=nil 
   end,...)
   -- Keep track of what QA started what task
   -- Will allow us to kill all tasks started by a QA when it is deleted
-  TQ.setCoroData(task,'env',env) 
+  E:setCoroData(task,'env',env) 
   tasks[task] = true
   return task
 end
 local function cancelThreads(env) 
   if env == nil then 
-    for t,_ in pairs(tasks) do TQ.copas.removethread(t) end 
+    for t,_ in pairs(tasks) do copas.removethread(t) end 
     tasks = {}
   else
     for t,_ in pairs(tasks) do 
-      if TQ.getCoroData(t,'env') == env then 
-        TQ.copas.removethread(t) 
+      if E:getCoroData(t,'env') == env then 
+        copas.removethread(t) 
         tasks[t]=nil 
       end 
     end
   end
 end
 
-TQ._print = _print
-TQ.DEBUG = DEBUG
-TQ.DEBUGF = DEBUGF
-TQ.WARNINGF = WARNINGF
-TQ.ERRORF = ERRORF
-TQ.pcall2 = pcall2
-TQ.ll = ll
-TQ.json = json
-TQ.urlencode = urlencode
-TQ.__assert_type = __assert_type
-TQ.readFile = readFile
-TQ.sunCalc = sunCalc
-TQ.EVENT = EVENT
-TQ.post = post
-TQ.addThread = addThread
-TQ.cancelThreads = cancelThreads
+exports._print = _print
+exports.DEBUG = DEBUG
+exports.DEBUGF = DEBUGF
+exports.WARNINGF = WARNINGF
+exports.ERRORF = ERRORF
+exports.pcall2 = pcall2
+exports.json = json
+exports.urlencode = urlencode
+exports.__assert_type = __assert_type
+exports.readFile = readFile
+exports.sunCalc = sunCalc
+exports.EVENT = EVENT
+exports.post = post
+exports.addThread = addThread
+exports.cancelThreads = cancelThreads
+exports.dateTest = dateTest
+
+return exports

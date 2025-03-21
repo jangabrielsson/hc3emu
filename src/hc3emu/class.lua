@@ -1,4 +1,5 @@
-local type = fibaro.hc3emu._type
+local type = type
+if fibaro then type = fibaro.hc3emu.lua.type end
 
 function property(get,set)
   return {__PROP=true,get=get,set=set}
@@ -68,3 +69,5 @@ local function class3(name)
   _G[name] = cls
   return function(p) getmetatable(cls).__index = p end
 end
+
+return class3

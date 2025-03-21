@@ -30,10 +30,15 @@ GET/alarms/v1/partitions
 POST/customEvents/<name>
 --]]
 
-local json = TQ.json
+local exports = {}
+local E = setmetatable({},{ __index=function(t,k) return exports.emulator[k] end })
+local json = require("hc3emu.json")
 
-local DB = TQ.store.DB
-local DEBUG = TQ.DEBUG
+local DB
+local function init() 
+  DB = E.store.DB 
+  E.route.OfflineRoute = exports.OfflineRoute
+end
 
 local filterkeys = {
   parentId=function(d,v) return d.parentId == v end,
@@ -57,7 +62,6 @@ local function filter(q,ds)
   end
   return r
 end
-TQ.queryFilter = filter
 
 local function rerror(code,msg) error({code=code,message=msg}) end
 local function valueList(t) local r = {} for _,v in pairs(t) do r[#r+1]=v end return r end
@@ -90,7 +94,7 @@ local function getDeviceProp(p,id,property) return {value=DEVICE(id).properties[
 local function putDeviceKey(p,id,data) for k,v in pairs(data) do DB.devices[id][k] = v end return true,200 end
 
 local function callAction(p,id,name,data)
-  local qa = TQ.getQA(tonumber(id))
+  local qa = E:getQA(tonumber(id))
   qa.qa:callAction(name,table.unpack(data.args)) return 'OK',200
 end
 
@@ -106,7 +110,7 @@ local function putDeviceProp(p,data)
   return nil,200
 end
 local function updateDeviceView(p,data)
-  local qa = TQ.getQA(tonumber(data.deviceId))
+  local qa = E:getQA(tonumber(data.deviceId))
   if not qa then return nil,301 end
   if not qa.qa then return nil,404 end
   qa.qa.viewCache = qa.qa.viewCache or {}
@@ -117,7 +121,7 @@ local function createChild(p,data)
   local parentId = tonumber(data.parentId)
   local parent = DB.devices[parentId]
   if not parent then return nil,404 end
-  local id = TQ.getNextDeviceId()
+  local id = E:getNextDeviceId()
   local dev = {
     id=id,
     name=data.name,
@@ -141,13 +145,13 @@ end
 local function blocked(p) return nil,501 end
 local function refreshState(p) return {},200 end
 local function installFQA(p,data)
-  local info = TQ.installFQAstruct(data)
+  local info = E:installFQAstruct(data)
   if info then return info.dev,200 else return nil,401 end
 end
 
 ------------------- OfflineRoute -----------------------------
-function TQ.OfflineRoute()
-  local route = TQ.route.createRouteObject()
+local function OfflineRoute()
+  local route = E.route.createRouteObject()
   
   route:add('GET/globalVariables',getGlobals)
   route:add('GET/globalVariables/<name>',getGlobals)
@@ -195,4 +199,7 @@ function TQ.OfflineRoute()
   return route
 end
 
-
+exports.OfflineRoute = OfflineRoute
+exports.init = init
+exports.queryFilter = filter
+return exports

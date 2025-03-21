@@ -1,7 +1,7 @@
 --This is a QA testing the QwikAppChild library
 
 ---@diagnostic disable: duplicate-set-field
---_DEVELOP = true
+_DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
 --NOTE: This is a test for the QwikAppChild class you need to have --%%state set so internalStorage data is saved for children

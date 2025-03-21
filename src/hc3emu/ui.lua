@@ -1,5 +1,6 @@
-local json = TQ.json
-local api = TQ.api
+local exports = {}
+local E = setmetatable({},{ __index=function(t,k) return exports.emulator[k] end })
+local json = require("hc3emu.json")
 local fmt = string.format
 
 -- arrayify table. Ensures that empty array is json encoded as "[]"
@@ -192,7 +193,7 @@ local function UI2uiCallbacks(UI)
   return cbs
 end
 
-function TQ.compileUI(UI)
+local function compileUI(UI)
   local callBacks = UI2uiCallbacks(UI)
   local uiView = UI2NewUiView(UI)
   local viewLayout = mkViewLayout(UI)
@@ -241,7 +242,7 @@ local function toLua(t)
   end
 end
 
-function TQ.dumpUI(UI,pr)
+local function dumpUI(UI,pr)
   local lines = {}
   for _, row in ipairs(UI or {}) do
     for _,l in ipairs(row) do l.type=nil end
@@ -304,7 +305,7 @@ local function collectViewLayoutRow(u,map)
   return row
 end
 
-local function viewLayout2UI(u,map)
+local function viewLayout2UIAux(u,map)
   local function conv(u)
     local rows = {}
     for _,j in pairs(u.items) do
@@ -319,18 +320,25 @@ local function viewLayout2UI(u,map)
   return conv(u['$jason'].body.sections)
 end
 
-function TQ.viewLayout2UI(view,callbacks)
+local function viewLayout2UI(view,callbacks)
   local map = {}
   for _,c in ipairs(callbacks) do
     map[c.name]=map[c.name] or {}
     map[c.name][c.eventType]=c.callback
   end
-  local UI = viewLayout2UI(view,map)
+  local UI = viewLayout2UIAux(view,map)
   return UI
 end
 
-function TQ.logUI(id,pr)
-  local qa = api.get("/devices/"..id)
-  local UI = TQ.viewLayout2UI(qa.properties.viewLayout,qa.properties.uiCallbacks or {})
-  TQ.dumpUI(UI,pr)
+local function logUI(id,pr)
+  local qa = E:apiget("/devices/"..id)
+  local UI = viewLayout2UI(qa.properties.viewLayout,qa.properties.uiCallbacks or {})
+  dumpUI(UI,pr)
 end
+
+exports.logUI = logUI
+exports.viewLayout2UI = viewLayout2UI
+exports.dumpUI = dumpUI
+exports.compileUI = compileUI
+
+return exports

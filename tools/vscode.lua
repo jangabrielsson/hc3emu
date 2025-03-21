@@ -1,4 +1,4 @@
-_DEVELOP=true
+--_DEVELOP=true
 if require and not QuickApp then require("hc3emu") end
 --%%color=false
 --%%shellscript=true
@@ -12,6 +12,8 @@ updateFile(fname)
 --]]
 
 local cmds = {}
+local tools = fibaro.hc3emu.tools
+local io = fibaro.hc3emu.lua.io
 
 local function printf(fmt,...) _print(string.format(fmt,...)) end
 local function ERROR(fmt,...) printf("Error: "..fmt,...) os.exit(-1) end
@@ -30,7 +32,7 @@ function cmds.downloadQA(id,path) -- HC3 QA deviceId, dir path
   local deviceId = tonumber(id)
   __assert_type(deviceId, "number")
   if path=="." or path=="" then path="./" end
-  fibaro.hc3emu.downloadFQA(deviceId,path)
+  tools.downloadFQA(deviceId,path)
   SUCCESS()
 end
 
@@ -39,9 +41,9 @@ function cmds.uploadQA(fname,cf) -- current buffer file
   if fname == '.' then fname = cf end
   fname = tostring(fname)
   printf("Uploading QA: %s",fname) -- name
-  local qainfo = fibaro.hc3emu.loadQA(fname,nil,"noRun")
+  local qainfo = tools.loadQA(fname,nil,"noRun")
   if not qainfo then ERROR("loading QA") end
-  local dev,code = fibaro.hc3emu.uploadQA(qainfo.device.id)
+  local dev,code = tools.uploadQA(qainfo.device.id)
   if dev then
     printf("Uploaded QA: %s, deviceId: %s",fname,dev.id)
     SUCCESS()

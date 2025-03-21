@@ -23,7 +23,7 @@ bit32 >= 5.3.5.1-1
 lua-websockets-bit32 >= 2.0.1-7
 mobdebug >= 0.80-1
 --]]
-
+local VERSION = "1.0.48"
 local class = require("hc3emu.class")
 
 local fmt = string.format
@@ -42,7 +42,7 @@ class 'Emulator'
 local Emulator = _G['Emulator']
 
 function Emulator:__init()
-  self.VERSION = "1.0.47"
+  self.VERSION = VERSION
   self.cfgFileName = "hc3emu_cfg.lua"   -- Config file in current directory
   self.homeCfgFileName = ".hc3emu.lua"  -- Config file in home directory
   

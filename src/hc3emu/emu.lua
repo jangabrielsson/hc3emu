@@ -24,7 +24,7 @@ lua-websockets-bit32 >= 2.0.1-7
 mobdebug >= 0.80-1
 --]]
 local VERSION = "1.0.49"
-local class = require("hc3emu.class")
+local class = require("hc3emu.class") -- use simple class implementation
 
 local fmt = string.format
 
@@ -39,7 +39,7 @@ local _print = print
 local json,urlencode
 
 class 'Emulator'
-local Emulator = _G['Emulator']
+local Emulator = _G['Emulator']; _G[Emulator] = nil
 
 function Emulator:__init()
   self.VERSION = VERSION
@@ -381,7 +381,7 @@ function Emulator:apipost(...) return self.connection:call("POST",...) end
 function Emulator:apiput(...) return self.connection:call("PUT",...) end
 function Emulator:apidelete(...) return self.connection:call("DELETE",...) end
 
-local coroMetaData = setmetatable({},{__mode = "k"})
+local coroMetaData = setmetatable({},{__mode = "k"}) -- Use to associate QA/Scene environment with coroutines
 function Emulator:getCoroData(co,key) return (coroMetaData[co or coroutine.running()] or {})[key] end
 function Emulator:setCoroData(co,key,val)
   co = co or coroutine.running()
@@ -390,6 +390,7 @@ function Emulator:setCoroData(co,key,val)
   md[key] = val
   return val
 end
+
 
 function Emulator:registerQA(info) -- {id=id,directives=directives,fname=fname,src=src,env=env,device=dev,qa=qa,files=files,proxy=<bool>,child=<bool>}
   local id = info.id
@@ -419,7 +420,7 @@ end
 
 function Emulator:getNextDeviceId() self.DEVICEID = self.DEVICEID + 1 return self.DEVICEID end
 
-function Emulator:loadfile(path,env)
+function Emulator:loadfile(path,env) -- Loads a file into specific environment
   path = package.searchpath(path,package.path)
   return loadfile(path,"t",env)()
 end
@@ -620,17 +621,18 @@ function Emulator:run(args)
   self.timers.midnightLoop() -- Setup loop for midnight events, used to ex. update sunrise/sunset hour
   
   print(self.log.colorStr('orange',"HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..self.VERSION))
-  
-  local object = info.directives.type == 'scene' and self.scene.Scene(info) or nil
+  local fileType = flags.type == 'scene' and 'Scene' or 'QuickApp'
 
   while true do
     local startTime,t0 = os.clock(),os.time()
     self._shouldExit = true
     copas(function() -- This is the first task we create
       self.mobdebug.on()
+      self:setCoroData(nil,'env',info.env) -- Set environment for this coroutine (startup objects env)
+      local object = fileType == 'Scene' and self.scene.Scene(info) or nil
       self:post({type='emulator_started'},true)
       if object then object:run()
-      else self:runQA(info) end
+      else self:runQA(info) end -- ToDo, make QA an object
     end)
     self:DEBUG("Runtime %.3f sec (%s sec absolute time)",os.clock()-startTime,os.time()-t0)
     if self._shouldExit then os.exit(0) end

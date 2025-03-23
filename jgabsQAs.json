@@ -1,3 +1,6 @@
 [
-  {"user":"jangabrielsson","repo":"EventRunner5","name":"EventRunner5.fqa"}
+  {"user":"jangabrielsson","repo":"EventRunner5","name":"EventRunner5.fqa"},
+  {"user":"jangabrielsson","repo":"Dirigera","name":"Dirigera.fqa"},
+  {"user":"jangabrielsson","repo":"HassQA","name":"HASS.fqa"},
+  {"user":"jangabrielsson","repo":"SonosQA","name":"SonosPlayer.fqa"}
 ]

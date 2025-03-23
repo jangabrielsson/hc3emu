@@ -61,7 +61,8 @@ function Emulator:__init()
   self.post = function(_,...) return self.util.post(...) end
   self.addThread = function(_,...) return self.util.addThread(...) end
   
-  self.DIR={} -- Directory for all QAs - devicesId -> QAinfo 
+  self.QA_DIR={} -- Directory for all QAs - devicesId -> QA object
+  self.SCENE_DIR={} -- Directory for all Scenes - sceneId -> Scene object
   self.EMUVAR = "TQEMU" -- HC3 GV with connection data for HC3 proxy
   self.emuPort = 8264   -- Port for HC3 proxy to connect to
   self.emuIP = nil      -- IP of host running the emulator
@@ -77,7 +78,8 @@ function Emulator:__init()
   self.emuIP = myDevicesIpAddress == "0.0.0.0" and "127.0.0.1" or myDevicesIpAddress
   
   self.DEVICEID = 5000 -- Start id for QA devices
-  
+  self.SCENEID = 7000 -- Start id for Scene devices
+
   self.json = require("hc3emu.json")
   function print(...) if self.silent then return else _print(...) end end
   
@@ -137,12 +139,25 @@ function Emulator:init(debug)
   self.refreshState = loadModule("hc3emu.refreshstate") 
   self.ui = loadModule("hc3emu.ui") 
   self.tools = loadModule("hc3emu.tools") 
+  self.qa = loadModule("hc3emu.qa") 
   self.scene = loadModule("hc3emu.scene") 
 
     
   self.route.createConnections() -- Setup connections for API calls, emulator/offline/proxy
   self.connection = self.route.hc3Connection
 end
+
+function Emulator:getNextDeviceId() self.DEVICEID = self.DEVICEID + 1 return self.DEVICEID end
+function Emulator:getNextSceneId() self.SCENEID = self.SCENEID + 1 return self.SCENEID end
+
+function Emulator:registerQA(qa) 
+  assert(qa.id,"Can't register QA without id")
+  self.QA_DIR[qa.id] = qa 
+  self.store.DB.devices[qa.id] = qa.device
+end
+
+function Emulator:getQA(id) return self.QA_DIR[id] end
+function Emulator:getScene(id) return self.SCENE_DIR[id] end
 
 function Emulator:DEBUG(f,...) print("[SYS]",fmt(f,...)) end
 function Emulator:DEBUGF(flag,f,...) 
@@ -391,217 +406,10 @@ function Emulator:setCoroData(co,key,val)
   return val
 end
 
-
-function Emulator:registerQA(info) -- {id=id,directives=directives,fname=fname,src=src,env=env,device=dev,qa=qa,files=files,proxy=<bool>,child=<bool>}
-  local id = info.id
-  assert(id,"Can't register QA without id")
-  self.DIR[id] = info 
-  self.store.DB.devices[id] = info.device
-end
-
-function Emulator:getQA(id) return self.DIR[id] end
-
-function Emulator:saveProject(info)
-  local r = {}
-  for _,f in ipairs(info.files) do
-    r[f.name] = f.fname
-  end
-  r.main = info.fname
-  local f = io.open(".project","w")
-  assert(f,"Can't open file "..".project")
-  f:write(json.encodeFormated({files=r,id=info.directives.project}))
-  f:close()
-end
-
--------------------------------------------------------------
--- Our own setTimout, used by non-user code, not working with speed time
--- function setTimeout(fun,ms) return copas.timer.new({name = "SYS",delay = ms / 1000.0, callback = function() self.mobdebug.on() fun() end}) end
--- function clearTimeout(ref) return ref:cancel() end
-
-function Emulator:getNextDeviceId() self.DEVICEID = self.DEVICEID + 1 return self.DEVICEID end
-
 function Emulator:loadfile(path,env) -- Loads a file into specific environment
   path = package.searchpath(path,package.path)
   return loadfile(path,"t",env)()
 end
-
--------------------------------- QA setup/start ----------------------------
--- Creates a QA device structure and registers it with the HC3 emulator
--- @param info Table containing configuration information for the QA
-
-function Emulator:createQAstruct(info,noRun) -- noRun -> Ignore proxy
-  if info.directives == nil then self:parseDirectives(info) end
-  local flags = info.directives
-  local env = info.env
-  local qvs = json.util.InitArray(flags.var or {})
-  
-  local uiCallbacks,viewLayout,uiView
-  if flags.u and #flags.u > 0 then
-    uiCallbacks,viewLayout,uiView = self.ui.compileUI(flags.u)
-  else
-    viewLayout = json.decode([[{
-        "$jason": {
-          "body": {
-            "header": {
-              "style": { "height": "0" },
-              "title": "quickApp_device_57"
-            },
-            "sections": { "items": [] }
-          },
-          "head": { "title": "quickApp_device_57" }
-        }
-      }
-  ]])
-    viewLayout['$jason']['body']['sections']['items'] = json.util.InitArray({})
-    uiView = json.util.InitArray({})
-    uiCallbacks = json.util.InitArray({})
-  end
-  
-  if flags.id == nil then flags.id = self:getNextDeviceId() end
-  ---@diagnostic disable-next-line: undefined-field
-  local ifs = table.copy(flags.interfaces or {})
-  ---@diagnostic disable-next-line: undefined-field
-  if not table.member(ifs,"quickApp") then ifs[#ifs+1] = "quickApp" end
-  local deviceStruct = {
-    id=tonumber(flags.id),
-    type=flags.type or 'com.fibaro.binarySwitch',
-    name=flags.name or 'MyQA',
-    enabled = true,
-    visible = true,
-    properties = { apiVersion = "1.3", quickAppVariables = qvs, uiCallbacks = uiCallbacks, useUiView = false, viewLayout = viewLayout, uiView = uiView, typeTemplateInitialized = true },
-    useUiView = false,
-    interfaces = ifs,
-    created = os.time(),
-    modified = os.time()
-  }
-  for k,p in pairs({
-    model="model",uid="quickAppUuid",manufacturer="manufacturer",
-    role="deviceRole",description="userDescription"
-  }) do deviceStruct.properties[p] = flags[k] end
-  info.env.__TAG = (deviceStruct.name..(deviceStruct.id or "")):upper()
-  -- Find or create proxy if specified
-  if flags.offline and flags.proxy then
-    flags.proxy = nil
-    self:DEBUG("Offline mode, proxy directive ignored")
-  end
-  
-  if flags.proxy and not noRun then
-    local pname = tostring(flags.proxy)
-    local pop = pname:sub(1,1)
-    if pop == '-' or pop == '+' then -- delete proxy if name is preceeded with "-" or "+"
-      pname = pname:sub(2)
-      flags.proxy = pname
-      local qa = self:apiget("/devices?name="..urlencode(pname))
-      assert(type(qa)=='table')
-      for _,d in ipairs(qa) do
-        self:apidelete("/devices/"..d.id)
-        self:DEBUGF('info',"Proxy device %s deleted",d.id)
-      end
-      if pop== '-' then flags.proxy = false end -- If '+' go on and generate a new Proxy
-    end
-    if flags.proxy then
-      deviceStruct = self.proxy.getProxy(flags.proxy,deviceStruct) -- Get deviceStruct from HC3 proxy
-      assert(deviceStruct, "Can't get proxy device")
-      local id,name = deviceStruct.id,deviceStruct.name
-      info.env.__TAG = (name..(id or "")):upper()
-      self:apipost("/plugins/updateProperty",{deviceId=id,propertyName='quickAppVariables',value=qvs})
-      if flags.logUI then self.ui.logUI(id) end
-      self.proxy.startServer(id)
-      self:apipost("/devices/"..id.."/action/CONNECT",{args={{ip=self.emuIP,port=self.emuPort}}})
-      info.isProxy = true
-    end
-  end
-  
-  info.device = deviceStruct
-  info.id = deviceStruct.id
-  env.plugin = env.plugin or {}
-  env.plugin._dev = deviceStruct
-  env.plugin.mainDeviceId = deviceStruct.id -- Now we have a deviceId
-  self:registerQA(info)
-  
-  return info
-end
-
---- Loads sets up Environment and loads (QA) files into the environment
--- @param info Table containing configuration information for loading QA files
-function Emulator:loadQAFiles(info)
-  local flags = info.directives
-  self.flags = flags
-  if info.directives == nil then self:parseDirectives(info) end
-  if info.directives.startTime then 
-    local t = self.timers.parseTime(info.directives.startTime)
-    self.timers.setTime(t) 
-  end
-  local userTime,userDate = self.timers.userTime,self.timers.userDate
-
-  local env = info.env
-  local os2 = { time = userTime, clock = os.clock, difftime = os.difftime, date = userDate, exit = os.exit, remove = os.remove, require = require }
-  local fibaro = { hc3emu = self, HC3EMU_VERSION = self.VERSION, flags = info.directives, DBG = self.DBG }
-  local args = nil
-  if flags.shellscript then
-    args = {}
-    for i,v in pairs(arg) do if i > 0 then args[#args+1] = v end end
-  end
-  for k,v in pairs({
-    __assert_type = __assert_type, fibaro = fibaro, json = json, urlencode = self.util.urlencode, args=args,
-    collectgarbage = collectgarbage, os = os2, math = math, string = string, table = table, _print = print,
-    getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring,
-    type = self.luaType, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
-    error = error, assert = assert, pcall = pcall, xpcall = xpcall, bit32 = require("bit32"),
-    rawset = rawset, rawget = rawget,
-  }) do env[k] = v end
-  env._error = function(str) env.fibaro.error(env.__TAG,str) end
-  env.__TAG = info.directives.name..info.id
-  env._G = env
-  for k,v in pairs(self.exports) do env[k] = v end
-  
-  for _,path in ipairs({"hc3emu.fibaro","hc3emu.class","hc3emu.quickapp","hc3emu.net"}) do
-    self:DEBUGF('info',"Loading QA library %s",path)
-    self:loadfile(path,env)
-  end
-  
-  function env.print(...) env.fibaro.debug(env.__TAG,...) end
-  
-  -- if flags.speed then self.timers.startSpeedTime(flags.speed) end
-  
-  for _,lf in ipairs(info.files) do
-    self:DEBUGF('info',"Loading user file %s",lf.fname)
-    if lf.content then
-      load(lf.content,lf.fname,"t",env)()
-    else
-      _,lf.content = self.util.readFile{file=lf.fname,eval=true,env=env,silent=false}
-    end
-  end
-  self:DEBUGF('info',"Loading user main file %s",info.fname)
-  load(info.src,info.fname,"t",env)()
-  if not flags.offline then 
-    assert(self.URL and self.USER and self.PASSWORD,"Please define URL, USER, and PASSWORD") -- Early check that creds are available
-  end
-end
-
-function Emulator:runQA(info) -- run QA:  create QA struct, load QA files. Runs in a copas task.
-  self.mobdebug.on()
-  self:createQAstruct(info)
-  self:addThread(info.env,function()
-    self:setCoroData(nil,'env',info.env)
-    local flags = info.directives or {}
-    info.env.__debugFlags = flags.debug or {}
-    local firstLine,onInitLine = self.tools.findFirstLine(info.src)
-    if flags.breakOnLoad and firstLine then self.mobdebug.setbreakpoint(info.fname,firstLine) end
-    self:loadQAFiles(info)
-    if flags.save then self.tools.saveQA(info.id) end
-    if flags.project then self:saveProject(info) end
-    if info.env.QuickApp.onInit then
-      if flags.breakOnInit and onInitLine then self.mobdebug.setbreakpoint(info.fname,onInitLine+1) end
-      self:DEBUGF('info',"Starting QuickApp %s",info.device.name)
-      self:post({type='quickApp_started',id=info.id},true)
-      info.env.quickApp = info.env.QuickApp(info.device) -- quickApp defined first when we return from :onInit()...
-      if flags.speed then self:startSpeedTime(flags.speed) end
-    end
-  end)
-  return info
-end
-
 
 function Emulator:run(args)
   self:DEBUGF('info',"Main QA file %s",args.fname)
@@ -629,10 +437,9 @@ function Emulator:run(args)
     copas(function() -- This is the first task we create
       self.mobdebug.on()
       self:setCoroData(nil,'env',info.env) -- Set environment for this coroutine (startup objects env)
-      local object = fileType == 'Scene' and self.scene.Scene(info) or nil
+      local object = fileType == 'Scene' and self.scene.Scene(info) or self.qa.QA(info,nil)
       self:post({type='emulator_started'},true)
-      if object then object:run()
-      else self:runQA(info) end -- ToDo, make QA an object
+      object:run()
     end)
     self:DEBUG("Runtime %.3f sec (%s sec absolute time)",os.clock()-startTime,os.time()-t0)
     if self._shouldExit then os.exit(0) end

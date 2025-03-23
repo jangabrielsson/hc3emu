@@ -214,7 +214,7 @@ local function ProxyRoute()
     -- Get all devices from HC3
     local qas = E:apiget('/devices')
       -- Add emulated QAs 
-    for id,q in pairs(E.DIR) do
+    for id,q in pairs(E.QA_DIR) do
       if id >= 5000 then qas[#qas+1] = q.device end
     end
     if next(query) then return E.offline.queryFilter(query,qas),200 end   -- if query, filter the list.

@@ -1,0 +1,214 @@
+local exports = {}
+local E = setmetatable({},{ __index=function(t,k) return exports.emulator[k] end })
+local json = require("hc3emu.json")
+local userTime,userDate,urlencode
+
+local function init()
+  userTime,userDate = E.timers.userTime,E.timers.userDate
+  urlencode = E.util.urlencode
+end
+
+class 'QA'
+local QA = _G['QA']; _G['QA'] = nil
+
+function QA:__init(info,noRun)
+  self.info = info
+  self:createQAstruct(info,noRun)
+  return self
+end
+
+function QA:createQAstruct(info,noRun) -- noRun -> Ignore proxy
+  if info.directives == nil then E:parseDirectives(info) end
+  self.fname = info.fname
+  self.src = info.src
+  self.files = info.files
+  self.directives = info.directives
+  self.env = info.env
+  local flags = info.directives
+  local env = info.env
+  local qvs = json.util.InitArray(flags.var or {})
+  
+  local uiCallbacks,viewLayout,uiView
+  if flags.u and #flags.u > 0 then
+    uiCallbacks,viewLayout,uiView = E.ui.compileUI(flags.u)
+  else
+    viewLayout = json.decode([[{
+        "$jason": {
+          "body": {
+            "header": {
+              "style": { "height": "0" },
+              "title": "quickApp_device_57"
+            },
+            "sections": { "items": [] }
+          },
+          "head": { "title": "quickApp_device_57" }
+        }
+      }
+  ]])
+    viewLayout['$jason']['body']['sections']['items'] = json.util.InitArray({})
+    uiView = json.util.InitArray({})
+    uiCallbacks = json.util.InitArray({})
+  end
+  
+  if flags.id == nil then flags.id = self:nextId() end
+  ---@diagnostic disable-next-line: undefined-field
+  local ifs = table.copy(flags.interfaces or {})
+  ---@diagnostic disable-next-line: undefined-field
+  if not table.member(ifs,"quickApp") then ifs[#ifs+1] = "quickApp" end
+  local deviceStruct = {
+    id=tonumber(flags.id),
+    type=flags.type or 'com.fibaro.binarySwitch',
+    name=flags.name or 'MyQA',
+    enabled = true,
+    visible = true,
+    properties = { apiVersion = "1.3", quickAppVariables = qvs, uiCallbacks = uiCallbacks, useUiView = false, viewLayout = viewLayout, uiView = uiView, typeTemplateInitialized = true },
+    useUiView = false,
+    interfaces = ifs,
+    created = os.time(),
+    modified = os.time()
+  }
+  for k,p in pairs({
+    model="model",uid="quickAppUuid",manufacturer="manufacturer",
+    role="deviceRole",description="userDescription"
+  }) do deviceStruct.properties[p] = flags[k] end
+  info.env.__TAG = (deviceStruct.name..(deviceStruct.id or "")):upper()
+  -- Find or create proxy if specified
+  if flags.offline and flags.proxy then
+    flags.proxy = nil
+    E:DEBUG("Offline mode, proxy directive ignored")
+  end
+  
+  if flags.proxy and not noRun then
+    local pname = tostring(flags.proxy)
+    local pop = pname:sub(1,1)
+    if pop == '-' or pop == '+' then -- delete proxy if name is preceeded with "-" or "+"
+      pname = pname:sub(2)
+      flags.proxy = pname
+      local qa = E:apiget("/devices?name="..urlencode(pname))
+      assert(type(qa)=='table')
+      for _,d in ipairs(qa) do
+        E:apidelete("/devices/"..d.id)
+        E:DEBUGF('info',"Proxy device %s deleted",d.id)
+      end
+      if pop== '-' then flags.proxy = false end -- If '+' go on and generate a new Proxy
+    end
+    if flags.proxy then
+      deviceStruct = E.proxy.getProxy(flags.proxy,deviceStruct) -- Get deviceStruct from HC3 proxy
+      assert(deviceStruct, "Can't get proxy device")
+      local id,name = deviceStruct.id,deviceStruct.name
+      info.env.__TAG = (name..(id or "")):upper()
+      E:apipost("/plugins/updateProperty",{deviceId=id,propertyName='quickAppVariables',value=qvs})
+      if flags.logUI then E.ui.logUI(id) end
+      E.proxy.startServer(id)
+      E:apipost("/devices/"..id.."/action/CONNECT",{args={{ip=E.emuIP,port=E.emuPort}}})
+      info.isProxy = true
+    end
+  end
+  
+  -- info.device = deviceStruct
+  -- info.id = deviceStruct.id
+  env.plugin = env.plugin or {}
+  env.plugin._dev = deviceStruct
+  env.plugin.mainDeviceId = deviceStruct.id -- Now we have a deviceId
+  self.name = deviceStruct.name
+  self.device = deviceStruct
+  self.id = deviceStruct.id
+  E:registerQA(self)
+  
+  return self
+end
+
+function QA:loadQAFiles()
+  local flags = self.directives
+  self.flags = flags
+  if self.directives == nil then error("QA directive nil") end
+  if flags.startTime then 
+    local t = E.timers.parseTime(flags.startTime)
+    E.timers.setTime(t) 
+  end
+  local userTime,userDate = E.timers.userTime,E.timers.userDate
+
+  local env = self.env
+  local os2 = { time = userTime, clock = os.clock, difftime = os.difftime, date = userDate, exit = os.exit, remove = os.remove, require = require }
+  local fibaro = { hc3emu = E, HC3EMU_VERSION = E.VERSION, flags = flags, DBG = E.DBG }
+  local args = nil
+  if flags.shellscript then
+    args = {}
+    for i,v in pairs(arg) do if i > 0 then args[#args+1] = v end end
+  end
+  for k,v in pairs({
+    __assert_type = __assert_type, fibaro = fibaro, json = json, urlencode = E.util.urlencode, args=args,
+    collectgarbage = collectgarbage, os = os2, math = math, string = string, table = table, _print = print,
+    getmetatable = getmetatable, setmetatable = setmetatable, tonumber = tonumber, tostring = tostring,
+    type = E.luaType, pairs = pairs, ipairs = ipairs, next = next, select = select, unpack = table.unpack,
+    error = error, assert = assert, pcall = pcall, xpcall = xpcall, bit32 = require("bit32"),
+    rawset = rawset, rawget = rawget,
+  }) do env[k] = v end
+  env._error = function(str) env.fibaro.error(env.__TAG,str) end
+  env.__TAG = self.name..self.id
+  env._G = env
+  for k,v in pairs(E.exports) do env[k] = v end
+  
+  for _,path in ipairs({"hc3emu.fibaro","hc3emu.class","hc3emu.quickapp","hc3emu.net"}) do
+    E:DEBUGF('info',"Loading QA library %s",path)
+    E:loadfile(path,env)
+  end
+  
+  function env.print(...) env.fibaro.debug(env.__TAG,...) end
+  
+  for _,lf in ipairs(self.files) do
+    E:DEBUGF('info',"Loading user file %s",lf.fname)
+    if lf.content then
+      load(lf.content,lf.fname,"t",env)()
+    else
+      _,lf.content = E.util.readFile{file=lf.fname,eval=true,env=env,silent=false}
+    end
+  end
+  E:DEBUGF('info',"Loading user main file %s",self.fname)
+  load(self.src,self.fname,"t",env)()
+  if not flags.offline then 
+    assert(E.URL and E.USER and E.PASSWORD,"Please define URL, USER, and PASSWORD") -- Early check that creds are available
+  end
+end
+
+function QA:nextId() return E:getNextDeviceId() end
+
+function QA:saveProject()
+  local r = {}
+  for _,f in ipairs(self.files) do
+    r[f.name] = f.fname
+  end
+  r.main = self.fname
+  local f = io.open(".project","w")
+  assert(f,"Can't open file "..".project")
+  f:write(json.encodeFormated({files=r,id=self.directives.project}))
+  f:close()
+end
+
+function QA:run() -- run QA:  create QA struct, load QA files. Runs in a copas task.
+  E.mobdebug.on()
+  local env = self.env
+  E:addThread(env,function()
+    E:setCoroData(nil,'env',env)
+    local flags = self.directives or {}
+    env.__debugFlags = flags.debug or {}
+    local firstLine,onInitLine = E.tools.findFirstLine(self.src)
+    if flags.breakOnLoad and firstLine then E.mobdebug.setbreakpoint(self.fname,firstLine) end
+    self:loadQAFiles()
+    if flags.save then E.tools.saveQA(self.id) end
+    if flags.project then self:saveProject() end
+    if env.QuickApp.onInit then
+      if flags.breakOnInit and onInitLine then E.mobdebug.setbreakpoint(self.fname,onInitLine+1) end
+      E:DEBUGF('info',"Starting QuickApp '%s'",self.name)
+      E:post({type='quickApp_started',id=self.id},true)
+      env.quickApp = env.QuickApp(self.device) -- quickApp defined first when we return from :onInit()...
+      if flags.speed then E:startSpeedTime(flags.speed) end
+    end
+  end)
+  return self
+end
+
+exports.QA = QA
+exports.init = init
+
+return exports

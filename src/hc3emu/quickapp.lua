@@ -56,6 +56,8 @@ function QuickAppBase:__init(dev)
   self.interfaces = dev.interfaces
   self.uiCallbacks = {}
   self.childDevices = {}
+
+  -- Link QuickAppBase instance to Emulator QA entry
   if dev.parentId and dev.parentId > 0 then -- A child device, register it locally
     E:registerQA({id=self.id,device=dev,env=_G,qa=self})
   else

@@ -86,7 +86,7 @@ local function findFirstLine(src)
   return first or 1,init
 end
 
-local function getFQA(id) -- Creates FQA structure from installed QA
+local function getFQA(id) -- Creates FQA structure from installed QA, //Move to QA class
   local qa = E:getQA(id)
   assert(qa,"QuickApp not found, ID"..tostring(id))
   local dev = qa.device
@@ -123,9 +123,9 @@ local function loadQA(path,optionalDirectives,noRun)   -- Load QA from file and 
     f:close()
     local info = { directives = nil, extraDirectives = optionalDirectives, src = src, fname = path, env = { require=true }, files = {} }
     if noRun then 
-      return E:createQAstruct(info,true)
+      return E.qa.QA(info,true)
     else
-      return E:runQA(info)
+      return E.qa.QA(info):run()
     end
   else
     E:ERRORF("Could not read file %s",path)
@@ -154,11 +154,11 @@ local function loadQAString(src,optionalDirectives) -- Load QA from string and r
   f:close()
   local info = { directives = nil, extraDirectives = optionalDirectives, src = src, fname = path, env = { require=true }, files = {} }
   ---@diagnostic disable-next-line: need-check-nil
-  return E:runQA(info)
+  return E.qa.QA(info):run()
 end
 
 --@F 
-local function saveQA(id,fileName)       -- Save installed QA to disk as .fqa
+local function saveQA(id,fileName) -- Save installed QA to disk as .fqa  //Move to QA class
   local info = E:getQA(id)           
   fileName = fileName or info.directives.save
   assert(fileName,"No save filename found")

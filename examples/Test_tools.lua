@@ -3,14 +3,14 @@ if require and not QuickApp then require("hc3emu") end
 
 --%%name=Tool test
 
-local loadQAString = fibaro.hc3emu.loadQAString   -- Load QA from string and run it (saves as temp file)
-local downloadFQA = fibaro.hc3emu.downloadFQA     -- Download QA from HC3, unpack and save it to disk
-local unpackFQA = fibaro.hc3emu.unpackFQA         -- Unpacks FQA on disk (to disk)
-local loadFQA = fibaro.hc3emu.loadFQA             -- Load FQA from file and run it (saves as temp files)
-local saveQA = fibaro.hc3emu.saveQA               -- Save installed QA to disk as .fqa file
-local installFQA = fibaro.hc3emu.installFQA       -- Installs QA from HC3 and run it. (saves as temp files)
-local loadQA = fibaro.hc3emu.loadQA               -- Load QA from file and run it
-local getFQA = fibaro.hc3emu.getFQA               -- Creates FQA structure from installed QA
+local loadQAString = fibaro.hc3emu.tools.loadQAString   -- Load QA from string and run it (saves as temp file)
+local downloadFQA = fibaro.hc3emu.tools.downloadFQA     -- Download QA from HC3, unpack and save it to disk
+local unpackFQA = fibaro.hc3emu.tools.unpackFQA         -- Unpacks FQA on disk (to disk)
+local loadFQA = fibaro.hc3emu.tools.loadFQA             -- Load FQA from file and run it (saves as temp files)
+local saveQA = fibaro.hc3emu.tools.saveQA               -- Save installed QA to disk as .fqa file
+local installFQA = fibaro.hc3emu.tools.installFQA       -- Installs QA from HC3 and run it. (saves as temp files)
+local loadQA = fibaro.hc3emu.tools.loadQA               -- Load QA from file and run it
+local getFQA = fibaro.hc3emu.tools.getFQA               -- Creates FQA structure from installed QA
 
 --ENDOFDIRECTIVES--
 

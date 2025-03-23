@@ -7,7 +7,6 @@ local function init()
   userTime,userDate = E.timers.userTime,E.timers.userDate
 end
 
-local SCENE_ID = 6000
 local compileCond
 local scenes = {}
 local setupDateEvent, sceneTrigger, minuteLoop, minuteFuns
@@ -24,7 +23,7 @@ function Scene:__init(info)
   self:createSceneStruct()
 end
 
-function Scene:nextId() SCENE_ID = SCENE_ID + 1; return SCENE_ID end
+function Scene:nextId() return E:getNextSceneId() end
 
 function Scene:createSceneStruct()
   local env = self.env

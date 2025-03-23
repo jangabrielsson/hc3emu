@@ -4,7 +4,10 @@ local copas = require("copas")
 local socket = require("socket")
 local mobdebug = require("mobdebug")
 
-local function async(fun,...) return hc3emu:addThread(_G,fun,...) end
+local function async(fun,...)
+  local runner = fibaro.hc3emu:getRunner()
+  return hc3emu:addThread(runner,fun,...) 
+end
 
 ------------------------- net ------------------------------
 net = {}

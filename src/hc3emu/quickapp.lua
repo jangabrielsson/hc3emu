@@ -28,10 +28,8 @@ function plugin.restart(t)
   else
     E:DEBUG("Restarting QuickApp "..id.." in 5 seconds")
   end
-  local info = E:getQA(id)
-  E.timers.cancelTimers(_G) 
-  E.util.cancelThreads(_G)
-  setTimeout(function() E:runQA(info) end,t)
+  local qa = E:getQA(id)
+  qa:restart(t)
 end
 
 local exit = os.exit
@@ -57,12 +55,11 @@ function QuickAppBase:__init(dev)
   self.uiCallbacks = {}
   self.childDevices = {}
 
-  -- Link QuickAppBase instance to Emulator QA entry
   if dev.parentId and dev.parentId > 0 then -- A child device, register it locally
-    E:registerQA({id=self.id,device=dev,env=_G,qa=self})
-  else
-    E:getQA(dev.id).qa = self
+    E:registerQA(E.qa.QAChild({id=self.id,device=dev,env=_G}))
   end
+  -- Link QuickAppBase instance to Emulator QA entry
+  E:getQA(dev.id).qa = self
 end
 
 function QuickAppBase:debug(...) fibaro.debug(__TAG, ...) end

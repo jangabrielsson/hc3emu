@@ -1,17 +1,20 @@
 local exports = {}
 local E = setmetatable({},{ __index=function(t,k) return exports.emulator[k] end })
 local json = require("hc3emu.json")
+local class = require("hc3emu.class") -- use simple class implementation
 local userTime,userDate,urlencode
 
 local function init()
   userTime,userDate = E.timers.userTime,E.timers.userDate
   urlencode = E.util.urlencode
 end
+Runner = Runner 
 
-class 'QA'
+class 'QA'(Runner)
 local QA = _G['QA']; _G['QA'] = nil
 
 function QA:__init(info,noRun)
+  Runner.__init(self,"QA")
   self.info = info
   self:createQAstruct(info,noRun)
   return self
@@ -188,8 +191,8 @@ end
 function QA:run() -- run QA:  create QA struct, load QA files. Runs in a copas task.
   E.mobdebug.on()
   local env = self.env
-  E:addThread(env,function()
-    E:setCoroData(nil,'env',env)
+  E:addThread(self,function()
+    E:setRunner(self)
     local flags = self.directives or {}
     env.__debugFlags = flags.debug or {}
     local firstLine,onInitLine = E.tools.findFirstLine(self.src)
@@ -208,7 +211,68 @@ function QA:run() -- run QA:  create QA struct, load QA files. Runs in a copas t
   return self
 end
 
+function QA:restart(delay) -- delay in ms
+  E.timers.cancelTimers(self) 
+  E.util.cancelThreads(self)
+  self.env.setTimeout(function() self:run() end,delay or 0)
+end
+
+function QA:remove()
+  E.timers.cancelTimers(self) 
+  E.util.cancelThreads(self)
+  E:unregisterQA(self.id)
+end
+
+function QA:createFQA(id) -- Creates FQA structure from installed QA
+  local dev = self.device
+  local files = {}
+  local suffix = ""
+  for _,f in ipairs(self.files) do
+    if f.content == nil then f.content = E.util.readFile(f.fname) end
+    if f.name == "main" then suffix = "99" end -- User has main file already... rename ours to main99
+    files[#files+1] = {name=f.name, isMain=false, isOpen=false, type='lua', content=f.content}
+  end
+  files[#files+1] = {name="main"..suffix, isMain=true, isOpen=false, type='lua', content=self.src}
+  local initProps = {}
+  local savedProps = {
+    "uiCallbacks","quickAppVariables","uiView","viewLayout","apiVersion","useEmbededView",
+    "manufacturer","useUiView","model","buildNumber","supportedDeviceRoles",
+    "userDescription","typeTemplateInitialized","quickAppUuid","deviceRole"
+  }
+  for _,k in ipairs(savedProps) do initProps[k]=dev.properties[k] end
+  return {
+    apiVersion = "1.3",
+    name = dev.name,
+    type = dev.type,
+    initialProperties = initProps,
+    initialInterfaces = dev.interfaces,
+    files = files
+  }
+end
+
+function QA:_error(str)
+  self.env.fibaro.error(self.env.__TAG,self:trimErr(str))
+end
+
+class 'QAChild' -- Just a placeholder for child QA, NOT a runner, only mother QA is runner
+local QAChild = _G['QAChild']; _G['QAChild'] = nil
+
+function QAChild:__init(info)
+  self.info = info
+  self.id = info.id
+  self.env = info.env
+  self.device = info.device
+  self.name = 'Child'..self.id
+  E:registerQA(self)
+  return self
+end
+
+function QAChild:run() error("Child can not be installed in emulator - create child from main QA") end
+function QAChild:createFQA() error("Child can not be converted to .fqa") end
+function QAChild:save() error("Child can not be saved") end
+
 exports.QA = QA
+exports.QAChild = QAChild
 exports.init = init
 
 return exports

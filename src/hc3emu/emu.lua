@@ -38,8 +38,13 @@ require("copas.http")
 local _print = print
 local json,urlencode
 
+class 'Runner'
+
 class 'Emulator'
-local Emulator = _G['Emulator']; _G[Emulator] = nil
+local Emulator = _G['Emulator']; _G['Emulator'] = nil
+
+local logTime = os.time
+local dateMark = function(str) return os.date("[%d.%m.%Y][%H:%M:%S][",logTime())..str.."]" end
 
 function Emulator:__init()
   self.VERSION = VERSION
@@ -69,6 +74,7 @@ function Emulator:__init()
   self.api = {}         -- API functions
   self.DBG = {} -- Default flags and debug settings
   self.exports = {} -- functions to export to QA
+  self.RunnerClass = Runner
   
   local someRandomIP = "192.168.1.122" --This address you make up
   local someRandomPort = "3102" --This port you make up
@@ -79,7 +85,7 @@ function Emulator:__init()
   
   self.DEVICEID = 5000 -- Start id for QA devices
   self.SCENEID = 7000 -- Start id for Scene devices
-
+  
   self.json = require("hc3emu.json")
   function print(...) if self.silent then return else _print(...) end end
   
@@ -98,6 +104,8 @@ function Emulator:init(debug)
   self.silent = debug.silent
   self.nodebug = debug.nodebug
   self.DBG = debug
+  self.systemRunner = SystemRunner()
+  self:setRunner(self.systemRunner)
   
   local function ll(fn) local f,e = loadfile(fn) if f then return f() else return not tostring(e):match("such file") and error(e) or nil end end
   
@@ -131,6 +139,7 @@ function Emulator:init(debug)
   
   self.log = loadModule("hc3emu.log")
   self.timers = loadModule("hc3emu.timers") 
+  logTime = self.timers.userTime
   self.store = loadModule("hc3emu.db")                   -- Database for storing data
   self.route = loadModule("hc3emu.route")                -- Route object
   self.emuroute = loadModule("hc3emu.emuroute")          -- Emulator API routes
@@ -141,8 +150,8 @@ function Emulator:init(debug)
   self.tools = loadModule("hc3emu.tools") 
   self.qa = loadModule("hc3emu.qa") 
   self.scene = loadModule("hc3emu.scene") 
-
-    
+  
+  
   self.route.createConnections() -- Setup connections for API calls, emulator/offline/proxy
   self.connection = self.route.hc3Connection
 end
@@ -156,20 +165,34 @@ function Emulator:registerQA(qa)
   self.store.DB.devices[qa.id] = qa.device
 end
 
+function Emulator:unregisterQA(id) 
+  self.QA_DIR[id] = nil 
+  self.store.DB.devices[id] = nil
+end
+
+function Emulator:registerScene(scene) 
+  assert(scene.id,"Can't register Scene without id")
+  self.SCENE_DIR[scene.id] = scene
+  --self.store.DB.scenes[scene.id] = scene.device
+end
+
 function Emulator:getQA(id) return self.QA_DIR[id] end
 function Emulator:getScene(id) return self.SCENE_DIR[id] end
 
-function Emulator:DEBUG(f,...) print("[SYS]",fmt(f,...)) end
-function Emulator:DEBUGF(flag,f,...) 
-  local env = self:getCoroData(nil,'env')
+function Emulator:DEBUG(f,...) print(dateMark('SYS'),fmt(f,...)) end
+function Emulator:DEBUGF(flag,f,...) if self:DBGFLAG(flag) then self:DEBUG(f,...) end end
+function Emulator:DBGFLAG(flag) 
+  local runner = self:getRunner()
+  if not runner then return self.DBG[flag] end
+  local env = runner.env
   if env and env.__debugFlags then 
     local v = env.__debugFlags[flag]
-    if v~=nil then if v then self:DEBUG(f,...) end return end
+    if v~=nil then return v end
   end
-  if self.DBG[flag] then self:DEBUG(f,...) end
+  return self.DBG[flag]
 end
-function Emulator:WARNINGF(f,...) print("[SYSWARN]",fmt(f,...)) end
-function Emulator:ERRORF(f,...) _print("[SYSERR]",fmt(f,...)) end
+function Emulator:WARNINGF(f,...) print(dateMark('SYSWARN'),fmt(f,...)) end
+function Emulator:ERRORF(f,...) _print(dateMark('SYSERR'),fmt(f,...)) end
 
 function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} to info
   self:DEBUGF('info',"Parsing %s directives...",info.fname)
@@ -356,7 +379,6 @@ function Emulator:httpRequest(method,url,headers,data,timeout,user,pwd)
     req.headers["Content-Length"] = 0
   end
   local r,status,h
-  local env = self.getCoroData(nil,'env')
   if url:starts("https") then r,status,h = copas.https.request(req)
   else r,status,h = copas.http.request(req) end
   if tonumber(status) and status < 300 then
@@ -397,7 +419,12 @@ function Emulator:apiput(...) return self.connection:call("PUT",...) end
 function Emulator:apidelete(...) return self.connection:call("DELETE",...) end
 
 local coroMetaData = setmetatable({},{__mode = "k"}) -- Use to associate QA/Scene environment with coroutines
-function Emulator:getCoroData(co,key) return (coroMetaData[co or coroutine.running()] or {})[key] end
+function Emulator:getCoroData(co,key,silent) 
+  local coro = co or coroutine.running()
+  local data = (coroMetaData[coro] or {})[key] 
+  assert(silent or data~=nil,"Coro data not found: "..tostring(key).." "..tostring(coro))
+  return data
+end
 function Emulator:setCoroData(co,key,val)
   co = co or coroutine.running()
   local md = coroMetaData[co] or {}
@@ -405,13 +432,19 @@ function Emulator:setCoroData(co,key,val)
   md[key] = val
   return val
 end
+function Emulator:getRunner(co,silent) return self:getCoroData(co,'runner',silent) end
+function Emulator:setRunner(runner,co)
+  local oldRunner = self:getRunner(co,true)
+  self:setCoroData(co,'runner',runner) 
+  return oldRunner
+end
 
 function Emulator:loadfile(path,env) -- Loads a file into specific environment
   path = package.searchpath(path,package.path)
   return loadfile(path,"t",env)()
 end
 
-function Emulator:run(args)
+function Emulator:run(args) -- { fname = "file.lua", src = "source code" } 
   self:DEBUGF('info',"Main QA file %s",args.fname)
   self.mainFile = args.fname
   local info = {fname=self.mainFile,src=args.src,env={}}
@@ -420,30 +453,50 @@ function Emulator:run(args)
   for _,globalFlag in ipairs({'offline','state','logColor','stateReadOnly','dark'}) do
     if flags[globalFlag]~=nil then self.DBG[globalFlag] = flags[globalFlag] end
   end
-
+  
   self.USER = (flags.creds or {}).user or self.USER            -- Get credentials (again), if changed
   self.PASSWORD = (flags.creds or {}).password or self.PASSWORD
   self.URL = (flags.creds or {}).url or self.URL
   self.PIN = (flags.creds or {}).pin or self.PIN
   
-  self.timers.midnightLoop() -- Setup loop for midnight events, used to ex. update sunrise/sunset hour
-  
   print(self.log.colorStr('orange',"HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..self.VERSION))
   local fileType = flags.type == 'scene' and 'Scene' or 'QuickApp'
-
+  
   while true do
     local startTime,t0 = os.clock(),os.time()
     self._shouldExit = true
     copas(function() -- This is the first task we create
       self.mobdebug.on()
-      self:setCoroData(nil,'env',info.env) -- Set environment for this coroutine (startup objects env)
-      local object = fileType == 'Scene' and self.scene.Scene(info) or self.qa.QA(info,nil)
+      self:setRunner(self.systemRunner) -- Set environment for this coroutine 
+      self.timers.midnightLoop() -- Setup loop for midnight events, used to ex. update sunrise/sunset hour
+      local runner = fileType == 'Scene' and self.scene.Scene(info) or self.qa.QA(info,nil)
       self:post({type='emulator_started'},true)
-      object:run()
+      runner:run()
     end)
     self:DEBUG("Runtime %.3f sec (%s sec absolute time)",os.clock()-startTime,os.time()-t0)
     if self._shouldExit then os.exit(0) end
   end
+end
+
+function Runner:__init(kind)
+  self.kind = kind.."Runner"
+  self.name = "0"
+end
+function Runner:printErr(date,str) _print(date,str) end
+function Runner:trimErr(str) return str:gsub("%[string \"", "[file \"") or str end
+function Runner:__tostring(r) return fmt("%s:%s",self.kind,self.name) end
+
+SystemRunner = SystemRunner
+class 'SystemRunner'(Runner)
+
+
+function SystemRunner:__init()
+  Runner.__init(self,"System")
+  self.name = "main"
+end
+
+function SystemRunner:_error(str)
+  _print(dateMark('SYSERR'),self:trimErr(str))
 end
 
 return Emulator

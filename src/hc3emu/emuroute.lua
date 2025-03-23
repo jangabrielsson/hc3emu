@@ -76,8 +76,15 @@ end
 local function callAction(p,id,name,data)
   local qa = E:getQA(tonumber(id))
   if qa == nil then return nil,301 end
-  qa.qa:callAction(name,table.unpack(data.args)) 
+  E:addThread(qa,function() qa.qa:callAction(name,table.unpack(data.args)) end)
   return 'OK',200
+end
+
+local function removeQA(p,id) -- Remove QA
+  local qa = E:getQA(tonumber(id))
+  if qa == nil then return nil,301 end
+  qa:remove()
+  return true,200
 end
 
 local function putData(p,id,data) -- Update local device properties
@@ -167,7 +174,8 @@ local function EmuRoute() -- Create emulator route, redirecting API calls to emu
   route:add('PUT/devices/<id>',putData)  -- puta data
   route:add('POST/devices/<id>/action/<name>',callAction)       -- Call to ourself
   route:add('GET/devices/<id>/properties/<name>',getProp) -- Get properties from ourselves, fetch it locally
-  
+  route:add('DELETE/devices/<id>', removeQA) -- Remove QA
+
   route:add('GET/quickApp/export/<id>',function(p,id,_)  -- Get our local QA
     local qa = E:getQA(tonumber(id))
     if qa == nil then return nil,301 end
@@ -189,7 +197,7 @@ local function EmuRoute() -- Create emulator route, redirecting API calls to emu
   route:add('DELETE/plugins/<id>/variables/<name>', function(p,...) return internalStorageDelete(...) end) --id,key,data
 
   route:add("POST/scenes/<id>/<name>" , function(p,id,name,data)
-    local scene = E.scene.scenes[tonumber(id)]
+    local scene = E:getScene(tonumber(id))
     if scene then 
       assert(name=='execute',"Invalid scene action")
       scene:trigger({type='user', property='execute',id=2}) 

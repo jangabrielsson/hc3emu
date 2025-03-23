@@ -11,17 +11,6 @@ function print(...) if (E.DBG or {}).silent then return end;
   _print(...)
 end
 
-local function DEBUG(f,...) print("[SYS]",fmt(f,...)) end
-local function DEBUGF(flag,f,...) 
-  local env = E:getCoroData(nil,'env')
-  if env and env.__debugFlags then 
-    local v = env.__debugFlags[flag]
-    if v~=nil then if v then DEBUG(f,...) end return end
-  end
-  if E.DBG[flag] then DEBUG(f,...) end
-end
-local function WARNINGF(f,...) print("[SYSWARN]",fmt(f,...)) end
-local function ERRORF(f,...) _print("[SYSERR]",fmt(f,...)) end
 local function pcall2(f,...) local res = {pcall(f,...)} if res[1] then return table.unpack(res,2) else return nil end end
 
 local function urlencode(str) -- very useful
@@ -85,11 +74,14 @@ function __assert_type(param, typ)
 end
 
 local function readFile(args)
-  local file,eval,env,silent = args.file,args.eval,args.env,args.silent~=false
+  local file,eval,env,silent
+  if type(args)=='string' then file = args
+  else file,eval,env,silent = args.file,args.eval,args.env,args.silent~=false end
   local f,err,res = io.open(file, "rb")
   if f==nil then if not silent then error(err) end end
   assert(f)
   local content = f:read("*all")
+  res = content
   f:close()
   if eval then
     if type(eval)=='function' then eval(file) end
@@ -99,6 +91,12 @@ local function readFile(args)
     if _ == false then error(res) end
   end
   return res,content
+end
+
+local function writeFile(path,content)
+  local f = io.open(path,"w")
+  if f then f:write(content) f:close()
+  else error("Failed to save file:"..path) end
 end
 
 local sunCalc
@@ -383,25 +381,27 @@ local function post(event,immidiate) ---{type=..., ...}
   local function poster() 
     for _,evh in ipairs(evhs or {}) do 
       local stat,err = pcall(evh,event)
-      if not stat then ERRORF("Event handler error: %s",err) end
+      if not stat then E:ERRORF("Event handler error: %s",err) end
     end 
   end
-  if not immidiate then E:addThread(nil,poster) else poster() end
+  if not immidiate then 
+    E:addThread(E:getRunner(),poster) else poster() end
 end
 
 local tasks = {}
 local function errfun(msg,co,skt)
-  -- Try to figure what QA started this task
-  local env = E:getCoroData(co,'env') -- We use that to make the right fibaro.debugging call
-  if env then
-    if env._error then env._error(msg) end
+  -- Try to figure what QA/Scene started this task
+  local runner = E:getRunner(co) -- We use that to make the right fibaro.debugging call
+  if runner then
+    if runner then runner:_error(msg) end
   else
-    ERRORF("Task error: %s",msg)
+    E:ERRORF("Task error: %s",msg)
   end
   print(copas.gettraceback("",co,skt))
 end
 
-local function addThread(env,call,...)
+local function addThread(runner,call,...)
+  assert(runner,"No runner for addThread")
   mobdebug.on()
   local task = 42
   task = copas.addthread(function(...) 
@@ -409,28 +409,28 @@ local function addThread(env,call,...)
     copas.seterrorhandler(errfun)
     local stat,res = pcall(call,...) 
     if not stat then
-      local env = E:getCoroData(nil,'env')
       res = tostring(res)
       res = res:gsub('^%[(string) ',function(s) return "[file " end)
-      if env then env._error(res)
-      else ERRORF("Task error: %s",res) end
+      if runner then runner:_error(res)
+      else E:ERRORF("Task error: %s",res) end
       print(copas.gettraceback("",coroutine.running(),nil))
     end
     tasks[task]=nil 
   end,...)
   -- Keep track of what QA started what task
   -- Will allow us to kill all tasks started by a QA when it is deleted
-  E:setCoroData(task,'env',env) 
+  E:setRunner(runner,task) 
   tasks[task] = true
   return task
 end
-local function cancelThreads(env) 
-  if env == nil then 
+
+local function cancelThreads(runner) 
+  if runner == nil then 
     for t,_ in pairs(tasks) do copas.removethread(t) end 
     tasks = {}
   else
     for t,_ in pairs(tasks) do 
-      if E:getCoroData(t,'env') == env then 
+      if E:getRunner(t) == runner then 
         copas.removethread(t) 
         tasks[t]=nil 
       end 
@@ -439,15 +439,12 @@ local function cancelThreads(env)
 end
 
 exports._print = _print
-exports.DEBUG = DEBUG
-exports.DEBUGF = DEBUGF
-exports.WARNINGF = WARNINGF
-exports.ERRORF = ERRORF
 exports.pcall2 = pcall2
 exports.json = json
 exports.urlencode = urlencode
 exports.__assert_type = __assert_type
 exports.readFile = readFile
+exports.writefile = writeFile
 exports.sunCalc = sunCalc
 exports.EVENT = EVENT
 exports.post = post

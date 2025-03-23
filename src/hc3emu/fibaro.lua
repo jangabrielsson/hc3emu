@@ -43,7 +43,7 @@ __emu_timerHook = {}
 function setTimeout(fun,ms,tag)
   __assert_type2(fun, "function", "setTimeout: first argument must be a %s")
   __assert_type2(ms,"number","setTimeout: second argument must be a %s")
-  return __emu_setTimeout(fun,ms,tag,__emu_timerHook[1])
+  return __emu_setTimeout(fun,ms,tag)
 end
 
 function clearTimeout(ref)
@@ -54,7 +54,7 @@ end
 function setInterval(fun,ms,tag)
   __assert_type2(fun, "function", "setInterval: first argument must be a %s")
   __assert_type2(ms,"number","setInterval: second argument must be a %s")
-  return __emu_setInterval(fun,ms,tag,__emu_timerHook[1])
+  return __emu_setInterval(fun,ms,tag)
 end
 
 function clearInterval(ref)

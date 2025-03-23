@@ -13,7 +13,7 @@ if require and not QuickApp then require("hc3emu") end
 fibaro.hc3emu.tools.loadScene("examples/Scene_call.lua")
 
 function QuickApp:onInit()
-  fibaro.scene("execute",{6001})
+  fibaro.scene("execute",{7001}) -- We magically know the scene ID... fix api.get("/scenes/<id>")
 end
 
 function QuickApp:foo(a,b) 

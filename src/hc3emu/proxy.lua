@@ -161,7 +161,7 @@ local started = false
 local function startServer(id)
   if started then return end
   started = true
-  E:DEBUGF('info',"Server started at %s:%s",E.emuIP,E.emuPort)
+  E:DEBUGF('info',"Starting server at %s:%s",E.emuIP,E.emuPort)
 
   local function handle(skt)
     E.mobdebug.on()

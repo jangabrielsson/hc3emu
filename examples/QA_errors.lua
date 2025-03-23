@@ -4,8 +4,7 @@
 _DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
---%%name=APItest
---%%p roxy=TestProxy
+--%%name=Error test
 --%%dark=true
 
 --barf()

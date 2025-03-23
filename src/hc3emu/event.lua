@@ -10,7 +10,8 @@ local WARNING = function(...) fibaro.warning(__TAG,format(...)) end
 local ERRORF = function(...) fibaro.error(__TAG,format(...)) end
 local TRACE = function(...) fibaro.trace(__TAG,format(...)) end
 
-local debugFlags = fibaro and fibaro.debugFlags or E and E.DBG or {}
+---@diagnostic disable-next-line: undefined-global
+local debugFlags = fibaro and (fibaro.debugFlags or __debugFlags) or {}
 if fibaro then fibaro.debugFlags = debugFlags end
 
 local exports = {}

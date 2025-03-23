@@ -6,7 +6,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%name=SpeedTest
 --%%type=com.fibaro.multilevelSwitch
 --%%dark=true
---% %debug=timer:true
+--%%debug=timer1:true
 --%%local=true
 -- %%speed=24*7 -- One week
 

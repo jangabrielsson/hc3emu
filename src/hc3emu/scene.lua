@@ -1,6 +1,7 @@
 local exports = {}
 local E = setmetatable({},{ __index=function(t,k) return exports.emulator[k] end })
 local json = require("hc3emu.json")
+local class = require("hc3emu.class") -- use simple class implementation
 local userTime,userDate
 
 local function init()
@@ -8,14 +9,15 @@ local function init()
 end
 
 local compileCond
-local scenes = {}
 local setupDateEvent, sceneTrigger, minuteLoop, minuteFuns
 
 ---------------------- Scene class ---------------------------------------
-class 'Scene'
+Runner = Runner
+class 'Scene'(Runner)
 local Scene = _G['Scene']; _G['Scene'] = nil
 function Scene:__init(info)
   E.mobdebug.on()
+  Runner.__init(self,"Scene")
   self.info = info
   self.fname = info.fname
   self.src = info.src
@@ -53,6 +55,7 @@ function Scene:createSceneStruct()
   
   local eventHandler = function(ev)
     E:DEBUGF('scene',"Event handler %s",json.encodeFast(ev.event))
+    E:setRunner(self)
     local event = ev.event
     local flag = false
     if event.property == 'execute' then flag = true
@@ -65,9 +68,9 @@ function Scene:createSceneStruct()
       }
     ) end
     if flag then
-      E:DEBUGF('scene',"Scene %s triggered by %s %s",self.id,json.encode(event),userDate("%c"))
+      E:DEBUGF('scene',"Scene %s triggered by %s",self.id,json.encode(event))
     else
-      E:DEBUGF('scene',"Scene %s not triggered by %s %s",self.id,json.encode(event),userDate("%c"))
+      E:DEBUGF('scene',"Scene %s not triggered by %s",self.id,json.encode(event))
     end
     if flag then sceneTrigger(event,self.id) end
   end
@@ -83,7 +86,6 @@ function Scene:createSceneStruct()
     E:loadfile(path,env)
   end
   
-  setTimeout = env.setTimeout
   function env.print(...) 
     env.fibaro.debug(env.tag,...) 
   end
@@ -91,10 +93,12 @@ function Scene:createSceneStruct()
   local engine = env.__emu_sceneEngine
   if engine then engine.startRefreshListener(self) end
   
-  E:setCoroData(nil,'env',env)
   engine.event({type='user',property='execute'},eventHandler) -- Add event listener for execute
   for _,ev in pairs(triggers) do -- Add event listeners for the type of events that trigger the scene
+    local test = ev.test
+    ev.test = nil
     E:DEBUGF('scene',"Adding event listener for %s",json.encodeFast(ev))
+    ev.test = test
     if ev.type=='date' then setupDateEvent(engine,ev,eventHandler) else engine.event(ev,eventHandler) end
   end 
 end
@@ -108,17 +112,35 @@ function Scene:run() -- Actually, register scene, run when triggered
   if flags.project then self:saveProject() end
   E:DEBUGF('info',"Scene '%s' registered",self.name)
   E:post({type='scene_registered',id=self.id},true)
-  scenes[self.id] = self
+  E:registerScene(self)
   for _,tr in pairs(flags.triggers or {}) do
     self.env.setTimeout(function() 
-      self.env.__emu_sceneEngine.post(tr.trigger)
-    end,1000*tr.delay)
+      E:setRunner(self)
+      self.env.__emu_sceneEngine.post(tr.trigger,0,"post")
+    end,1000*tr.delay,"trigger")
   end
   --E:DEBUGF('info',"Scene '%s' run completed",self.name)
   return self
 end
 
 function Scene:register() return self:run() end
+
+local timers = 0
+local ignoreTimers = { minuteLoop = true }
+function Scene:timerCallback(ref,what)
+  if ref.tag == '__speed'  then 
+    if what == 'start' then timers = timers - 1 else timers = timers + 1 end
+    return
+  end
+  if ignoreTimers[ref.tag or ""] then return end
+  if what == 'start' then timers = timers + 1 else timers = timers - 1 end
+  --print("what",what,timers,ref.tag)
+  if timers == 0  then 
+    E:DEBUG("Scene %s terminated", self.id) 
+  end
+end
+
+local nn = 0
 
 function Scene:trigger(trigger) -- Start scene
   trigger = trigger or {type='user',property='execute', id=2}
@@ -127,23 +149,12 @@ function Scene:trigger(trigger) -- Start scene
   -- copy all globals from the scene environment
   for k,v in pairs(self.env) do env[k] = v end 
   env.sourceTrigger = trigger
-  local timers = 0
-  
-  env.__emu_timerHook[1] = function(start,tag)
-    if start then timers = timers + 1 else timers = timers - 1 end
-    if timers == 0  then 
-      E:DEBUG("Scene %s terminated", self.id) 
-      env.__emu_timerHook[1] = nil
-    end
-    --print(t0,timers,start,tag)
-  end
   
   minuteLoop(self.env)
   
-  -- addThread(env,function()
   env.setTimeout(function()
     E.mobdebug.on()
-    E:setCoroData(nil,'env',env)
+    E:setRunner(self)
     E:DEBUGF('scene',"Loading user main file %s",self.fname)
     E:DEBUGF('info',"Running scene %s",self.id)
     load(self.src,self.fname,"t",env)()
@@ -152,20 +163,23 @@ function Scene:trigger(trigger) -- Start scene
     if not E.DBG.offline then -- Move!
       assert(E.URL and E.USER and E.PASSWORD,"Please define URL, USER, and PASSWORD") -- Early check that creds are available
     end
-    -- end)
-  end,0)
+  end,0,"loader") nn=nn+1
 end
 
 function Scene:loadFiles() end
 function Scene:save() end
 function Scene:saveProject() end
 
+function Scene:_error(str)
+  self.env.fibaro.error(self.env.tag,self:trimErr(str))
+end
+
 -------------------------------------------------------------------------
 ---
 
 function sceneTrigger(trigger,id)
   if id then 
-    local scene = scenes[id]
+    local scene =E:getScene(id)
     assert(scene,"Scene %d not found",id)
     scene:trigger(trigger)
   end
@@ -251,14 +265,30 @@ function compilers.device(cond,trs)
   return function(ctx) return op(a(ctx),b()) end
 end
 
+-- 15,13,*,*,*,2025
 local function compileDateTest(date,op)
-  local function ign(x) return x~='*' and tonumber(x) or nil end
-  local dmap = { 
-    min = ign(date[1]), hour = ign(date[2]), day = ign(date[3]), 
-    month = ign(date[4]), wday = ign(date[5]), year = ign(date[6]) 
-  }
+  local dmap = {}
+  local keys = {'min','hour','day','month','wday','year'}
+  for i,e in ipairs(date) do
+    local key = keys[i]
+    if e == '*' then dmap[key] = nil
+    else
+      local e = e:split(",")
+      if #e == 1 then local v = tonumber(e[1]) dmap[key] = function(nv) return op(nv,v) end
+      else
+        local vs = map(tonumber,e)
+        dmap[key] = function(nv)
+          for _,v in ipairs(vs) do if op(nv,v) then return true end end
+          return false
+        end
+      end
+    end
+  end
   return function(cdmap)
-    for k,v in pairs(dmap) do if not op(cdmap[k],v) then return false end end
+    for i=6,1,-1 do 
+      local key = keys[i]
+      if dmap[key] and not dmap[key](cdmap[key]) then return false end
+    end
     return true
   end
 end
@@ -362,7 +392,6 @@ function compileCond(cond,trs)
 end
 
 exports.Scene = Scene
-exports.scenes = scenes
 exports.trigger = sceneTrigger -- (trigger,id)
 exports.init = init
 

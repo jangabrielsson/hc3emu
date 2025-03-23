@@ -31,16 +31,16 @@ exports.userDate = userDate
 ---
 local timerIdx = 0   -- Every timer gets a new number
 local timers = {}    -- Table of all timers, string(idx)->TimerRef
-local function createTimerRef(timer,ms,fun,tag,hook)
+local function createTimerRef(timer,ms,fun,tag,runner)
   timerIdx = timerIdx + 1
-  E:DEBUGF('timer',"createTimerRef:%s",timerIdx)
+  E:DEBUGF('timer_dev',"createTimerRef:%s",timerIdx)
   local ref = {
     ms = ms, -- Time in ms when timer should fire
     timer = timer, -- Should support timer:cancel()
     time = userMilli() + ms/1000.0, -- Absolute time when timer should fire msepoch
     fun = fun, -- Function to call
     tag = tag, -- Tag for timer (debug)
-    hook = hook, -- Hook function to call when timer is started or stopped
+    runner = runner, -- Runner starting this timer
     id = timerIdx
   }
   timers[tostring(timerIdx)] = ref
@@ -56,9 +56,9 @@ local function cancelTimerRef(id)
   local id = tostring(id)
   local t = timers[id]
   if t then
-    E:DEBUGF('timer',"cancelTimerRef:%s",id)
+    E:DEBUGF('timer_dev',"cancelTimerRef:%s",id)
     t.timer:cancel()
-    if t.hook then pcall(t.hook,false,t.tag) end
+    pcall(t.runner.timerCallback,t.runner,t,"cancel")
     timers[id] = nil
   end
 end
@@ -66,13 +66,13 @@ end
 
 local setTimeoutAuxSpeed
 
-local function cancelTimers(env) 
-  if env == nil then 
+local function cancelTimers(runner) 
+  if runner == nil then 
     for t,_ in pairs(timers) do cancelTimerRef(t) end timers = {} 
   else
     for t,ref in pairs(timers) do 
-      local cenv = E:getCoroData(ref.timer.co,'env')
-      if cenv == env then cancelTimerRef(t) end
+      local crunner = E:getRunner(ref.timer.co)
+      if crunner == runner then cancelTimerRef(t) end
     end
   end
 end
@@ -88,15 +88,20 @@ local __speed
 local function callback(_,id) 
   E.mobdebug.on()
   local ref = getTimerRef(id)
-  E:DEBUGF('timer',"timer std expire:%s",id)
+  E:DEBUGF('timer_dev',"timer std expire:%s",id)
   setTimerRef(id,nil)
-  ref.fun()
-  if ref.hook then pcall(ref.hook,false,ref.tag) end
+  local oldRunner = E:setRunner(ref.runner)
+  local stat,err = pcall(ref.fun)
+  E:setRunner(oldRunner)
+  pcall(ref.runner.timerCallback,ref.runner,ref,"expire")
+  if not stat then
+    ref.runner:_error(fmt("setTimeout:%s",tostring(err)))
+  end
 end
 
-local function setTimeoutAuxStd(ref)
-  local env = E:getCoroData(nil,'env')
-  E:DEBUGF('timer',"setTimeoutStd:%s %s",ref.id,ref.tag or "")
+local function setTimeoutStd(ref)
+  local runner = E:getRunner()
+  E:DEBUGF('timer_dev',"setTimeoutStd:%s %s",ref.id,ref.tag or "")
   local t = copas.timer.new({
     name = "setTimeout:"..ref.id,
     delay = ref.ms / 1000.0,
@@ -104,25 +109,13 @@ local function setTimeoutAuxStd(ref)
     initial_delay = nil,
     callback = callback,
     params = ref.id,
-    errorhandler = function(err, coro, skt)
-      if env then
-        env._error(fmt("setTimeout:%s",tostring(err)))
-      else 
-        print("ERROR",err)
-      end
-      setTimerRef(ref.id,nil)
-      copas.seterrorhandler()
-      --print(copas.copas.gettraceback(err,coro,skt))
-    end
   })
   ref.timer = t
   -- Keep track of what QA started what timer
   -- Will allows us to kill all timers started by a QA when it is deleted
-  E:setCoroData(t.co,'env',env)
+  E:setRunner(runner,t.co) -- New coroutine inherits runner
   return ref.id
 end
-
-function setTimeoutStd(ref) return setTimeoutAuxStd(ref) end
 
 function clearTimeout(ref)
   cancelTimerRef(ref)
@@ -148,9 +141,9 @@ local function remove(t)
   end
 end
 
-local function insert(time,id,env)
+local function insert(time,id,runner)
   local v = nil
-  v = {time=time,id=id,env=env,cancel = function() remove(v) end }
+  v = {time=time,id=id,runner=runner,cancel = function() remove(v) end }
   if not times then times = v return v end
   if time < times.time then
     times.prev = v
@@ -185,40 +178,47 @@ local function printTimers()
 end
 
 function setTimeoutSpeed(ref)
-  E:DEBUGF('timer',"setTimeoutSpeed:%s %s",ref.id,ref.tag or "")
-  local env = E:getCoroData(nil,'env')
-  ref.timer = insert(ref.time,ref.id,env)
+  E:DEBUGF('timer_dev',"setTimeoutSpeed:%s %s",ref.id,ref.tag or "")
+  local runner = E:getRunner()
+  ref.timer = insert(ref.time,ref.id,runner)
 end
 
 local function rescheduleTimer(ref)
-  setTimerRef(tostring(ref.id),ref)
   assert(ref,"Invalid timer reference")
-  E:DEBUGF('timer',"rescheduleTimer:%s %s",ref.id,ref.tag or "")
+  setTimerRef(tostring(ref.id),ref)
+  E:DEBUGF('timer_dev',"rescheduleTimer:%s %s",ref.id,ref.tag or "")
   local time = ref.time-userMilli()
   --print(userDate("%c",math.floor(ref.time)),userDate("%c"))
   ref.ms = time*1000
   setTimeoutRef(ref)
 end
 
-function setInterval(fun,ms,tag,hook)
+local logTimer
+function setInterval(fun,ms,tag)
   tag = tag or "interval"
-  local id
-  local ref
+  local id,ref,src
   local function loop()
     setTimeoutRef(ref)
-    fun()
+    if E:DBGFLAG('timer') then logTimer("setInterval",ref,src) end
+    local stat,re = pcall(fun)
+    if not stat then
+      ref.runner:_error(fmt("setInterval: %s", tostring(re)))
+      cancelTimerRef(id)
+    end
   end
-  id = setTimeout(loop,ms,tag,hook)  
+  id = setTimeout(loop,ms,tag)  
   ref = getTimerRef(id)
+  if E:DBGFLAG('timer') then
+    local info = debug.getinfo(2)
+    src = fmt("%s:%s",info.source,info.currentline)
+    logTimer("setInterval",ref) 
+  end
   return id
 end
-
-local function round(x) return math.floor(x+0.5) end
 
 local speedFlag = false
 
 local function startSpeedTimeAux(hours)
-  --E:addThread(nil,function()
   speedFlag = true
   local start = userTime()
   local stop,rs = start + hours*3600,nil
@@ -233,17 +233,19 @@ local function startSpeedTimeAux(hours)
   E:DEBUG("Speed run started, will run for %s hours, until %s",hours,userDate("%c",round(stop)))
   while speedFlag do
     if times then
-      if E.DBG.timer then printTimers() end
+      if E:DBGFLAG('timer') then printTimers() end
       local t = pop()
       if t then
         local ref = getTimerRef(t.id)
         setTimerRef(t.id,nil)
-        if ref and ref.hook then pcall(ref.hook,false,ref.tag) end
         local time = t.time
         exports.setTimeOffset(time-milliClock())
+        local oldRunner = E:setRunner(ref.runner)
         local stat,err = pcall(ref.fun)
+        E:setRunner(oldRunner)
+        pcall(ref.runner.timerCallback,ref.runner,ref,"expire")
         if not stat then
-          t.env._error(fmt("setTimeout:%s",tostring(err)))
+          t.runner:_error(fmt("setTimeout:%s",tostring(err)))
         end
       end
     end
@@ -282,12 +284,26 @@ function setTimeoutRef(ref)
   else 
     setTimeoutStd(ref)
   end
-  if ref.hook then pcall(ref.hook,true,ref.tag) end
+  pcall(ref.runner.timerCallback,ref.runner,ref,"start")
   return ref.id
 end
 
-function setTimeout(fun,ms,tag,hook)
-  local _,ref = createTimerRef(nil,ms,fun,tag,hook)
+function logTimer(f,ref,src)
+  if src == nil then
+    local info = debug.getinfo(3)
+    src = fmt("%s:%s",info.source,info.currentline)
+  end
+  local info = debug.getinfo(3)
+  local t = userDate("%m.%d/%H:%M:%S",round(ref.time))
+  E:DEBUG("%s:%s %s %s",f,ref.id,t,src)
+end
+
+function setTimeout(fun,ms,tag)
+  local runner = E:getRunner()
+  local _,ref = createTimerRef(nil,ms,fun,tag,runner)
+  if E:DBGFLAG('timer') and tag ~= 'interval' then -- setInterval have their own logger
+    logTimer("setTimeout ",ref) 
+  end
   return setTimeoutRef(ref)
 end
 
@@ -296,6 +312,7 @@ local function midnightLoop()
   d.hour,d.min,d.sec = 24,0,0
   local midnxt = userTime(d)
   local function loop()
+    --print("MID1",E:getRunner(),coroutine.running())
     E:post({type="midnight"},true)
     local d = userDate("*t")
     d.hour,d.min,d.sec = 24,0,0
@@ -303,6 +320,7 @@ local function midnightLoop()
     --print("MID",userDate("%c",midnxt))
     setTimeout(loop,(midnxt-userTime())*1000,"Midnight")
   end
+  --print("MID0",E:getRunner(),coroutine.running())
   --print("MID",userDate("%c",midnxt))
   setTimeout(loop,(midnxt-userTime())*1000,"Midnight")
 end

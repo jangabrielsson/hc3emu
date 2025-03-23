@@ -24,7 +24,7 @@
       "workingDirectory": "${workspaceFolder}",
       "sourceBasePath": "${workspaceFolder}",
       "listenPublicly": false,
-      "listenPort": 8172,
+      "listenPort": 8818, //8172,
       //"stopOnEntry": true,
       "sourceEncoding": "UTF-8"
     },

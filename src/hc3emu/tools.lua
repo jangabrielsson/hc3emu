@@ -86,33 +86,10 @@ local function findFirstLine(src)
   return first or 1,init
 end
 
-local function getFQA(id) -- Creates FQA structure from installed QA, //Move to QA class
+local function getFQA(id) -- Creates FQA structure from installed QA
   local qa = E:getQA(id)
   assert(qa,"QuickApp not found, ID"..tostring(id))
-  local dev = qa.device
-  local files = {}
-  local suffix = ""
-  for _,f in ipairs(qa.files) do
-    if f.content == nil then f.content = readFile(f.fname) end
-    if f.name == "main" then suffix = "99" end -- User has main file already... rename ours to main99
-    files[#files+1] = {name=f.name, isMain=false, isOpen=false, type='lua', content=f.content}
-  end
-  files[#files+1] = {name="main"..suffix, isMain=true, isOpen=false, type='lua', content=qa.src}
-  local initProps = {}
-  local savedProps = {
-    "uiCallbacks","quickAppVariables","uiView","viewLayout","apiVersion","useEmbededView",
-    "manufacturer","useUiView","model","buildNumber","supportedDeviceRoles",
-    "userDescription","typeTemplateInitialized","quickAppUuid","deviceRole"
-  }
-  for _,k in ipairs(savedProps) do initProps[k]=dev.properties[k] end
-  return {
-    apiVersion = "1.3",
-    name = dev.name,
-    type = dev.type,
-    initialProperties = initProps,
-    initialInterfaces = dev.interfaces,
-    files = files
-  }
+  return qa:createFQA()
 end
 
 --@F 

@@ -1,0 +1,31 @@
+
+class Emulator {
+  :init()
+  :run()
+  :getRunner(coro)          -- Get a runner for a coroutine
+}
+
+class Runner {              -- Runner is always associated with a coroutine
+    :_error(str)
+}
+
+class SystemRunner(Runner) { -- System "task"
+}
+
+class QA(Runner) {           -- Represents a installed QuickApp
+    :run()
+}
+
+class Scene(Runner) {        -- Represents a installed scene
+    :run()
+}
+
+--- Module timers
+
+ref setTimeout(fun,ms,tag,hook)
+ref setInterval(fun,ms,tag,hook)
+clearTimeout(ref)
+clearInterval(ref)
+
+userTime([*t]) 
+userDate(fmt[, time])

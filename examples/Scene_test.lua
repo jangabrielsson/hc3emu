@@ -4,24 +4,24 @@ if require and not QuickApp then require("hc3emu") end
 --%%name=Scene test
 --%%type=scene
 --%%offline=true
---%%debug=info1:false,scene1:true,post1:true,timer1:true
+--%%debug=info:true,scene:true,post1:true,timer1:true
 --%%trigger=3:{type='user',property='execute',id=2} -- start trigger after 3s
 --% %tri gger=3:{type='device',id=46,property='centralSceneEvent',value={keyAttribute = "Pressed",keyId = 2}} -- start trigger after 3s
 --%%speed=78
 
 CONDITIONS = {
   conditions = { 
-    {
-      id = 46,
-      isTrigger = true,
-      operator = "==",
-      property = "centralSceneEvent",
-      type = "device",
-      value = {
-        keyAttribute = "Pressed",
-        keyId = 2
-      }
-    },
+    -- {
+    --   id = 46,
+    --   isTrigger = true,
+    --   operator = "==",
+    --   property = "centralSceneEvent",
+    --   type = "device",
+    --   value = {
+    --     keyAttribute = "Pressed",
+    --     keyId = 2
+    --   }
+    -- },
     -- {
     --   isTrigger = true,
     --   operator = "<=",
@@ -40,11 +40,17 @@ CONDITIONS = {
       type = "date",
       property = "cron",
       operator = "match",
-      value = {"15", "*", "*", "*", "*", "*"}, -- Every minute
+      value = {"15,45", "*", "*", "*", "*", "*"}, -- Every minute
       isTrigger = true
-    }   
+    },
+    {
+      type = "date",
+      property = "cron",
+      operator = "match<",
+      value = {"*", "12", "*", "*", "*", "*"}, -- Every minute
+    }  
   },
-  operator = "any"
+  operator = "all"
 }
 --__emu_speed(7*24)
 print(json.encode(sourceTrigger))

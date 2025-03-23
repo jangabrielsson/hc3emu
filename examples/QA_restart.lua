@@ -5,8 +5,6 @@ if require and not QuickApp then require("hc3emu") end
 --%%dark=true
 --%%debug=info:true
 
-local a = fibaro.hc3emu.getCoroData(nil,'env')
-
 if not api.get("/devices/5002") then
 fibaro.hc3emu.tools.loadQAString([[
 function QuickApp:onInit()

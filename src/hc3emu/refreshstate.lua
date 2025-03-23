@@ -68,7 +68,7 @@ local inited = false
 function setupRefreshState()
   if inited then return else inited = true end
   if not E.DBG.offline then
-    E:addThread(_G,refreshStatePoller)
+    E:addThread(E.systemRunner,refreshStatePoller)
   end
 end
 

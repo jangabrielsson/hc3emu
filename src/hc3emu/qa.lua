@@ -1,5 +1,8 @@
 local exports = {}
-local E = setmetatable({},{ __index=function(t,k) return exports.emulator[k] end })
+local E = setmetatable({},{ 
+  __index=function(t,k) return exports.emulator[k] end,
+  __newindex=function(t,k,v) exports.emulator[k] = v end
+})
 local json = require("hc3emu.json")
 local class = require("hc3emu.class") -- use simple class implementation
 local userTime,userDate,urlencode
@@ -218,6 +221,20 @@ function QA:restart(delay) -- delay in ms
   self.env.setTimeout(function() self:run() end,delay or 0)
 end
 
+function QA:callAction(name,...)
+  assert(self.qa,"QA not running")
+  local args = {...}
+  E:addThread(self,function() self.qa:callAction(name,table.unpack(args)) end)
+end
+
+function QA:onAction(deviceId,value)
+  E:addThread(self,self.env.onAction,deviceId,value)
+end
+
+function QA:onUIEvent(deviceId,value)
+  E:addThread(self,self.env.onUIEvent,deviceId,value)
+end
+        
 function QA:remove()
   E.timers.cancelTimers(self) 
   E.util.cancelThreads(self)

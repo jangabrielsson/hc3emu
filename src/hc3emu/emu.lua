@@ -102,6 +102,7 @@ function Emulator:__init()
   
   json,urlencode = self.json,self.util.urlencode
   emulator = self
+  print(tostring(self))
 end
 
 function Emulator:init(debug) 
@@ -453,7 +454,7 @@ function Emulator:run(args) -- { fname = "file.lua", src = "source code" }
   local info = {fname=self.mainFile,src=args.src,env={}}
   self:parseDirectives(info)
   local flags = info.directives
-  for _,globalFlag in ipairs({'offline','state','logColor','stateReadOnly','dark'}) do
+  for _,globalFlag in ipairs({'offline','state','logColor','stateReadOnly','dark','longitude','latitude'}) do
     if flags[globalFlag]~=nil then self.DBG[globalFlag] = flags[globalFlag] end
   end
   

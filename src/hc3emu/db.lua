@@ -1,6 +1,9 @@
 
 local exports = {}
-local E = setmetatable({},{ __index=function(t,k) return exports.emulator[k] end, __newindex=function(t,k,v) exports.emulator[k]=v end })
+local E = setmetatable({},{ 
+  __index=function(t,k) return exports.emulator[k] end,
+  __newindex=function(t,k,v) exports.emulator[k] = v end
+})
 local json = require("hc3emu.json")
 
 local function keyMap(list,key)

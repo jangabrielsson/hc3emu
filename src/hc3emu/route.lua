@@ -9,7 +9,10 @@
        HC3Route
 --]]
 local exports = {}
-local E = setmetatable({},{ __index=function(t,k) return exports.emulator[k] end })
+local E = setmetatable({},{ 
+  __index=function(t,k) return exports.emulator[k] end,
+  __newindex=function(t,k,v) exports.emulator[k] = v end
+})
 
 local fmt = string.format
 

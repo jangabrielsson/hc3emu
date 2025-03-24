@@ -3,7 +3,6 @@ local E = hc3emu
 local json = hc3emu.json
 local _type = E.lua.type
 local copas = E.lua.require("copas")
-local DBG = E.DBG
 local fmt = string.format
 
 local function shutdown()
@@ -253,7 +252,7 @@ end
 
 function onAction(id,event)
   local quickApp = plugin._quickApp
-  if DBG.onAction then print("onAction: ", json.encode(event)) end
+  if E:DBGFLAG('onAction') then print("onAction: ", json.encode(event)) end
   if quickApp.actionHandler then return quickApp:actionHandler(event) end
   if event.deviceId == quickApp.id then
     return quickApp:callAction(event.actionName, table.unpack(event.args))
@@ -265,7 +264,7 @@ end
 
 function onUIEvent(id, event)
   local quickApp = plugin._quickApp
-  if DBG.onUIEvent then print("UIEvent: ", json.encode(event)) end
+  if E:DBGFLAG('onUIEvent') then print("UIEvent: ", json.encode(event)) end
   if quickApp.UIHandler then quickApp:UIHandler(event) return end
   if quickApp.uiCallbacks[event.elementName] and quickApp.uiCallbacks[event.elementName][event.eventType] then
     quickApp:callAction(quickApp.uiCallbacks[event.elementName][event.eventType], event)

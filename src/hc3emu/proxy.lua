@@ -1,5 +1,8 @@
 local exports = {}
-local E = setmetatable({},{ __index=function(t,k) return exports.emulator[k] end, __newindex=function(t,k,v) exports.emulator[k]=v end })
+local E = setmetatable({},{ 
+  __index=function(t,k) return exports.emulator[k] end,
+  __newindex=function(t,k,v) exports.emulator[k] = v end
+})
 local json = require("hc3emu.json")
 local copas = require("copas")
 local socket = require("socket")
@@ -176,8 +179,8 @@ local function startServer(id)
       if stat then
         local deviceId = msg.deviceId
         local QA = E:getQA(deviceId)
-        if QA and msg.type == 'action' then E:addThread(QA,QA.env.onAction,msg.value.deviceId,msg.value)
-        elseif QA and msg.type == 'ui' then E:addThread(QA,QA.env.onUIEvent,msg.value.deviceId,msg.value)
+        if QA and msg.type == 'action' then QA:onAction(msg.value.deviceId,msg.value)
+        elseif QA and msg.type == 'ui' then QA:onUIEvent(msg.value.deviceId,msg.value)
         elseif msg.type == 'resp' then
           if callRef[msg.id] then local c = callRef[msg.id] callRef[msg.id] = nil pcall(c,msg.value) end
         else E:DEBUGF('server',"Unknown data %s",reqdata) end

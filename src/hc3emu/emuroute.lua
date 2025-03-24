@@ -1,7 +1,10 @@
 --[[ Emulator api routes
 --]]
 local exports = {}
-local E = setmetatable({},{ __index=function(t,k) return exports.emulator[k] end })
+local E = setmetatable({},{ 
+  __index=function(t,k) return exports.emulator[k] end,
+  __newindex=function(t,k,v) exports.emulator[k] = v end
+})
 
 local fmt = string.format
 
@@ -74,9 +77,14 @@ local function getProp(p,id,prop) -- fetch local properties
 end
 
 local function callAction(p,id,name,data)
-  local qa = E:getQA(tonumber(id))
+  id = tonumber(id)
+  local qa = E:getQA(id)
   if qa == nil then return nil,301 end
-  E:addThread(qa,function() qa.qa:callAction(name,table.unpack(data.args)) end)
+  if qa.device.parentId and qa.device.parentId > 0 then
+    qa = E:getQA(qa.device.parentId)
+    assert(qa,"Parent QA not found")
+  end
+  qa:onAction(id,{actionName=name,deviceId=id, args=data.args})
   return 'OK',200
 end
 

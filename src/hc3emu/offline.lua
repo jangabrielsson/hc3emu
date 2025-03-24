@@ -31,7 +31,10 @@ POST/customEvents/<name>
 --]]
 
 local exports = {}
-local E = setmetatable({},{ __index=function(t,k) return exports.emulator[k] end })
+local E = setmetatable({},{ 
+  __index=function(t,k) return exports.emulator[k] end,
+  __newindex=function(t,k,v) exports.emulator[k] = v end
+})
 local json = require("hc3emu.json")
 
 local DB
@@ -94,8 +97,15 @@ local function getDeviceProp(p,id,property) return {value=DEVICE(id).properties[
 local function putDeviceKey(p,id,data) for k,v in pairs(data) do DB.devices[id][k] = v end return true,200 end
 
 local function callAction(p,id,name,data)
-  local qa = E:getQA(tonumber(id))
-  qa.qa:callAction(name,table.unpack(data.args)) return 'OK',200
+  id = tonumber(id)
+  local qa = E:getQA(id)
+  assert(qa,"QA not found")
+  if qa.device.parentId and qa.device.parentId > 0 then
+    qa = E:getQA(qa.device.parentId)
+    assert(qa,"Parent QA not found")
+  end
+  qa:onAction(id,{actionName=name,deviceId=id, args=data.args})
+  return 'OK',200
 end
 
 local function deleteDevice(p,id) if not DB.devices[id] then return nil,404 end 

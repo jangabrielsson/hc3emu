@@ -1,7 +1,7 @@
 --This is an all-in-one example of a QuickApp that demonstrates most of the features of the hc3emu
 
 ---@diagnostic disable: duplicate-set-field
---_DEVELOP = true
+_DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
 --fibaro.USER = "admin" -- set creds in ./hc3emu_cfg.lua or ~/.hc3emu.lua
@@ -19,8 +19,8 @@ if require and not QuickApp then require("hc3emu") end
 --%%project=8898
 --%%var=foo:config.secret
 --%%conceal=foo:<secret>
---%%debug=sdk:false,info:true,proxyAPI:true,server:true,onAction:true,onUIEvent:true
---%%debug=http:true,color:true,blockAPI:true
+--%%debug=info:true,server:true,onAction:true,onUIEvent:true
+--%%debug=http2:true,blockAPI:true
 --%%file=lib/include_example.lua:lib
 
 --%%u={button='bt1',text="MyButton",onReleased="myButton"}

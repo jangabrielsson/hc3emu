@@ -1,14 +1,15 @@
 --This is a QA testing the various UI elements using a proxy on the HC3
 
 ---@diagnostic disable: duplicate-set-field
---_DEVELOP = true
+_DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
 --%%name=UItest
 --%%type=com.fibaro.multilevelSwitch
 --%%proxy=UItestProxy
 --%%dark=true
---%%debug=sdk:false,info:true,proxyAPI:true,server:true,onAction:true,onUIEvent:true
+--%%debug=info:true,server:true,onAction:true,onUIEvent:true
+--%%debug=barf:true
 
 --%%u={label='lbl1',text="LABEL"}
 --%%u={button='btn1',text="Btn1", onReleased="myButton"}
@@ -40,6 +41,7 @@ end
 
 function QuickApp:myButton()
   self:debug("myButton pressed")
+  fibaro.hc3emu:DEBUGF('barf','BARF')
 end
 
 function QuickApp:mySlider(event)

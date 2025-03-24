@@ -179,7 +179,7 @@ local function EmuRoute() -- Create emulator route, redirecting API calls to emu
   route:add('GET/quickApp/export/<id>',function(p,id,_)  -- Get our local QA
     local qa = E:getQA(tonumber(id))
     if qa == nil then return nil,301 end
-    return E:getFQA(tonumber(id)),200 
+    return qa:createFQA(tonumber(id)),200 
   end)
 
   -- QuickApp file methods 

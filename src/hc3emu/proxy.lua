@@ -165,6 +165,7 @@ local function startServer(id)
 
   local function handle(skt)
     E.mobdebug.on()
+    E:setRunner(E.systemRunner)
     local name = skt:getpeername() or "N/A"
     E._client = skt
     E:DEBUGF("server","New connection: %s",name)
@@ -175,8 +176,8 @@ local function startServer(id)
       if stat then
         local deviceId = msg.deviceId
         local QA = E:getQA(deviceId)
-        if QA and msg.type == 'action' then QA.env.onAction(msg.value.deviceId,msg.value)
-        elseif QA and msg.type == 'ui' then QA.env.onUIEvent(msg.value.deviceId,msg.value)
+        if QA and msg.type == 'action' then E:addThread(QA,QA.env.onAction,msg.value.deviceId,msg.value)
+        elseif QA and msg.type == 'ui' then E:addThread(QA,QA.env.onUIEvent,msg.value.deviceId,msg.value)
         elseif msg.type == 'resp' then
           if callRef[msg.id] then local c = callRef[msg.id] callRef[msg.id] = nil pcall(c,msg.value) end
         else E:DEBUGF('server',"Unknown data %s",reqdata) end

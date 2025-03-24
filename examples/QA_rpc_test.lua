@@ -3,6 +3,9 @@ if require and not QuickApp then require("hc3emu") end
 
 --%%name=RPC test
 --%%file=lib/rpc_lib.lua:rpclib
+--%%debug=files:true
+------------ENDOFDIRECTIVES------------
+
 
 local function startClient()
 local client = [[

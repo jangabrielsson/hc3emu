@@ -5,6 +5,7 @@ local E = setmetatable({},{
 })
 local json = require("hc3emu.json")
 local class = require("hc3emu.class") -- use simple class implementation
+local copas = require("copas")
 local userTime,userDate,urlencode
 
 local function init()
@@ -225,14 +226,17 @@ function QA:callAction(name,...)
   assert(self.qa,"QA not running")
   local args = {...}
   E:addThread(self,function() self.qa:callAction(name,table.unpack(args)) end)
+  copas.sleep(0.01) -- Give called QA a chance to run
 end
 
 function QA:onAction(deviceId,value)
   E:addThread(self,self.env.onAction,deviceId,value)
+  copas.sleep(0.01) -- Give called QA a chance to run
 end
 
 function QA:onUIEvent(deviceId,value)
   E:addThread(self,self.env.onUIEvent,deviceId,value)
+  copas.sleep(0.01) -- Give called QA a chance to run
 end
         
 function QA:remove()

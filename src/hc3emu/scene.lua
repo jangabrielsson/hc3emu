@@ -25,13 +25,16 @@ function Scene:__init(info)
   self:createSceneStruct()
 end
 
+function Scene:DEBUGF(flag,...) if self.dbg[flag] then E:DEBUG(...) end end
+
 function Scene:nextId() return E:getNextSceneId() end
 
 function Scene:createSceneStruct()
   local env = self.env
   if self.info.directives == nil then E:parseDirectives(self.info) end
   self.flags = self.info.directives
-  env.__debugFlags = self.flags.debug or {}
+  self.dbg = self.flags.debug or {}
+  env.__debugFlags = self.dbg -- hack, move to fibaro.debugFlags....
   self.name = self.flags.name
   local flags = self.flags
   self.id = flags.id or self:nextId()
@@ -54,7 +57,7 @@ function Scene:createSceneStruct()
   self.created = os.time()
   
   local eventHandler = function(ev)
-    E:DEBUGF('scene',"Event handler %s",json.encodeFast(ev.event))
+    --E:DEBUGF('scene',"Event handler %s",json.encodeFast(ev.event))
     E:setRunner(self)
     local event = ev.event
     local flag = false
@@ -82,7 +85,7 @@ function Scene:createSceneStruct()
   env.sceneId = self.id
 
   for _,path in ipairs({"hc3emu.fibaro","hc3emu.net","hc3emu.sceneengine"}) do
-    E:DEBUGF('info',"Loading Scene library %s",path)
+    self:DEBUGF("Loading Scene library %s",path)
     E:loadfile(path,env)
   end
   
@@ -97,7 +100,7 @@ function Scene:createSceneStruct()
   for _,ev in pairs(triggers) do -- Add event listeners for the type of events that trigger the scene
     local test = ev.test
     ev.test = nil
-    E:DEBUGF('scene',"Adding event listener for %s",json.encodeFast(ev))
+    self:DEBUGF("Adding event listener for %s",json.encodeFast(ev))
     ev.test = test
     if ev.type=='date' then setupDateEvent(engine,ev,eventHandler) else engine.event(ev,eventHandler) end
   end 
@@ -110,7 +113,7 @@ function Scene:run() -- Actually, register scene, run when triggered
   self:loadFiles() -- nop
   if flags.save then self:save() end
   if flags.project then self:saveProject() end
-  E:DEBUGF('info',"Scene '%s' registered",self.name)
+  self:DEBUGF('info',"Scene '%s' registered",self.name)
   E:post({type='scene_registered',id=self.id},true)
   E:registerScene(self)
   for _,tr in pairs(flags.triggers or {}) do
@@ -126,7 +129,8 @@ end
 function Scene:register() return self:run() end
 
 local timers = 0
-local ignoreTimers = { minuteLoop = true }
+local ignoreTimers = { minuteLoop = true, loader=true }
+
 function Scene:timerCallback(ref,what)
   if ref.tag == '__speed'  then 
     if what == 'start' then timers = timers - 1 else timers = timers + 1 end
@@ -134,10 +138,11 @@ function Scene:timerCallback(ref,what)
   end
   if ignoreTimers[ref.tag or ""] then return end
   if what == 'start' then timers = timers + 1 else timers = timers - 1 end
-  --print("what",what,timers,ref.tag)
   if timers == 0  then 
-    E:DEBUG("Scene %s terminated", self.id) 
+    local runTime = E.timers.milliClock()-self.startTime
+    E:DEBUGF('info',"Scene %s terminated (runtime %.5fs)", self.id, runTime or 0) 
   end
+  if not (ref.tag and ref.tag:starts('loader')) then Runner.timerCallback(self,ref,what) end
 end
 
 local nn = 0
@@ -155,8 +160,10 @@ function Scene:trigger(trigger) -- Start scene
   env.setTimeout(function()
     E.mobdebug.on()
     E:setRunner(self)
-    E:DEBUGF('scene',"Loading user main file %s",self.fname)
+    E:DEBUGF('files',"Loading user main file %s",self.fname)
     E:DEBUGF('info',"Running scene %s",self.id)
+    self.startTime = E.timers.milliClock()
+    env.setTimeout(function() end,0,"runSentry")
     load(self.src,self.fname,"t",env)()
     if flags.speed then env.__emu_speed(flags.speed) end
     --if timers == 0 then DEBUG("Scene %s terminated", info.id) end

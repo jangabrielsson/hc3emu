@@ -89,7 +89,6 @@ local function Route()   -- passThroughHandler is a function that takes method,p
     end
     local handler,vars = self:getRoute(method,flags.lookupPath)
     if not handler then return nil,nil end
-    if not flags.silent and E.DBG.http then E:DEBUGF('http',"API: %s%s",method,flags.lookupPath) end
     local args = {flags.callPath,table.unpack(vars)}
     args[#args+1] = data
     args[#args+1] = flags.query
@@ -114,7 +113,10 @@ local function Connection()
     local flags = {}
     for _,route in ipairs(self.routes) do
       local value,code = route:call(method,path,data,flags)
-      if not (code == nil or code == 301) then return value,code end
+      if not (code == nil or code == 301) then 
+        E:DEBUGF('api',"api/%s: %s%s",route == HC3Route and 'r' or 'l',method,path)
+        return value,code 
+      end
     end
     return nil,505
   end

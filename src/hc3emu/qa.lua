@@ -26,6 +26,7 @@ function QA:createQAstruct(info,noRun) -- noRun -> Ignore proxy
   self.src = info.src
   self.files = info.files
   self.directives = info.directives
+  self.dbg = info.directives.debug or {}
   self.env = info.env
   local flags = info.directives
   local env = info.env
@@ -153,21 +154,21 @@ function QA:loadQAFiles()
   for k,v in pairs(E.exports) do env[k] = v end
   
   for _,path in ipairs({"hc3emu.fibaro","hc3emu.class","hc3emu.quickapp","hc3emu.net"}) do
-    E:DEBUGF('info',"Loading QA library %s",path)
+    E:DEBUGF('files',"Loading QA library %s",path)
     E:loadfile(path,env)
   end
   
   function env.print(...) env.fibaro.debug(env.__TAG,...) end
   
   for _,lf in ipairs(self.files) do
-    E:DEBUGF('info',"Loading user file %s",lf.fname)
+    E:DEBUGF('files',"Loading user file %s",lf.fname)
     if lf.content then
       load(lf.content,lf.fname,"t",env)()
     else
       _,lf.content = E.util.readFile{file=lf.fname,eval=true,env=env,silent=false}
     end
   end
-  E:DEBUGF('info',"Loading user main file %s",self.fname)
+  E:DEBUGF('files',"Loading user main file %s",self.fname)
   load(self.src,self.fname,"t",env)()
   if not flags.offline then 
     assert(E.URL and E.USER and E.PASSWORD,"Please define URL, USER, and PASSWORD") -- Early check that creds are available
@@ -205,7 +206,7 @@ function QA:run() -- run QA:  create QA struct, load QA files. Runs in a copas t
       E:DEBUGF('info',"Starting QuickApp '%s'",self.name)
       E:post({type='quickApp_started',id=self.id},true)
       env.quickApp = env.QuickApp(self.device) -- quickApp defined first when we return from :onInit()...
-      if flags.speed then E:startSpeedTime(flags.speed) end
+      if flags.speed then E.timers.startSpeedTime(flags.speed) end
     end
   end)
   return self
@@ -248,6 +249,13 @@ function QA:createFQA(id) -- Creates FQA structure from installed QA
     initialInterfaces = dev.interfaces,
     files = files
   }
+end
+
+local timerCount = 0
+function QA:timerCallback(ref,what)
+  Runner.timerCallback(self,ref,what)
+  if what == 'start' then timerCount = timerCount + 1 else timerCount = timerCount - 1 end
+  if self.flags.exit and timerCount == 0 then os.exit() end
 end
 
 function QA:_error(str)

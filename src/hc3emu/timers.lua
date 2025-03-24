@@ -31,17 +31,18 @@ exports.userDate = userDate
 ---
 local timerIdx = 0   -- Every timer gets a new number
 local timers = {}    -- Table of all timers, string(idx)->TimerRef
-local function createTimerRef(timer,ms,fun,tag,runner)
+local function createTimerRef(timer,ms,fun,tag,runner,ctx)
   timerIdx = timerIdx + 1
   E:DEBUGF('timer_dev',"createTimerRef:%s",timerIdx)
   local ref = {
     ms = ms, -- Time in ms when timer should fire
     timer = timer, -- Should support timer:cancel()
-    time = userMilli() + ms/1000.0, -- Absolute time when timer should fire msepoch
+    time = userMilli() + ms/1000.0, -- Absolute timer when timer should fire msepoch
     fun = fun, -- Function to call
     tag = tag, -- Tag for timer (debug)
     runner = runner, -- Runner starting this timer
-    id = timerIdx
+    id = timerIdx,
+    ctx = ctx
   }
   timers[tostring(timerIdx)] = ref
   return timerIdx, ref
@@ -54,15 +55,15 @@ local function setTimerRef(id,ref)
 end
 local function cancelTimerRef(id)
   local id = tostring(id)
-  local t = timers[id]
-  if t then
+  local ref = timers[id]
+  if ref then
+    ref.cancelled = true
     E:DEBUGF('timer_dev',"cancelTimerRef:%s",id)
-    t.timer:cancel()
-    pcall(t.runner.timerCallback,t.runner,t,"cancel")
+    ref.timer:cancel()
+    pcall(ref.runner.timerCallback,ref.runner,ref,"cancel")
     timers[id] = nil
   end
 end
-
 
 local setTimeoutAuxSpeed
 
@@ -193,26 +194,19 @@ local function rescheduleTimer(ref)
   setTimeoutRef(ref)
 end
 
-local logTimer
 function setInterval(fun,ms,tag)
-  tag = tag or "interval"
-  local id,ref,src
+  local id,ref
   local function loop()
     setTimeoutRef(ref)
-    if E:DBGFLAG('timer') then logTimer("setInterval",ref,src) end
     local stat,re = pcall(fun)
+    if ref.cancelled then return end
     if not stat then
       ref.runner:_error(fmt("setInterval: %s", tostring(re)))
       cancelTimerRef(id)
     end
   end
-  id = setTimeout(loop,ms,tag)  
+  id = setTimeout(loop,ms,tag,'setInterval')  
   ref = getTimerRef(id)
-  if E:DBGFLAG('timer') then
-    local info = debug.getinfo(2)
-    src = fmt("%s:%s",info.source,info.currentline)
-    logTimer("setInterval",ref) 
-  end
   return id
 end
 
@@ -233,7 +227,7 @@ local function startSpeedTimeAux(hours)
   E:DEBUG("Speed run started, will run for %s hours, until %s",hours,userDate("%c",round(stop)))
   while speedFlag do
     if times then
-      if E:DBGFLAG('timer') then printTimers() end
+      if E:DBGFLAG('timer_dev') then printTimers() end
       local t = pop()
       if t then
         local ref = getTimerRef(t.id)
@@ -269,7 +263,11 @@ function __speed(hours,hook) -- Start/stop speeding
     rescheduleTimer(ref)
   end
   if speedHook then pcall(speedHook,speedFlag,"__speed") end
-  if speedFlag then startSpeedTimeAux(hours) end
+  if speedFlag then 
+    -- setTimeout(function() 
+      startSpeedTimeAux(hours) 
+    -- end, -1) 
+  end
 end
 
 local function startSpeedTime(hours) __speed(hours) end
@@ -288,22 +286,9 @@ function setTimeoutRef(ref)
   return ref.id
 end
 
-function logTimer(f,ref,src)
-  if src == nil then
-    local info = debug.getinfo(3)
-    src = fmt("%s:%s",info.source,info.currentline)
-  end
-  local info = debug.getinfo(3)
-  local t = userDate("%m.%d/%H:%M:%S",round(ref.time))
-  E:DEBUG("%s:%s %s %s",f,ref.id,t,src)
-end
-
-function setTimeout(fun,ms,tag)
+function setTimeout(fun,ms,tag,ctx)
   local runner = E:getRunner()
-  local _,ref = createTimerRef(nil,ms,fun,tag,runner)
-  if E:DBGFLAG('timer') and tag ~= 'interval' then -- setInterval have their own logger
-    logTimer("setTimeout ",ref) 
-  end
+  local _,ref = createTimerRef(nil,ms,fun,tag,runner,ctx or "setTimeout")
   return setTimeoutRef(ref)
 end
 

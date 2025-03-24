@@ -44,7 +44,10 @@ class 'Emulator'
 local Emulator = _G['Emulator']; _G['Emulator'] = nil
 
 local logTime = os.time
+local userDate = os.date
 local dateMark = function(str) return os.date("[%d.%m.%Y][%H:%M:%S][",logTime())..str.."]" end
+
+local emulator
 
 function Emulator:__init()
   self.VERSION = VERSION
@@ -98,6 +101,7 @@ function Emulator:__init()
   self.lua = {require = require, dofile = dofile, loadfile = loadfile, type = type, io = io, print = _print, package = package } -- used from fibaro.hc3emu.lua.x 
   
   json,urlencode = self.json,self.util.urlencode
+  emulator = self
 end
 
 function Emulator:init(debug) 
@@ -140,6 +144,7 @@ function Emulator:init(debug)
   self.log = loadModule("hc3emu.log")
   self.timers = loadModule("hc3emu.timers") 
   logTime = self.timers.userTime
+  userDate = self.timers.userDate
   self.store = loadModule("hc3emu.db")                   -- Database for storing data
   self.route = loadModule("hc3emu.route")                -- Route object
   self.emuroute = loadModule("hc3emu.emuroute")          -- Emulator API routes
@@ -184,13 +189,10 @@ function Emulator:DEBUGF(flag,f,...) if self:DBGFLAG(flag) then self:DEBUG(f,...
 function Emulator:DBGFLAG(flag) 
   local runner = self:getRunner()
   if not runner then return self.DBG[flag] end
-  local env = runner.env
-  if env and env.__debugFlags then 
-    local v = env.__debugFlags[flag]
-    if v~=nil then return v end
-  end
-  return self.DBG[flag]
+  local v = runner.dbg[flag]
+  if v~=nil then return v else return self.DBG[flag] end
 end
+
 function Emulator:WARNINGF(f,...) print(dateMark('SYSWARN'),fmt(f,...)) end
 function Emulator:ERRORF(f,...) _print(dateMark('SYSERR'),fmt(f,...)) end
 
@@ -296,6 +298,8 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
   --@D offline=<bool> - Run in offline mode, no HC3 calls, ex. --%%offline=true
   function directive.offline(d,val) flags.offline = eval(val,d) end
   directive['local'] = function(d,val) flags.offline = eval(val,d) end
+  --@D exit=<bool> - Exit QA when no timers left, ex. --%%exit=true
+  function directive.exit(d,val) flags.exit = eval(val,d) end
   --@D state=<name> - Set file for saving state between runs, ex. --%%state=state.db
   function directive.state(d,val) flags.state = tostring(val) end
   --@D nodebug=<bool> - If true don't load debugger, ex. --%%nodebug=true
@@ -379,8 +383,11 @@ function Emulator:httpRequest(method,url,headers,data,timeout,user,pwd)
     req.headers["Content-Length"] = 0
   end
   local r,status,h
+  local t0 = socket.gettime()
   if url:starts("https") then r,status,h = copas.https.request(req)
   else r,status,h = copas.http.request(req) end
+  local t1 = socket.gettime()
+  self:DEBUGF('http',"HTTP %s %s %s (%.3fs)",method,url,status,t1-t0)
   if tonumber(status) and status < 300 then
     return resp[1] and table.concat(resp) or nil, status, h
   else
@@ -391,25 +398,21 @@ end
 local BLOCK = false 
 function Emulator:HC3Call(method,path,data,silent)
   --print(path)
-  if BLOCK then self:ERRORF("HC3 authentication failed again, Access blocked") return nil, 401, "Blocked" end
+  if BLOCK then self:ERRORF("HC3 authentication failed again, Emu access cancelled") return nil, 401, "Blocked" end
   if type(data) == 'table' then data = json.encode(data) end
   assert(self.URL,"Missing hc3emu.URL")
   assert(self.USER,"Missing hc3emu.USER")
   assert(self.PASSWORD,"Missing hc3emu.PASSWORD")
-  local t0 = socket.gettime()
   local res,stat,headers = self:httpRequest(method,self.URL.."api"..path,{
     ["Accept"] = '*/*',
     ["X-Fibaro-Version"] = 2,
     ["Fibaro-User-PIN"] = self.PIN,
   },
   data,35000,self.USER,self.PASSWORD)
-  if stat == 401 then self:ERRORF("HC3 authentication failed, Access blocked") BLOCKED = true end
+  if stat == 401 then self:ERRORF("HC3 authentication failed, Emu access cancelled") BLOCKED = true end
   if stat == 'closed' then self:ERRORF("HC3 connection closed %s",path) end
   if stat == 500 then self:ERRORF("HC3 error 500 %s",path) end
-  local t1 = socket.gettime()
   local jf,data = pcall(json.decode,res)
-  local t2 = socket.gettime()
-  if not silent and self.DBG.http then self:DEBUGF('http',"API: %s %.4fs (decode %.4fs)",path,t1-t0,t2-t1) end
   return (jf and data or res),stat
 end
 
@@ -462,20 +465,14 @@ function Emulator:run(args) -- { fname = "file.lua", src = "source code" }
   print(self.log.colorStr('orange',"HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..self.VERSION))
   local fileType = flags.type == 'scene' and 'Scene' or 'QuickApp'
   
-  while true do
-    local startTime,t0 = os.clock(),os.time()
-    self._shouldExit = true
-    copas(function() -- This is the first task we create
-      self.mobdebug.on()
-      self:setRunner(self.systemRunner) -- Set environment for this coroutine 
-      self.timers.midnightLoop() -- Setup loop for midnight events, used to ex. update sunrise/sunset hour
-      local runner = fileType == 'Scene' and self.scene.Scene(info) or self.qa.QA(info,nil)
-      self:post({type='emulator_started'},true)
-      runner:run()
-    end)
-    self:DEBUG("Runtime %.3f sec (%s sec absolute time)",os.clock()-startTime,os.time()-t0)
-    if self._shouldExit then os.exit(0) end
-  end
+  copas(function() -- This is the first task we create
+    self.mobdebug.on()
+    self:setRunner(self.systemRunner) -- Set environment for this coroutine 
+    self.timers.midnightLoop() -- Setup loop for midnight events, used to ex. update sunrise/sunset hour
+    local runner = fileType == 'Scene' and self.scene.Scene(info) or self.qa.QA(info,nil)
+    self:post({type='emulator_started'},true)
+    runner:run()
+  end)
 end
 
 function Runner:__init(kind)
@@ -486,6 +483,22 @@ function Runner:printErr(date,str) _print(date,str) end
 function Runner:trimErr(str) return str:gsub("%[string \"", "[file \"") or str end
 function Runner:__tostring(r) return fmt("%s:%s",self.kind,self.name) end
 
+local function round(num) return math.floor(num + 0.5) end
+function Runner:timerCallback(ref,what)
+  if not self.flags.debug.timer then return end
+  if what == 'start' then
+    local info = debug.getinfo(4 + (ref.ctx=='setInterval' and 2 or 0))
+    local line = info.currentline
+    ref.src = ref.src or string.format("%s:%s",info.source,line)
+    local t = userDate("%m.%d/%H:%M:%S",round(ref.time))
+    emulator:DEBUG("%s:%s %s %s",ref.ctx,ref.tag or ref.id,t,ref.src)
+  elseif what == 'expire' then
+    emulator:DEBUG("%s:%s expired",ref.ctx,ref.tag or ref.id)
+  elseif what == 'cancel' then
+    emulator:DEBUG("%s:%s canceled",ref.ctx,ref.tag or ref.id)
+  end
+end
+
 SystemRunner = SystemRunner
 class 'SystemRunner'(Runner)
 
@@ -493,6 +506,7 @@ class 'SystemRunner'(Runner)
 function SystemRunner:__init()
   Runner.__init(self,"System")
   self.name = "main"
+  self.dbg = {}
 end
 
 function SystemRunner:_error(str)

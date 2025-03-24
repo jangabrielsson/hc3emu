@@ -6,12 +6,11 @@ local copas = E.lua.require("copas")
 local DBG = E.DBG
 local fmt = string.format
 
-local function shutdown(delay)
+local function shutdown()
   if E._server then copas.removeserver(E._server) end
   if E._client then copas.close(E._client) end
   E.timers.cancelTimers() 
   E.util.cancelThreads() 
-  copas.pause(delay or 0)
 end
 
 plugin = plugin or {}
@@ -35,9 +34,8 @@ end
 local exit = os.exit
 function os.exit(code) 
   E:DEBUG("Exit %s",code or 0)
-  if code == -1 then exit(-1) end -- Hard exit...
-  E._shouldExit = true
-  shutdown(0)
+  if code == -1 then shutdown() exit(-1) end -- Hard exit...
+  plugin.restart()
 end
 
 class 'QuickAppBase'

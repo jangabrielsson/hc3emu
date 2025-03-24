@@ -13,7 +13,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%state=state.db
 --%%project=5566
 --%%offline=true
---%%debug=info:true,http:true,onAction:true,onUIEvent:true
+--%%debug=info:true,api:true,onAction:true,onUIEvent:true
 --%%var=debug:"main,wsc,child,color,battery,speaker,send,late"
 
 -- This QA is not allowed to calll the HC3 at all. Other http calls are allowed.

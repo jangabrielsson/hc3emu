@@ -7,10 +7,11 @@ if require and not QuickApp then require("hc3emu") end
 --%%name=Timers
 --%%type=com.fibaro.multilevelSwitch
 --%%dark=true
+--%%exit=true
 --%%time=10:45
---%%debug=timer:true
---%%debug=sdk:false,info:true,proxyAPI:true,server:true,onAction:true,onUIEvent:true
---%%debug=http:true,color:true,blockAPI:true
+--%%debug=timer2:true
+--%%debug=sdk:false,info:false,server:true,onAction:true,onUIEvent:true
+--%%debug=http2:true
 
 function QuickApp:onInit()
     self:debug("onInit",self.name,self.id)
@@ -32,7 +33,9 @@ function QuickApp:onInit()
     ref2 = setInterval(function()
         n = n + 1
         self:debug("Interval2 executed",n)
-        if n == 3 then clearInterval(ref2) end
+        if n == 3 then 
+            clearInterval(ref2) 
+        end
     end, 2000)
 
     self:debug("Set interval with ref:", ref)

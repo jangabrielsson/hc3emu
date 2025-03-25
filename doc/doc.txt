@@ -27,5 +27,5 @@ ref setInterval(fun,ms,tag,hook)
 clearTimeout(ref)
 clearInterval(ref)
 
-userTime([*t]) 
+userTime([*t])              -- We have our own time as time can be offset and run speeded up...
 userDate(fmt[, time])

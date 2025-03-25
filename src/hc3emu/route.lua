@@ -81,7 +81,7 @@ local function Route()   -- passThroughHandler is a function that takes method,p
     return params
   end
 
-  function self:call(method,path,data,flags)
+  function self:getHandler(method,path,data,flags)
     if not flags.query then
       local pathStr,queryStr = path:match("(.-)%?(.*)") 
       flags.lookupPath = pathStr or path
@@ -89,10 +89,15 @@ local function Route()   -- passThroughHandler is a function that takes method,p
       flags.query = queryStr and parseQuery(queryStr) or {}
     end
     local handler,vars = self:getRoute(method,flags.lookupPath)
-    if not handler then return nil,nil end
+    if not handler then return function(_) return nil,nil end,{} end
     local args = {flags.callPath,table.unpack(vars)}
     args[#args+1] = data
     args[#args+1] = flags.query
+    return handler,args
+  end
+
+  function self:call(method,path,data,flags) -- Easier to step over when debugging
+    local handler,args = self:getHandler(method,path,data,flags)
     return handler(table.unpack(args))
   end
 
@@ -111,13 +116,10 @@ local function Connection()
   local self = { routes = {} }
   function self:addRoute(route) self.routes[#self.routes+1] = route end
   function self:call(method,path,data)
-    local flags = {}
+    local flags, check = {}, function(code,value,route) if not (code == nil or code == 301) then E:DEBUGF('api',"api/%s: %s%s",route == HC3Route and 'r' or 'l',method,path) return true end end
     for _,route in ipairs(self.routes) do
       local value,code = route:call(method,path,data,flags)
-      if not (code == nil or code == 301) then 
-        E:DEBUGF('api',"api/%s: %s%s",route == HC3Route and 'r' or 'l',method,path)
-        return value,code 
-      end
+      if check(code,value,route) then return value,code end
     end
     return nil,505
   end

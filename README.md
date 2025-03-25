@@ -64,14 +64,14 @@ QuickApps are configured using special directives in comments starting with `--%
 ```lua
 if require and not QuickApp then require("hc3emu") end
 
---%%name=MyQuickApp        # Name of the QuickApp
+--%%name=MyQuickApp               # Name of the QuickApp
 --%%type=com.fibaro.binarySwitch  # Device type
---%%proxy=MyProxy          # HC3 proxy name
---%%dark=true             # Enable dark mode for logs
---%%var=foo:config.secret # Set QuickApp variable (from config file)
---%%debug=sdk:false,info:true  # Configure debug flags
---%%file=lib.lua:lib      # Include external file
---%%save=MyQA.fqa        # Save as FQA file
+--%%proxy=MyProxy                 # HC3 proxy name
+--%%dark=true                     # Enable dark mode for logs
+--%%var=foo:config.secret         # Set QuickApp variable (from config file)
+--%%debug=sdk:false,info:true     # Configure debug flags
+--%%file=lib.lua:lib              # Include external file
+--%%save=MyQA.fqa                 # Save as FQA file
 ```
 
 ## Command Line Tools

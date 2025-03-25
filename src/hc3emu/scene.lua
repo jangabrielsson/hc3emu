@@ -1,9 +1,8 @@
 local exports = {}
-local E = setmetatable({},{ 
-  __index=function(t,k) return exports.emulator[k] end,
-  __newindex=function(t,k,v) exports.emulator[k] = v end
-})
+Emulator = Emulator
+local E = Emulator.emulator
 local json = require("hc3emu.json")
+local copas = require("copas")
 local class = require("hc3emu.class") -- use simple class implementation
 local userTime,userDate
 
@@ -12,7 +11,10 @@ local function init()
 end
 
 local compileCond
-local setupDateEvent, sceneTrigger, minuteLoop, minuteFuns
+local sceneTrigger
+
+MinuteLoop = MinuteLoop
+class 'MinuteLoop'
 
 ---------------------- Scene class ---------------------------------------
 Runner = Runner
@@ -25,8 +27,14 @@ function Scene:__init(info)
   self.fname = info.fname
   self.src = info.src
   self.env = info.env
+  self._lock = E:newLock()
   self:createSceneStruct()
+  self.timerCount = 0
+  self.minuteLoop = MinuteLoop()
 end
+
+function Scene:lock() self._lock:get() end
+function Scene:unlock() self._lock:release() end
 
 function Scene:DEBUGF(flag,...) if self.dbg[flag] then E:DEBUG(...) end end
 
@@ -105,7 +113,7 @@ function Scene:createSceneStruct()
     ev.test = nil
     self:DEBUGF("Adding event listener for %s",json.encodeFast(ev))
     ev.test = test
-    if ev.type=='date' then setupDateEvent(engine,ev,eventHandler) else engine.event(ev,eventHandler) end
+    if ev.type=='date' then self:setupDateEvent(engine,ev,eventHandler) else engine.event(ev,eventHandler) end
   end 
 end
 
@@ -131,24 +139,21 @@ end
 
 function Scene:register() return self:run() end
 
-local timers = 0
 local ignoreTimers = { minuteLoop = true, loader=true }
-
+ 
 function Scene:timerCallback(ref,what)
   if ref.tag == '__speed'  then 
-    if what == 'start' then timers = timers - 1 else timers = timers + 1 end
+    if what == 'start' then self.timerCount = self.timerCount - 1 else self.timerCount = self.timerCount + 1 end
     return
   end
   if ignoreTimers[ref.tag or ""] then return end
-  if what == 'start' then timers = timers + 1 else timers = timers - 1 end
-  if timers == 0  then 
+  if what == 'start' then self.timerCount = self.timerCount + 1 else self.timerCount = self.timerCount - 1 end
+  if self.timerCount == 0  then 
     local runTime = E.timers.milliClock()-self.startTime
     E:DEBUGF('info',"Scene %s terminated (runtime %.5fs)", self.id, runTime or 0) 
   end
   if not (ref.tag and ref.tag:starts('loader')) then Runner.timerCallback(self,ref,what) end
 end
-
-local nn = 0
 
 function Scene:trigger(trigger) -- Start scene
   trigger = trigger or {type='user',property='execute', id=2}
@@ -158,11 +163,10 @@ function Scene:trigger(trigger) -- Start scene
   for k,v in pairs(self.env) do env[k] = v end 
   env.sourceTrigger = trigger
   
-  minuteLoop(self.env)
-  
   env.setTimeout(function()
     E.mobdebug.on()
     E:setRunner(self)
+    self.minuteLoop:start(env)
     E:DEBUGF('files',"Loading user main file %s",self.fname)
     E:DEBUGF('info',"Running scene %s",self.id)
     self.startTime = E.timers.milliClock()
@@ -173,12 +177,15 @@ function Scene:trigger(trigger) -- Start scene
     if not E.DBG.offline then -- Move!
       assert(E.URL and E.USER and E.PASSWORD,"Please define URL, USER, and PASSWORD") -- Early check that creds are available
     end
-  end,0,"loader") nn=nn+1
+  end,0,"loader")
 end
 
 function Scene:loadFiles() end
 function Scene:save() end
 function Scene:saveProject() end
+
+function Scene:getVariable(name) self.variables = self.variables or {}; return self.variables[name] end
+function Scene:setVariable(name,value) self.variables = self.variables or {}; self.variables[name] = value end
 
 function Scene:_error(str)
   self.env.fibaro.error(self.env.tag,self:trimErr(str))
@@ -195,21 +202,27 @@ function sceneTrigger(trigger,id)
   end
 end
 
-minuteFuns = {}
-local mlr = nil
-function minuteLoop(env)
-  if mlr then return end
+function MinuteLoop:__init()
+  self.funs = {}
+  self.ref = nil
+end
+
+function MinuteLoop:register(fun) table.insert(self.funs, fun) end
+function MinuteLoop:start(env)
+  self.scene = env
+  if self.ref then return end
   E:DEBUGF('scene',"Starting cron loop")
   local m = (userTime() // 60 + 1)*60
   local function loop()
-    for _,f in ipairs(minuteFuns) do f() end
+    for _,f in ipairs(self.funs) do f() end
     m = m+60
-    mlr = env.__emu_setTimeout(loop,(m-userTime())*1000,"minuteLoop",nil)
+    self.ref = env.__emu_setTimeout(loop,(m-userTime())*1000,"minuteLoop")
   end
-  mlr = env.__emu_setTimeout(loop,(m-userTime())*1000,"minuteLoop",nil)
+  self.ref = env.__emu_setTimeout(loop,(m-userTime())*1000,"minuteLoop")
 end
+function MinuteLoop:stop() if self.ref then self.scene.env.__emu_clearTimeout(self.ref) self.ref = nil end end
 
-function setupDateEvent(engine,ev,eventHandler)
+function Scene:setupDateEvent(engine,ev,eventHandler)
   if ev.property == 'sunrise' or ev.property == 'sunset' then
     local prop = ev.property
     local value = ev.value
@@ -224,10 +237,10 @@ function setupDateEvent(engine,ev,eventHandler)
     local event = {type='date',property='cron',value=ev.value}
     local test = ev.test
     engine.event(event,eventHandler)
-    minuteFuns[#minuteFuns+1] = function() 
+    self.minuteLoop:register(function() 
       local t = userDate("*t")
       if test(t) then engine.handleEvent(event) end  
-    end
+    end)
   elseif ev.property == 'interval' then
     -- setup minute event loop that triggers scene
   end

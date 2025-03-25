@@ -21,6 +21,7 @@ CONDITIONS = {
 
 print(json.encode(sourceTrigger))
 
+local callingQA = fibaro.getSceneVariable('QA')
 print("Scene being called")
-print("Calling QA 5001")
-fibaro.call(5001,"foo",4,6)
+print("Calling QA",callingQA)
+fibaro.call(callingQA,"foo",4,6)

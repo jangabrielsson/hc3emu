@@ -45,7 +45,7 @@ function QuickApp:onInit()
   self:testBasic()
   self:testChildren() -- Only works with proxy
   self:testTCP()
-  -- self:testMQTT()
+  --self:testMQTT()
   self:testWebSocket() -- have problem with work with wss
   --self:listFuns()
   print("Done!")

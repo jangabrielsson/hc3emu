@@ -1,8 +1,6 @@
 local exports = {}
-local E = setmetatable({},{ 
-  __index=function(t,k) return exports.emulator[k] end,
-  __newindex=function(t,k,v) exports.emulator[k] = v end
-})
+Emulator = Emulator
+local E = Emulator.emulator
 local json = require("hc3emu.json")
 local fmt = string.format
 

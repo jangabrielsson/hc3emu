@@ -21,6 +21,7 @@ luamqtt >= 3.4.3-1
 lua-json >= 1.0.0-1
 bit32 >= 5.3.5.1-1
 lua-websockets-bit32 >= 2.0.1-7
+argparse >= 0.7.1-1
 mobdebug >= 0.80-1
 --]]
 local VERSION = "1.0.52"
@@ -38,19 +39,17 @@ require("copas.http")
 local _print = print
 local json,urlencode
 
-class 'Runner'
-
-class 'Emulator'
-local Emulator = _G['Emulator']; _G['Emulator'] = nil
+class 'Emulator' -- Main class 'Emulator'
+class 'Runner'   -- Base class for stuff that runs in the emulator, QuickApps, Scenes, System tasks
 
 local logTime = os.time
 local userDate = os.date
 local dateMark = function(str) return os.date("[%d.%m.%Y][%H:%M:%S][",logTime())..str.."]" end
 
-local emulator
-
+Emulator = Emulator -- fool linting...
 function Emulator:__init()
   self.VERSION = VERSION
+  Emulator.emulator = self
   self.cfgFileName = "hc3emu_cfg.lua"   -- Config file in current directory
   self.homeCfgFileName = ".hc3emu.lua"  -- Config file in home directory
   
@@ -101,8 +100,6 @@ function Emulator:__init()
   self.lua = {require = require, dofile = dofile, loadfile = loadfile, type = type, io = io, print = _print, package = package } -- used from fibaro.hc3emu.lua.x 
   
   json,urlencode = self.json,self.util.urlencode
-  emulator = self
-  print(tostring(self))
 end
 
 function Emulator:init(debug) 
@@ -137,7 +134,6 @@ function Emulator:init(debug)
   local function loadModule(name)
     self:DEBUGF('modules',"Loading module %s",name)
     local r = require(name)
-    r.emulator = self
     if r.init then r:init() end
     return r
   end
@@ -160,6 +156,11 @@ function Emulator:init(debug)
   
   self.route.createConnections() -- Setup connections for API calls, emulator/offline/proxy
   self.connection = self.route.hc3Connection
+end
+
+function Emulator:newLock()
+  if self.DBG.lock then return copas.lock.new(math.huge)           -- Lock with no timeout
+  else return {get = function() end, release = function() end} end -- Nop lock
 end
 
 function Emulator:getNextDeviceId() self.DEVICEID = self.DEVICEID + 1 return self.DEVICEID end
@@ -316,6 +317,8 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
   function directive.tempDir(d,val) self.tempDir = tostring(val) end
   --@D stateReadOnly=<bool> - If true state file is read only, ex. --%%stateReadOnly=true
   function directive.stateReadOnly(d,val) flags.stateReadOnly = eval(val,d) end
+  --@D lock=<bool> - If true state use mutex for QA I/O, ex. --%%lock=true
+  function directive.lock(d,val) flags.lock = eval(val,d) end
   --@D latitude=<val> - Set latitude for time calculations, ex. --%%latitude=59.3
   function directive.latitude(d,val) flags.latitude = tonumber(val) end
   --@D longitude=<val> - Set longitude for time calculations, ex. --%%longitude=18.1
@@ -454,7 +457,7 @@ function Emulator:run(args) -- { fname = "file.lua", src = "source code" }
   local info = {fname=self.mainFile,src=args.src,env={}}
   self:parseDirectives(info)
   local flags = info.directives
-  for _,globalFlag in ipairs({'offline','state','logColor','stateReadOnly','dark','longitude','latitude'}) do
+  for _,globalFlag in ipairs({'offline','state','logColor','stateReadOnly','dark','longitude','latitude','lock'}) do
     if flags[globalFlag]~=nil then self.DBG[globalFlag] = flags[globalFlag] end
   end
   
@@ -480,6 +483,8 @@ function Runner:__init(kind)
   self.kind = kind.."Runner"
   self.name = "0"
 end
+function Runner:lock() end -- Nop
+function Runner:unlock() end -- Nop
 function Runner:printErr(date,str) _print(date,str) end
 function Runner:trimErr(str) return str:gsub("%[string \"", "[file \"") or str end
 function Runner:__tostring(r) return fmt("%s:%s",self.kind,self.name) end
@@ -492,11 +497,11 @@ function Runner:timerCallback(ref,what)
     local line = info.currentline
     ref.src = ref.src or string.format("%s:%s",info.source,line)
     local t = userDate("%m.%d/%H:%M:%S",round(ref.time))
-    emulator:DEBUG("%s:%s %s %s",ref.ctx,ref.tag or ref.id,t,ref.src)
+    Emulator.emulator:DEBUG("%s:%s %s %s",ref.ctx,ref.tag or ref.id,t,ref.src)
   elseif what == 'expire' then
-    emulator:DEBUG("%s:%s expired",ref.ctx,ref.tag or ref.id)
+    Emulator.emulator:DEBUG("%s:%s expired",ref.ctx,ref.tag or ref.id)
   elseif what == 'cancel' then
-    emulator:DEBUG("%s:%s canceled",ref.ctx,ref.tag or ref.id)
+    Emulator.emulator:DEBUG("%s:%s canceled",ref.ctx,ref.tag or ref.id)
   end
 end
 

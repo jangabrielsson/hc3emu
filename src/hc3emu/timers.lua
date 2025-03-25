@@ -1,8 +1,6 @@
 local exports = {}
-local E = setmetatable({},{ 
-  __index=function(t,k) return exports.emulator[k] end,
-  __newindex=function(t,k,v) exports.emulator[k] = v end
-})
+Emulator = Emulator
+local E = Emulator.emulator
 
 local fmt = string.format
 local copas = require("copas")
@@ -92,10 +90,12 @@ local __speed
 local function callback(_,id) 
   E.mobdebug.on()
   local ref = getTimerRef(id)
+  if ref.runner.lock then ref.runner:lock() end
   E:DEBUGF('timer_dev',"timer std expire:%s",id)
   setTimerRef(id,nil)
   local oldRunner = E:setRunner(ref.runner)
   local stat,err = pcall(ref.fun)
+  if ref.runner.lock then ref.runner:unlock() end
   E:setRunner(oldRunner)
   pcall(ref.runner.timerCallback,ref.runner,ref,"expire")
   if not stat then

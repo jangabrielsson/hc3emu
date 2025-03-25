@@ -17,8 +17,10 @@ function net.HTTPClient()
   function self:request(url,options)
     local call = function()
       mobdebug.on()
+      hc3emu:getRunner():unlock() -- Let other timers run while waiting for the request
       local opts = options.options or {}
       local res, status, headers = hc3emu:httpRequest(opts.method,url,opts.headers,opts.data,opts.timeout)
+      hc3emu:getRunner():lock()
       if tonumber(status) and status <= 302 and options.success then 
         options.success({status=status,data=res,headers=headers})
       elseif options.error then options.error(status) end

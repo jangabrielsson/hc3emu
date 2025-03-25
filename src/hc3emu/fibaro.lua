@@ -32,7 +32,7 @@ function fibaro.setOffline(off)
   if off then connection = route.offlineConnection
   else connection = route.proxyConnection end
 end
-fibaro.setOffline(E.DBG.offline)
+fibaro.setOffline(E:getRunner().flags.offline)
 
 local function __assert_type2(val, typ, msg)
   if type(val) ~= typ then error(fmt(msg,typ)..". Got: "..type(val),3) end
@@ -356,4 +356,18 @@ function fibaro.getHomeArmState()
   if armed == 0 then return 'disarmed'
   elseif armed == n then return 'armed'
   else return 'partially_armed' end
+end
+
+function fibaro.getSceneVariable(name)
+  __assert_type(name, "string")
+  local scene = E:getRunner()
+  assert(scene.kind == "SceneRunner","fibaro.getSceneVariable must be called from a scene")
+  return scene:getVariable(name)
+end
+
+function fibaro.setSceneVariable(name,value)
+  __assert_type(name, "string")
+  local scene = E:getRunner()
+  assert(scene.kind == "SceneRunner","fibaro.setSceneVariable must be called from a scene")
+  scene:setVariable(name,value) 
 end

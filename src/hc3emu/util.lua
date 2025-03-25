@@ -1,8 +1,6 @@
 local exports = {}
-local E = setmetatable({},{ 
-  __index=function(t,k) return exports.emulator[k] end,
-  __newindex=function(t,k,v) exports.emulator[k] = v end
-})
+Emulator = Emulator
+local E = Emulator.emulator
 
 local json = require("hc3emu.json")
 local copas = require("copas")
@@ -410,7 +408,9 @@ local function addThread(runner,call,...)
   task = copas.addthread(function(...) 
     mobdebug.on() 
     copas.seterrorhandler(errfun)
+    runner:lock()
     local stat,res = pcall(call,...) 
+    runner:unlock()
     if not stat then
       res = tostring(res)
       res = res:gsub('^%[(string) ',function(s) return "[file " end)

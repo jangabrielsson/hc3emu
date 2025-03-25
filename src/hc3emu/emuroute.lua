@@ -1,11 +1,8 @@
 --[[ Emulator api routes
 --]]
 local exports = {}
-local E = setmetatable({},{ 
-  __index=function(t,k) return exports.emulator[k] end,
-  __newindex=function(t,k,v) exports.emulator[k] = v end
-})
-
+Emulator = Emulator
+local E = Emulator.emulator
 local fmt = string.format
 
 local getDeviceStore
@@ -208,7 +205,7 @@ local function EmuRoute() -- Create emulator route, redirecting API calls to emu
     local scene = E:getScene(tonumber(id))
     if scene then 
       assert(name=='execute',"Invalid scene action")
-      scene:trigger({type='user', property='execute',id=2}) 
+      scene:trigger({type='user', property='execute',id=2})
       return nil,200 
     end
     return nil,301

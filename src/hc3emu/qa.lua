@@ -1,8 +1,6 @@
 local exports = {}
-local E = setmetatable({},{ 
-  __index=function(t,k) return exports.emulator[k] end,
-  __newindex=function(t,k,v) exports.emulator[k] = v end
-})
+Emulator = Emulator
+local E = Emulator.emulator
 local json = require("hc3emu.json")
 local class = require("hc3emu.class") -- use simple class implementation
 local copas = require("copas")
@@ -21,8 +19,12 @@ function QA:__init(info,noRun)
   Runner.__init(self,"QA")
   self.info = info
   self:createQAstruct(info,noRun)
+  self._lock = E:newLock()
   return self
 end
+
+function QA:lock() self._lock:get() end
+function QA:unlock() self._lock:release() end
 
 function QA:createQAstruct(info,noRun) -- noRun -> Ignore proxy
   if info.directives == nil then E:parseDirectives(info) end
@@ -35,6 +37,7 @@ function QA:createQAstruct(info,noRun) -- noRun -> Ignore proxy
   local flags = info.directives
   local env = info.env
   local qvs = json.util.InitArray(flags.var or {})
+  self.timerCount = 0
   
   local uiCallbacks,viewLayout,uiView
   if flags.u and #flags.u > 0 then
@@ -209,6 +212,7 @@ function QA:run() -- run QA:  create QA struct, load QA files. Runs in a copas t
       if flags.breakOnInit and onInitLine then E.mobdebug.setbreakpoint(self.fname,onInitLine+1) end
       E:DEBUGF('info',"Starting QuickApp '%s'",self.name)
       E:post({type='quickApp_started',id=self.id},true)
+      env.setTimeout(function() end,0,"runSentry")
       env.quickApp = env.QuickApp(self.device) -- quickApp defined first when we return from :onInit()...
       if flags.speed then E.timers.startSpeedTime(flags.speed) end
     end
@@ -272,11 +276,14 @@ function QA:createFQA(id) -- Creates FQA structure from installed QA
   }
 end
 
-local timerCount = 0
 function QA:timerCallback(ref,what)
   Runner.timerCallback(self,ref,what)
-  if what == 'start' then timerCount = timerCount + 1 else timerCount = timerCount - 1 end
-  if self.flags.exit and timerCount == 0 then os.exit() end
+  if what == 'start' then self.timerCount = self.timerCount + 1 else self.timerCount = self.timerCount - 1 end
+  --print("Timer count:",self.timerCount,ref.id,what,self.name)
+  if self.timerCount == 0 then
+    E:post({type='qa_finished',id=self.id})
+    if self.flags.exit then os.exit() end
+  end
 end
 
 function QA:_error(str)

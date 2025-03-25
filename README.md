@@ -83,6 +83,7 @@ Located in `/tools/vscode.lua`, this tool provides VSCode tasks integration with
 - `downloadQA(id, path)`: Download QuickApp from HC3
 - `uploadQA(fname)`: Upload QuickApp to HC3
 - `updateFile(fname)`: Update single file in QuickApp
+
 See .vscode/tasks.json for usage
 
 To use the updateFile command the workspace needs a `.project` file.

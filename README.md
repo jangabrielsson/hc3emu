@@ -1,4 +1,4 @@
-# HC3 Emulator Documentation
+# HC3 QuickApp Emulator
 <img src="doc/hc3emu.png" width="200" alt="HC3 Emulator"/>
 
 ## Overview
@@ -15,6 +15,7 @@ Forum thread discussing the emulator (and questions) [here](https://forum.fibaro
 - Works with major Lua IDEs (Zerobrane, VSCode)
 - Provides comprehensive debugging capabilities
 - Supports file operations and state persistence
+- Limited support for testing Scenes...
 
 ## Installation
 

@@ -1,13 +1,16 @@
 #!/usr/bin/env lua
 
---_DEVELOP = ".."
-SCRIPTNAME = "hc3tool"
+--_DEVELOP = true
+_SCRIPTNAME = "hc3tool"
+
 if require and not QuickApp then require("hc3emu") end
 --%%color=false
 --%%shellscript=true
 --%%silent=true
+--%%exit0=true
 --%%debug=info:false,files:false
 
+io = fibaro.hc3emu.lua.io
 local lua = fibaro.hc3emu.lua
 local path = lua.package.searchpath("argparse",lua.package.path)
 local argparse = lua.loadfile(path,"t",_G)()

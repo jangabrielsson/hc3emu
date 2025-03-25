@@ -176,7 +176,9 @@ function QA:loadQAFiles()
     end
   end
   E:DEBUGF('files',"Loading user main file %s",self.fname)
-  load(self.src,self.fname,"t",env)()
+  local f,err = load(self.src,self.fname,"t",env)
+  if not f then error(err) end
+  f()
   if not flags.offline then 
     assert(E.URL and E.USER and E.PASSWORD,"Please define URL, USER, and PASSWORD") -- Early check that creds are available
   end

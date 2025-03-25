@@ -24,7 +24,7 @@ lua-websockets-bit32 >= 2.0.1-7
 argparse >= 0.7.1-1
 mobdebug >= 0.80-1
 --]]
-local VERSION = "1.0.53"
+local VERSION = "1.0.54"
 local class = require("hc3emu.class") -- use simple class implementation
 
 local fmt = string.format
@@ -302,6 +302,8 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
   directive['local'] = function(d,val) flags.offline = eval(val,d) end
   --@D exit=<bool> - Exit QA when no timers left, ex. --%%exit=true
   function directive.exit(d,val) flags.exit = eval(val,d) end
+  --@D exit0=<bool> - If true exit QA with os.exit(0), else restart, ex. --%%exit0=true
+  function directive.exit0(d,val) flags.exit0 = eval(val,d) end
   --@D state=<name> - Set file for saving state between runs, ex. --%%state=state.db
   function directive.state(d,val) flags.state = tostring(val) end
   --@D nodebug=<bool> - If true don't load debugger, ex. --%%nodebug=true
@@ -454,6 +456,7 @@ end
 function Emulator:run(args) -- { fname = "file.lua", src = "source code" } 
   self:DEBUGF('info',"Main QA file %s",args.fname)
   self.mainFile = args.fname
+  args.src = args.src:gsub("#!/usr/bin/env","--#!/usr/bin/env") 
   local info = {fname=self.mainFile,src=args.src,env={}}
   self:parseDirectives(info)
   local flags = info.directives

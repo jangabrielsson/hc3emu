@@ -34,6 +34,9 @@ local exit = os.exit
 function os.exit(code) 
   E:DEBUG("Exit %s",code or 0)
   if code == -1 then shutdown() exit(-1) end -- Hard exit...
+  local id = plugin.mainDeviceId
+  local qa = E:getQA(id)
+  if qa.flags.exit0 then exit(0) end
   plugin.restart()
 end
 

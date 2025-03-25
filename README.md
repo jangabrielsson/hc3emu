@@ -1,81 +1,101 @@
-# HC3Emu
+# HC3 Emulator Documentation
 
-HC3Emu is a Lua-based emulator designed to simulate the behavior of Fibaro Home Center 3 QuickApp runtime. This emulator allows users to run and test QuickApps in a controlled environment.
-Support here https://forum.fibaro.com/topic/78728-quickapp-emulator-hc3emu/
+## Overview
 
-## Features
+HC3Emu is a Lua-based emulator designed to simulate the Fibaro Home Center 3 QuickApp runtime environment. It allows developers to develop and test QuickApps offline before deploying them to a physical HC3 controller.
 
-- Support of most of the fibaro SDK.
-  - fibaro.*, api.*, net.HTPClient, net.TCPClient, setTimeout, setInterval, ...
-- Integrates/interacts with QAs running on the HC3
-- Supports running UI front-end of QA on HC3 for UI testing (proxy)
-- Works both in Zerobrane and VSCode, and most other environments supporting mobdebug
+## Key Features
 
-## Dependencies (installed by luarocks)
-
-- Lua 5.3 or higher
-- luasocket >= 2.0, <= 2.2
-- copas >= 4.7.1-1 (+ timer and timerwheel)
-- luamqtt >= 3.4.3-1
-- lua-json >= 1.0.0-1  (will use rapidjson if installed)
-- bit32 >= 5.3.5.1-1
-- mobdebug >= 0.80-1
-
-You also need to have openssl installed in the system for luasec to compile.
+- Simulates most of the Fibaro SDK APIs
+- Integrates with real HC3 controllers for testing
+- Supports UI testing through proxy deployment
+- Works with major Lua IDEs (Zerobrane, VSCode)
+- Provides comprehensive debugging capabilities
+- Supports file operations and state persistence
 
 ## Installation
 
-1. Install with luarocks
-    ```bash
-    luarocks install hc3emu
-    ```
-    Update is just install again. To instal a specific version (ex. previous version if bugs are introduced...)
-    ```bash
-    luarocks install hc3emu <version>
-    ```
+```bash
+# Install via LuaRocks
+luarocks install hc3emu
 
-## Usage
+# Install specific version
+luarocks install hc3emu <version>
 
-1. IDEs supported
-  1. Zerobrane
-  2. VSCode, tested with "Lua MobDebug adapter"
+# Update to latest version
+luarocks install hc3emu
+```
+
+For Windows installation see [here](https://forum.fibaro.com/topic/78728-quickapp-emulator-hc3emu/page/2/#findComment-290650)
+For Windows WSL installation see [here](https://forum.fibaro.com/topic/78728-quickapp-emulator-hc3emu/page/2/#findComment-290649)
+For MacOS, it's pretty straight forward to install Lua and Luarocks with brew.
+For Visual Studio Code setup see [here](https://forum.fibaro.com/topic/78728-quickapp-emulator-hc3emu/#findComment-290587)
+For ZeroBrane Studio setup see [here](https://forum.fibaro.com/topic/78728-quickapp-emulator-hc3emu/page/2/#findComment-290595)
+
+## Dependencies
+
+- Lua 5.3 or higher
+- Required packages (installed automatically by LuaRocks):
+  - luasocket >= 2.0
+  - copas >= 4.7.1-1
+  - luamqtt >= 3.4.3-1
+  - lua-json >= 1.0.0-1
+  - bit32 >= 5.3.5.1-1
+  - lua-websockets-bit32 >= 2.0.1-7
+  - argparse >= 0.7.1-1
+  - mobdebug >= 0.80-1
+- System requirement: openssl
 
 ## Configuration
 
-Configure the emulator by editing the `hc3emu_cfg.lua` file. You can set various options including credentials for accessing the HC3.
-You can also have a ".hc3emu.lua" file in your home directory, e.g. ENV "HOME"
+### Global Configuration
 
-Include header in QA file and set --%% directives
+The emulator can be configured through:
+1. `hc3emu_cfg.lua` in the project directory
+2. `.hc3emu.lua` in the user's home directory. Put credentials here so they don't polute project directory.
+
+### QuickApp Configuration
+
+QuickApps are configured using special directives in comments starting with `--%%`:
+
 ```lua
 if require and not QuickApp then require("hc3emu") end
 
---%%name=Test
---%%type=com.fibaro.multilevelSwitch
---%%proxy=MyProxy
---%%dark=true
---%%var=foo:config.secret
---%%debug=sdk:false,info:true
---%%debug=http:true
-
-function QuickApp:onInit()
-   self:debug(self.name,self.id)
-end
+--%%name=MyQuickApp        # Name of the QuickApp
+--%%type=com.fibaro.binarySwitch  # Device type
+--%%proxy=MyProxy          # HC3 proxy name
+--%%dark=true             # Enable dark mode for logs
+--%%var=foo:config.secret # Set QuickApp variable (from config file)
+--%%debug=sdk:false,info:true  # Configure debug flags
+--%%file=lib.lua:lib      # Include external file
+--%%save=MyQA.fqa        # Save as FQA file
 ```
-The header is ignored when we move the code to the HC3 as the function 'require' don't exist in that environment.
 
-## Directives
-Comments in the main file starting with --%% are interpreted as configuration directives to the emulator.
-- name=&lt;string>, The name of the QuickApp
-- type=&lt;string>, the fibaro type
-- proxy=&lt;string>, If defined is the name of the proxy on the HC3. If it doesn't exist it will be created. If the name is preceeded with a dash ,ex. "-MyProxy", a QA with that name will be deleted on the HC3 if it exists and the proxy directive is set to nil...
-- dark=boolean, Sets dark mode. Affects what colors are used in the log console.
-- var=name:value, defines a quickAppVariable for the QA with the name and the value. The value is an evaluated lua value. The lua table 'config' is the values read from the config files and can be used as values. In the example above, we set a quickVar 'foo' to the value in config.secret. This is a great way to initialize the QA with credentials without including them in plain sight in the code...
-- debug=flag:"value", Sets various debug flags, affecting what is logged in the console.
-- file=filepath:name, Loads the file as QA file with name 'name'. Will be included when saving QA to a .fqa.
-- save="filename", When run it will package and save the QA as a .fqa file on disk. Ex. save="MyQA.fqa"
-- state="filename", Will save the "internalStorage" keys in this file and read them back when running. Thus allowing retarts of the QA and preserve some state between runs. internalStorage is only saved in the emulator and not reflected to the HC3 proxy. quickVars are currently always set to the --%%var declaration when running.
+## Command Line Tools
 
-## Supported APIs
+### vscode.lua Tool
+
+Located in `/tools/vscode.lua`, this tool provides VSCode tasks integration with commands:
+
+- `downloadQA(id, path)`: Download QuickApp from HC3
+- `uploadQA(fname)`: Upload QuickApp to HC3
+- `updateFile(fname)`: Update single file in QuickApp
+See .vscode/tasks.json for usage
+
+To use the updateFile command the workspace needs a `.project` file.
+It's auto generated with the --%%project=<quickapp_id> directive that allows the command/task to push the file to the right QA on the HC3
+
+```json
+{
+  "files": {
+    "main": "main.lua",
+    "lib": "lib.lua"
+  },
+  "id": "<quickapp_id>"
+}
+```
+
+## API Support
 
 - api.delete(...)
 - api.get(...)
@@ -146,18 +166,82 @@ Comments in the main file starting with --%% are interpreted as configuration di
 - class QuickAppChild
 - hub = fibaro
 
+### Core APIs
+- `api.*` - HTTP API operations
+- `fibaro.*` - Core Fibaro functions
+- `net.*` - Network operations
+- `plugin.*` - Plugin management
+- `json.*` - JSON handling
+
+### Common Operations
+```lua
+-- HTTP Operations
+api.get("/devices")
+api.post("/quickApp/", fqa)
+
+-- Device Operations
+fibaro.call(deviceId, "turnOn")
+fibaro.getValue(deviceId, "value")
+
+-- Timer Operations
+setTimeout(callback, milliseconds)
+setInterval(callback, milliseconds)
+
+-- Storage Operations
+self:setVariable("name", value)
+self:getVariable("name")
+```
+etc etc.
+
+## Debugging
+
+The emulator provides various debug flags that can be enabled:
+
+```lua
+--%%debug=info:true       # Log general info
+--%%debug=api:true        # Log api.* calls
+--%%debug=timer:true      # Log start/stop of timers (setTimeout)
+--%%debug=http:true       # Log HTTP requests
+--%%debug=onAction:true   # Log Action callbacks
+--%%debug=onUIEvent:true  # Log UI events
+```
+
+## Best Practices
+
+1. Always include the emulator header:
+```lua
+if require and not QuickApp then require("hc3emu") end
+```
+
+2. Use state persistence for development:
+```lua
+--%%state=myqa.state
+```
+
+3. Organize code in multiple files:
+```lua
+--%%file=utils.lua:utils
+--%%file=api.lua:api
+```
+
+4. Test UI interactions using proxy mode:
+```lua
+--%%proxy=MyTestProxy
+```
+
+## Common Issues
+
+1. **Missing Credentials**: Ensure URL, USER, and PASSWORD are configured when not in offline mode
+2. **File Permissions**: Check write permissions for state and save files
+3. **Proxy Conflicts**: Use unique proxy names or remove existing proxies
+
 ## Contributing
 
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature-branch`).
-3. Commit your changes (`git commit -m 'Add new feature'`).
-4. Push to the branch (`git push origin feature-branch`).
-5. Create a new Pull Request.
+See the [Contributing Guide](docs/CONTRIBUTING.md) for details on:
+- Setting up development environment
+- Coding standards
+- Pull request process
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- [List any acknowledgments or references]
+Released under MIT License. See [LICENSE](LICENSE) for details.

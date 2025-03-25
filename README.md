@@ -29,11 +29,11 @@ luarocks install hc3emu <version>
 luarocks install hc3emu
 ```
 
-For Windows installation see [here](https://forum.fibaro.com/topic/78728-quickapp-emulator-hc3emu/page/2/#findComment-290650)
-For Windows WSL installation see [here](https://forum.fibaro.com/topic/78728-quickapp-emulator-hc3emu/page/2/#findComment-290649)
-For MacOS, it's pretty straight forward to install Lua and Luarocks with brew.
-For Visual Studio Code setup see [here](https://forum.fibaro.com/topic/78728-quickapp-emulator-hc3emu/#findComment-290587)
-For ZeroBrane Studio setup see [here](https://forum.fibaro.com/topic/78728-quickapp-emulator-hc3emu/page/2/#findComment-290595)
+- For Windows installation see [here](https://forum.fibaro.com/topic/78728-quickapp-emulator-hc3emu/page/2/#findComment-290650)
+- For Windows WSL installation see [here](https://forum.fibaro.com/topic/78728-quickapp-emulator-hc3emu/page/2/#findComment-290649)
+- For MacOS, it's pretty straight forward to install Lua and Luarocks with brew.
+- For Visual Studio Code setup see [here](https://forum.fibaro.com/topic/78728-quickapp-emulator-hc3emu/#findComment-290587)
+- For ZeroBrane Studio setup see [here](https://forum.fibaro.com/topic/78728-quickapp-emulator-hc3emu/page/2/#findComment-290595)
 
 ## Dependencies
 

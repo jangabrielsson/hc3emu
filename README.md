@@ -1,8 +1,11 @@
 # HC3 Emulator Documentation
+<img src="doc/hc3emu.png" width="200" alt="HC3 Emulator"/>
 
 ## Overview
 
 HC3Emu is a Lua-based emulator designed to simulate the Fibaro Home Center 3 QuickApp runtime environment. It allows developers to develop and test QuickApps offline before deploying them to a physical HC3 controller.
+
+Forum thread discussing the emulator (and questions) [here](https://forum.fibaro.com/topic/78728-quickapp-emulator-hc3emu/)
 
 ## Key Features
 
@@ -217,12 +220,15 @@ if require and not QuickApp then require("hc3emu") end
 ```lua
 --%%state=myqa.state
 ```
+Running in offline mode this file will be used for storing device and resource states between runs.
+For QAs that use the QA internalStorage api, it's recommended to turn this on.
 
 3. Organize code in multiple files:
 ```lua
 --%%file=utils.lua:utils
 --%%file=api.lua:api
 ```
+First is the path to the lua file, second is the name the file will have in the QA.
 
 4. Test UI interactions using proxy mode:
 ```lua
@@ -231,7 +237,7 @@ if require and not QuickApp then require("hc3emu") end
 
 ## Common Issues
 
-1. **Missing Credentials**: Ensure URL, USER, and PASSWORD are configured when not in offline mode
+1. **Missing Credentials**: Ensure URL, USER, and PASSWORD are configured when not in offline mode. If the emulator fails calling the HC3 (unathorized), it will block further requests. This to prevent that the HC3 blocks to emulator IP due to too many failed login requests... Fix credentials, and restart the emulator.
 2. **File Permissions**: Check write permissions for state and save files
 3. **Proxy Conflicts**: Use unique proxy names or remove existing proxies
 

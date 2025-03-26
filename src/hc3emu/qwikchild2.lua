@@ -312,7 +312,7 @@ do
     end
   end
   
-  function QuickApp:initChildren(children)
+  function QuickApp:initChildren(children) -- test
     -- CHeck if we run in emulator and warn if not setup correctly
     if fibaro.hc3emu and not fibaro.hc3emu.DBG.offline then 
       if not fibaro.hc3emu.proxyId then

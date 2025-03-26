@@ -90,13 +90,10 @@ function fibaro.alert(alertType, ids, notification)
   __assert_type(alertType, "string")
   __assert_type(ids, "table")
   __assert_type(notification, "string")
-  local isDefined = "false"
-  local actions = {
-    email = "sendGlobalEmailNotifications",
-    push = "sendGlobalPushNotifications",
-    simplePush = "sendGlobalPushNotifications",
-  }
-  if actions[alertType] == nil then
+  local action = ({
+    email = "sendGlobalEmailNotifications",push = "sendGlobalPushNotifications",simplePush = "sendGlobalPushNotifications",
+  })[alertType]
+  if action == nil then
     error("Wrong parameter: '" .. alertType .. "'. Available parameters: email, push, simplePush", 2)
   end
   for _,id in ipairs(ids) do __assert_type(id, "number") end
@@ -115,7 +112,7 @@ function fibaro.alert(alertType, ids, notification)
     end
   end
   for _, id in ipairs(ids) do
-    fibaro.call(id, actions[alertType], notification, isDefined)
+    fibaro.call(id, action, notification, false)
   end
 end
 

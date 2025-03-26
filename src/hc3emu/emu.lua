@@ -424,6 +424,7 @@ function Emulator:HC3Call(method,path,data,silent)
   if stat == 401 then self:ERRORF("HC3 authentication failed, Emu access cancelled") BLOCKED = true end
   if stat == 'closed' then self:ERRORF("HC3 connection closed %s",path) end
   if stat == 500 then self:ERRORF("HC3 error 500 %s",path) end
+  if not tonumber(stat) then return res,stat end
   if stat and stat >= 400 then return nil,stat end
   local jf,data = pcall(json.decode,res)
   return (jf and data or res),stat

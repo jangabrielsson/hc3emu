@@ -100,7 +100,7 @@ local function mkViewLayout(UI,height,id)
   { ['$jason'] = {
       body = {
         header = {
-          style = {height = tostring(height or #UI*50)},
+          style = {height = "0"}, --tostring(height or #UI*50)},
           title = "quickApp_device_"..id
         },
         sections = {

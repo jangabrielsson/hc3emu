@@ -15,7 +15,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%state=state.db
 --%%debug=info:true,http:true,onAction:true,onUIEvent:true,proxyAPI:true
 --%%var=debug:"main,wsc,child,color,battery,speaker,send,late"
---%%file=$hc3emu.QwikChild:QC
+--%%file=$hc3emu.qwikchild:QC
 
 local function printf(...) print(string.format(...)) end
 

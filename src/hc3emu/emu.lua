@@ -102,12 +102,13 @@ function Emulator:__init()
   json,urlencode = self.json,self.util.urlencode
 end
 
-function Emulator:init(debug) 
+function Emulator:init(debug,info) 
   self.silent = debug.silent
   self.nodebug = debug.nodebug
   self.DBG = debug
   self.systemRunner = SystemRunner()
   self:setRunner(self.systemRunner)
+  self.mainFile = info.fname
   
   local function ll(fn) local f,e = loadfile(fn) if f then return f() else return not tostring(e):match("such file") and error(e) or nil end end
   
@@ -121,9 +122,6 @@ function Emulator:init(debug)
   
   ---@diagnostic disable-next-line: undefined-field
   self.baseFlags = table.merge(homeCfg,cfgFlags) -- merge with home config
-  for _,globalFlag in ipairs({'offline','state','logColor','stateReadOnly','dark'}) do
-    if self.baseFlags[globalFlag]~=nil then self.DBG[globalFlag] = self.baseFlags[globalFlag] end
-  end
   
   self.mobdebug = { on = function() end, start = function(_,_) end }
   if not self.nodebug then
@@ -131,6 +129,12 @@ function Emulator:init(debug)
     self.mobdebug.start('127.0.0.1', 8818)
   end
   
+  self:parseDirectives(info)
+
+  for _,globalFlag in ipairs({'offline','state','logColor','stateReadOnly','dark','longitude','latitude','lock'}) do
+    if info.directives[globalFlag]~=nil then self.DBG[globalFlag] = info.directives[globalFlag] end
+  end
+
   local function loadModule(name)
     self:DEBUGF('modules',"Loading module %s",name)
     local r = require(name)
@@ -152,7 +156,6 @@ function Emulator:init(debug)
   self.tools = loadModule("hc3emu.tools") 
   self.qa = loadModule("hc3emu.qa") 
   self.scene = loadModule("hc3emu.scene") 
-  
   
   self.route.createConnections() -- Setup connections for API calls, emulator/offline/proxy
   self.connection = self.route.hc3Connection
@@ -335,7 +338,10 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
     flags.triggers[#flags.triggers + 1] = {delay = tonumber(delay), trigger = eval(trigger,d)}
   end
   
-  local truncCode = info.src:match("(.-)%-%-+ENDOFDIRECTIVES%-%-") or info.src
+  local truncCode = info.src
+  local eod = info.src:find("ENDOFDIRECTIVES")
+  if eod then truncCode = info.src:sub(1,eod-1) end
+  --local truncCode = info.src:match("(.-)ENDOFDIRECTIVES%-%-") or info.src
   --@D include=<file> - Include a file with additional directives. Format <direct>=<value>
   local include = truncCode:match("%-%-%%%%include=(.-)%s*\n")
   if include then
@@ -418,6 +424,7 @@ function Emulator:HC3Call(method,path,data,silent)
   if stat == 401 then self:ERRORF("HC3 authentication failed, Emu access cancelled") BLOCKED = true end
   if stat == 'closed' then self:ERRORF("HC3 connection closed %s",path) end
   if stat == 500 then self:ERRORF("HC3 error 500 %s",path) end
+  if stat and stat >= 400 then return nil,stat end
   local jf,data = pcall(json.decode,res)
   return (jf and data or res),stat
 end
@@ -453,12 +460,12 @@ function Emulator:loadfile(path,env) -- Loads a file into specific environment
   return loadfile(path,"t",env)()
 end
 
-function Emulator:run(args) -- { fname = "file.lua", src = "source code" } 
-  self:DEBUGF('info',"Main QA file %s",args.fname)
-  self.mainFile = args.fname
-  args.src = args.src:gsub("#!/usr/bin/env","--#!/usr/bin/env") 
-  local info = {fname=self.mainFile,src=args.src,env={}}
-  self:parseDirectives(info)
+function Emulator:run(info) -- { fname = "file.lua", src = "source code" } 
+  self:DEBUGF('info',"Main QA file %s",info.fname)
+  self.mainFile = info.fname
+  info.src = info.src:gsub("#!/usr/bin/env","--#!/usr/bin/env") 
+  info.env = {}
+  if not info.directives then self:parseDirectives(info) end
   local flags = info.directives
   for _,globalFlag in ipairs({'offline','state','logColor','stateReadOnly','dark','longitude','latitude','lock'}) do
     if flags[globalFlag]~=nil then self.DBG[globalFlag] = flags[globalFlag] end

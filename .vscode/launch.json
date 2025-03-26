@@ -54,7 +54,7 @@
       "sourceEncoding": "UTF-8",
       "interpreter": "lua",
       "arguments": [
-        "${userHome}${pathSeparator}/.vscode.lua", // move tools/vscode.lua to ~/.vscode.lua
+        "${userHome}${pathSeparator}.vscode.lua", // move tools/vscode.lua to ~/.vscode.lua
         //"tools/vscode.lua",
         "_runQA",
         "${relativeFile}"

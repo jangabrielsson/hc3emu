@@ -371,3 +371,5 @@ function fibaro.setSceneVariable(name,value)
   assert(scene.kind == "SceneRunner","fibaro.setSceneVariable must be called from a scene")
   scene:setVariable(name,value) 
 end
+
+hub = fibaro

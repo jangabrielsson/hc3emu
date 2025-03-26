@@ -44,5 +44,6 @@ if src:match("%-%-%%%%silent=true") then DBG.silent = true end
 
 local Emulator = require("hc3emu.emu") -- This is the main emulator that we load and that will emulate the main file for us.
 local emulator = Emulator()
-emulator:init(DBG)
-emulator:run{fname=mainfile,src=src}
+local info = {fname=mainfile,src=src}
+emulator:init(DBG,info)
+emulator:run(info)

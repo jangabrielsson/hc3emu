@@ -42,15 +42,21 @@ local function init()
 end
 
 local filterkeys = {
-  parentId=function(d,v) return d.parentId == v end,
+  parentId=function(d,v) return tonumber(d.parentId) == tonumber(v) end,
   name=function(d,v) return d.name == v end,
   type=function(d,v) return d.type == v end,
   interface=function(d,v)
     local ifs = d.interfaces
     for _,i in ipairs(ifs) do if i == v then return true end end
-  end
+  end,
+  property=function(d,v)
+    local prop,val = v:match("%[([^,]+),(.+)%]")
+    if not prop then return false end
+    return tostring(d.properties[prop]) == tostring(val)
+  end,
 }
 
+-- local var = api.get("/devices?property=[lastLoggedUser,"..val.."]") 
 local function filter1(q,d)
   for k,v in pairs(q) do if not(filterkeys[k] and filterkeys[k](d,v)) then return false end end
   return true

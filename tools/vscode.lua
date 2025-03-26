@@ -4,6 +4,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%shellscript=true
 --%%silent=true
 --%%debug=info:false
+--%%exit0=true
 
 --[[
 downloadQA(id,path)
@@ -14,10 +15,13 @@ updateFile(fname)
 local cmds = {}
 local tools = fibaro.hc3emu.tools
 local io = fibaro.hc3emu.lua.io
+local _print = fibaro.hc3emu.lua.print
 
 local function printf(fmt,...) _print(string.format(fmt,...)) end
 local function ERROR(fmt,...) printf("Error: "..fmt,...) os.exit(-1) end
 local function SUCCESS() printf("Success") end
+
+_print("HC3 Tool")
 
 local function readFile(fn)
   local f = io.open(fn,"r")
@@ -82,6 +86,7 @@ function cmds.updateFile(fname) -- current buffer file, needs .project file
   ERROR("%s not found in current project",fname)
 end
 
+--args = ("downloadQA 3568 test"):split(" ")
 local cmd = args[1]
 local c = cmds[cmd]
 if not c then ERROR("Unknown command: %s",tostring(cmd)) end

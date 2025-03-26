@@ -105,7 +105,7 @@ end
     viewLayout = devTempl.properties.viewLayout,
     uiView = devTempl.properties.uiView,
     uiCallbacks = devTempl.properties.uiCallbacks,
-    useUiView=true,
+    useUiView=false,
     typeTemplateInitialized = true,
   }
   if props.quickAppVariables then json.util.InitArray(props.quickAppVariables) end

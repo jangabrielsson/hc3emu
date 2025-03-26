@@ -70,6 +70,7 @@ function QA:createQAstruct(info,noRun) -- noRun -> Ignore proxy
     id=tonumber(flags.id),
     type=flags.type or 'com.fibaro.binarySwitch',
     name=flags.name or 'MyQA',
+    roomID = 219,
     enabled = true,
     visible = true,
     properties = { apiVersion = "1.3", quickAppVariables = qvs, uiCallbacks = uiCallbacks, useUiView = false, viewLayout = viewLayout, uiView = uiView, typeTemplateInitialized = true },

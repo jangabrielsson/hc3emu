@@ -193,7 +193,7 @@ if websock then
     end
     
     function ws_client.on_close() disconnected() end
-
+    
     function listen()
       if not conn then return end
       lt = async(function() 
@@ -215,12 +215,12 @@ if websock then
     
     function self:send(data)
       if not conn then return false end
-        local b,err = ws_client:send(data)
-        if not b then
-          dispatch("error",err)
-          disconnected() 
-          return false
-        end
+      local b,err = ws_client:send(data)
+      if not b then
+        dispatch("error",err)
+        disconnected() 
+        return false
+      end
       return true
     end
     
@@ -235,6 +235,7 @@ if websock then
 end
 -------------- MQTT ----------------------------------
 local luamqtt = require("mqtt")
+local client_registry = {}
 mqtt = { interval = 1000, Client = {}, QoS = { EXACTLY_ONCE = 1 } }
 
 mqtt.MSGT = { 
@@ -246,6 +247,7 @@ mqtt.MSGMAP = {
 }
 
 function mqtt.Client.connect(uri, options)
+  
   uri = string.gsub(uri, "mqtt://", "")
   --cafile="...", certificate="...", key="..." (default false)
   local secure = nil
@@ -265,7 +267,6 @@ function mqtt.Client.connect(uri, options)
     keep_alive = options.keepAlivePeriod,
     id = options.clientId,
     secure = secure,
-    connector = require("mqtt.luasocket-copas"),
   }
   
   local callbacks = {}
@@ -310,19 +311,69 @@ function mqtt.Client.connect(uri, options)
     return client:disconnect(nil, { callback = (options or {}).callback })
   end
   
-  -- local loop = require("mqtt.ioloop").get(true, {timeout=0.005})
-  -- --local loop = luamqtt.get_ioloop()
-  -- loop:add(client)
-  -- async(function() mobdebug.on()
-  --   while true do
-  --     loop:iteration()
-  --     copas.sleep(0.05)
-  --   end
-  -- end)
-
-  async(function() mobdebug.on() luamqtt.run_sync(client) end)
+  --- Add MQTT client to the Copas scheduler.
+  -- Each received packet will be handled by a new thread, such that the thread
+  -- listening on the socket can return immediately.
+  -- The client will automatically be removed after it exits. It will set up a
+  -- thread to call `Client:check_keep_alive`.
+  -- @param cl mqtt-client to add to the Copas scheduler
+  -- @return `true` on success or `false` and error message on failure
+  local function add_mqtt_client(cl)
+    local runner = hc3emu:getRunner()
+    if client_registry[cl] then
+      hc3emu:WARNINGF("[LuaMQTT] client '%s' was already added to Copas", cl.opts.id)
+      return false, "MQTT client was already added to Copas"
+    end
+    client_registry[cl] = true
+    
+    do -- make mqtt device async for incoming packets
+      local handle_received_packet = cl.handle_received_packet
+      local count = 0
+      -- replace packet handler; create a new thread for each packet received
+      cl.handle_received_packet = function(mqttdevice, packet)
+        count = count + 1
+        local co = copas.addnamedthread(handle_received_packet, cl.opts.id..":receive_"..count, mqttdevice, packet)
+        hc3emu:setRunner(runner, co)
+        return true
+      end
+    end
+    
+    -- add keep-alive timer
+    local timer = copas.addnamedthread(function()
+      while client_registry[cl] do
+        local next_check = cl:check_keep_alive()
+        if next_check > 0 then
+          copas.pause(next_check)
+        end
+      end
+    end, cl.opts.id .. ":keep_alive")
+    hc3emu:setRunner(runner,timer)
+    
+    -- add client to connect and listen
+    local co = copas.addnamedthread(function()
+      while client_registry[cl] do
+        local timeout = cl:step()
+        if not timeout then
+          client_registry[cl] = nil -- exiting
+          if mqttClient._debug then hc3emu:DEBUG("[LuaMQTT] client '%s' exited, removed from Copas", cl.opts.id) end
+          copas.wakeup(timer)
+        else
+          if timeout > 0 then
+            copas.pause(timeout)
+          end
+        end
+      end
+    end, cl.opts.id .. ":listener")
+    hc3emu:setRunner(runner,co)
+    
+    return true
+  end
+  
+  add_mqtt_client(client)
+  
   -- async(function() mobdebug.on() luamqtt.run_ioloop(client) end)
   local pstr = "MQTT object: " .. tostring(mqttClient):match("%s(.*)")
   setmetatable(mqttClient, { __tostring = function(_) return pstr end })
   return mqttClient
 end
+

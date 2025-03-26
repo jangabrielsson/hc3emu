@@ -51,6 +51,9 @@ end
 local function getTimerRef(id)
   return timers[tostring(id)]
 end
+
+local function getTimers() return timers end
+
 local function setTimerRef(id,ref)
   timers[tostring(id)] = ref
 end
@@ -338,6 +341,7 @@ exports.cancelTimers = cancelTimers
 exports.midnightLoop = midnightLoop
 exports.startSpeedTime = startSpeedTime
 exports.parseTime = parseTime
+exports.getTimers = getTimers
 exports.init = init
 
 return exports

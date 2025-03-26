@@ -482,6 +482,8 @@ function Emulator:run(args) -- { fname = "file.lua", src = "source code" }
   end)
 end
 
+function Emulator:getTimers() return self.timers.getTimers() end
+
 function Runner:__init(kind)
   self.kind = kind.."Runner"
   self.name = "0"
@@ -495,8 +497,9 @@ function Runner:__tostring(r) return fmt("%s:%s",self.kind,self.name) end
 local function round(num) return math.floor(num + 0.5) end
 function Runner:timerCallback(ref,what)
   if not self.flags.debug.timer then return end
+  if ref.tag == 'runSentry' then return end
   if what == 'start' then
-    local info = debug.getinfo(4 + (ref.ctx=='setInterval' and 2 or 0))
+    local info = debug.getinfo(5 + (ref.ctx=='setInterval' and 1 or 0))
     local line = info.currentline
     ref.src = ref.src or string.format("%s:%s",info.source,line)
     local t = userDate("%m.%d/%H:%M:%S",round(ref.time))

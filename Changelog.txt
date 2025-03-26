@@ -2,4 +2,7 @@
 -- fixed Windows home directory bug
 -- timer bug fix
 -- added support for scenes (not all triggers...yet)
+1.0.54
+-- fixed timer bugs
+-- refactored the code base (more OOP style)
 

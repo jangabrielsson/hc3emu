@@ -1,8 +1,8 @@
 package = "hc3emu"
-version = "1.0.49-1"
+version = "1.0.55-1"
 source = {
    url = "git://github.com/jangabrielsson/hc3emu",
-   tag = "v1.0.49", -- updated tag to match version
+   tag = "v1.0.55", -- updated tag to match version
 }
 description = {
    summary = "hc3emu is an emulator for developing Fibaro HC3 QuickApps offline.",
@@ -11,7 +11,7 @@ description = {
       It's based on copas for asynchronous network calls.
       It can automatically deploy a "QA proxy" on the HC3 funneling 
       onAction and uiEvents back to the QA running in the emulator, thus
-      allowing the QAs UI to be tested.
+      allowing the QA's UI to be tested.
    ]],
    homepage = "https://github.com/jangabrielsson/hc3emu",
    license = "MIT/X11" 
@@ -19,7 +19,8 @@ description = {
 dependencies = {
    "lua >= 5.3, <= 5.4",
    "copas >= 4.7.1-1",
-   "luamqtt >= 3.4.3-1",
+   --"luamqtt >= 3.4.3-1",
+   "luamqttt >= 1.0.2-1",
    --"rapidjson >= 0.7.1-1", -- if already installed, will be used
    "lua-json >= 1.0.0-1",
    "bit32 >= 5.3.5.1-1",
@@ -49,6 +50,7 @@ build = {
       ["hc3emu.offline"] = "src/hc3emu/offline.lua",
       ["hc3emu.emuroute"] = "src/hc3emu/emuroute.lua",
       ["hc3emu.tools"] = "src/hc3emu/tools.lua",
+      ["hc3emu.qa"] = "src/hc3emu/qa.lua",
       ["hc3emu.scene"] = "src/hc3emu/scene.lua",
       ["hc3emu.sceneengine"] = "src/hc3emu/sceneengine.lua",
       ["hc3emu.refreshstate"] = "src/hc3emu/refreshstate.lua",
@@ -56,6 +58,7 @@ build = {
       ["hc3emu.lib"] = "src/hc3emu/lib.lua",
       ["hc3emu.sourcetrigger"] = "src/hc3emu/sourcetrigger.lua",
       ["hc3emu.QwikChild"] = "src/hc3emu/QwikChild.lua",
+      ["hc3emu.sha2"] = "src/hc3emu/sha2.lua",
       ["hc3emu.stdStructs"] = "src/hc3emu/stdStructs.lua",
   },
   copy_directories = { "doc", "rsrcs" }

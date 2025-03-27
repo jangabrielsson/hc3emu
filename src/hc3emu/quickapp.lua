@@ -54,12 +54,14 @@ function QuickAppBase:__init(dev)
   self.interfaces = dev.interfaces
   self.uiCallbacks = {}
   self.childDevices = {}
+  self.viewCache = {}
 
   if dev.parentId and dev.parentId > 0 then -- A child device, register it locally
     E:registerQA(E.qa.QAChild({id=self.id,device=dev,env=_G}))
   end
   -- Link QuickAppBase instance to Emulator QA entry
   E:getQA(dev.id).qa = self
+  E:getQA(dev.id):populateViewCache()
 end
 
 function QuickAppBase:debug(...) fibaro.debug(__TAG, ...) end

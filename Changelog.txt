@@ -5,4 +5,6 @@
 1.0.54
 -- fixed timer bugs
 -- refactored the code base (more OOP style)
+1.0.56
+-- initial support for vscode "live pages" UI, should work on other platforms too...
 

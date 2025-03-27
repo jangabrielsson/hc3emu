@@ -7,5 +7,7 @@ test.lua
 *.out
 test/
 tmp/
+html/
+
 
 

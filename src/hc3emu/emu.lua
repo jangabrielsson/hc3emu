@@ -156,6 +156,8 @@ function Emulator:init(debug,info)
   self.tools = loadModule("hc3emu.tools") 
   self.qa = loadModule("hc3emu.qa") 
   self.scene = loadModule("hc3emu.scene") 
+  self.webserver = loadModule("hc3emu.webserver")
+  self.webserver.startServer()
   
   self.route.createConnections() -- Setup connections for API calls, emulator/offline/proxy
   self.connection = self.route.hc3Connection
@@ -337,7 +339,11 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
     assert(delay and trigger,"Bad trigger directive: "..d)
     flags.triggers[#flags.triggers + 1] = {delay = tonumber(delay), trigger = eval(trigger,d)}
   end
-  
+  --@D uiPage=<string> - If true generates a UI webpage, ex. --%%uiPage=MyDevice.html
+  function directive.uiPage(d,val) 
+    flags.uiPage = tostring(val)
+  end
+
   local truncCode = info.src
   local eod = info.src:find("ENDOFDIRECTIVES")
   if eod then truncCode = info.src:sub(1,eod-1) end

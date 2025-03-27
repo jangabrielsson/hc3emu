@@ -116,7 +116,7 @@ function QA:createQAstruct(info,noRun) -- noRun -> Ignore proxy
       info.isProxy = true
     end
   end
-  
+
   -- info.device = deviceStruct
   -- info.id = deviceStruct.id
   env.plugin = env.plugin or {}
@@ -127,6 +127,11 @@ function QA:createQAstruct(info,noRun) -- noRun -> Ignore proxy
   self.id = deviceStruct.id
   E:registerQA(self)
   
+  self.UI = flags.u
+  if flags.u and #flags.u > 0 and flags.uiPage then
+    E.webserver.generateUIpage(self.id,self.name,flags.uiPage,flags.u)
+  end
+
   return self
 end
 
@@ -241,11 +246,65 @@ function QA:onAction(deviceId,value)
   copas.sleep(0.01) -- Give called QA a chance to run
 end
 
+local UIMap={onReleased='value',onChanged='value',onToggled='value'}
 function QA:onUIEvent(deviceId,value)
   E:addThread(self,self.env.onUIEvent,deviceId,value)
+  local qa = self.qa
+  local componentName = value.elementName
+  local propertyName = UIMap[value.eventType]
+  local value = value.values
+  if propertyName == 'text' then value = value[1] end
+  self:updateView({componentName=componentName,propertyName=propertyName,newValue=value})
   copas.sleep(0.01) -- Give called QA a chance to run
 end
-        
+
+function QA:populateViewCache()
+  local qa = self.qa
+  local u = self.UI
+  qa.viewCache = qa.viewCache or {}
+  local viewCache = qa.viewCache
+  for _,r in ipairs(u) do
+    if not r[1] then r={r} end
+    for _,v in ipairs(r) do
+      local componentName = v.label or v.button or v.slider or v.switch or v.select or v.multi
+      if componentName then
+        viewCache[componentName] = viewCache[componentName] or {}
+        if v.label then viewCache[componentName].text = v.text end
+        if v.button then viewCache[componentName].text = v.text end
+        if v.slider then viewCache[componentName].value = v.value end
+        if v.switch then viewCache[componentName].value = v.value end
+        if v.select then 
+          viewCache[componentName].value = v.values 
+          viewCache[componentName].options = v.options or {}
+        end
+        if v.multi then 
+          viewCache[componentName].value = v.values 
+          viewCache[componentName].options = v.options or {}
+        end
+      end
+    end
+  end
+end
+
+local compMap = {
+  text = function(v) return v end,
+  value = function(v) if type(v)=='table' then return v[1] else return v end end,
+  options = function(v) return v end,
+  selectedItem = function(v) return v end,
+  selectedItems = function(v) return v end
+}
+function QA:updateView(data)
+  local qa = self.qa
+  qa.viewCache = qa.viewCache or {}
+  local viewCache = qa.viewCache
+  local componentName = data.componentName
+  local propertyName = data.propertyName
+  local value = data.newValue
+  viewCache[componentName] = viewCache[componentName] or {}
+  viewCache[componentName][propertyName] = compMap[propertyName](value)
+  E.webserver.updateView(qa.id,self.name,self.flags.uiPage,self.UI,viewCache)
+end
+
 function QA:remove()
   E.timers.cancelTimers(self) 
   E.util.cancelThreads(self)

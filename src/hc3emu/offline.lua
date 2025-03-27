@@ -34,6 +34,7 @@ local exports = {}
 Emulator = Emulator
 local E = Emulator.emulator
 local json = require("hc3emu.json")
+local function printf(...) print(string.format(...)) end
 
 local DB
 local function init() 
@@ -127,8 +128,8 @@ local function updateDeviceView(p,data)
   local qa = E:getQA(tonumber(data.deviceId))
   if not qa then return nil,301 end
   if not qa.qa then return nil,404 end
-  qa.qa.viewCache = qa.qa.viewCache or {}
-  local elementId = data.elementId
+  qa:updateView(data)
+  return nil,200
   --- TBD
 end
 local function createChild(p,data)

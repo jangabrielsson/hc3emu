@@ -302,7 +302,9 @@ function QA:updateView(data)
   local value = data.newValue
   viewCache[componentName] = viewCache[componentName] or {}
   viewCache[componentName][propertyName] = compMap[propertyName](value)
-  E.webserver.updateView(qa.id,self.name,self.flags.uiPage,self.UI,viewCache)
+  if self.flags.uiPage then 
+    E.webserver.updateView(qa.id,self.name,self.flags.uiPage,self.UI,viewCache)
+  end
 end
 
 function QA:remove()
@@ -311,7 +313,7 @@ function QA:remove()
   E:unregisterQA(self.id)
 end
 
-function QA:createFQA(id) -- Creates FQA structure from installed QA
+function QA:createFQA() -- Creates FQA structure from installed QA
   local dev = self.device
   local files = {}
   local suffix = ""

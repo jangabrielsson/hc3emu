@@ -1,0 +1,127 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #f0f0f0;
+}
+.device-card {
+  background: white;
+  border-radius: 8px;
+  padding: 5px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  max-width: 600px;
+  margin: 0 auto;
+}
+.device-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.device-name {
+  font-size: 24px;
+  font-weight: bold;
+}
+.device-status {
+  color: green;
+}
+.device-controls1 {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 10px;
+}
+.device-controls2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.device-controls3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.device-controls4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.device-controls5 {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+.control-button {
+  padding: 10px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.slider-container {
+  margin-top: 20px;
+  width: 100%;
+}
+.slider {
+  width: 100%;
+  height: 25px;
+  -webkit-appearance: none;
+  background: #d3d3d3;
+  outline: none;
+  border-radius: 12px;
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 25px;
+  height: 25px;
+  background: #007bff;
+  cursor: pointer;
+  border-radius: 50%;
+}
+.dropdown {
+  width: 50%;
+  height: 30px;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background-color: white;
+  cursor: pointer;
+}
+.dropdown:hover {
+  border-color: #007bff;
+}
+.label { 
+  /* font-weight: bold;  */
+  margin-bottom: 5px; 
+}
+.dropdown-container { 
+  position: relative; 
+  display: inline-block; 
+}
+.dropbtn { 
+  padding: 10px; 
+  background-color: #007bff; 
+  color: white; 
+  border: none; 
+  border-radius: 4px; 
+  cursor: pointer; 
+}
+.dropdown-content { 
+  display: none; 
+  position: absolute; 
+  background-color: #f9f9f9; 
+  min-width: 160px; 
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); 
+  z-index: 1; 
+}
+.dropdown-content label { 
+  display: block; 
+  padding: 12px 16px; 
+}
+.dropdown-content label:hover { 
+  background-color: #f1f1f1; 
+}
+.show { 
+  display: block; 
+}

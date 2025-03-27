@@ -27,6 +27,7 @@ dependencies = {
    "lua-websockets-bit32 >= 2.0.1-7",
    --"luafilesystem >= 1.8.0-1", -- try to avoid this dependency...
    "argparse >= 0.7.1-1",
+   "datafile >= 0.10-1",
    "mobdebug >= 0.80-1",
 }
 build = {

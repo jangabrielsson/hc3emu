@@ -13,7 +13,8 @@ if require and not QuickApp then require("hc3emu") end
 --%%project=5566
 --%%offline=true
 --%%uiPage=html/MyPage.html
---%%debug=info:true,api:true,onAction:true,onUIEvent2:true
+--%%installHtmlFiles=html
+--%%debug=info:true,api:true,onAction:true,onUIEvent:true
 --%%var=debug:"main,wsc,child,color,battery,speaker,send,late"
 
 --% %u={label='lbl1', text="<font color='red'>My Label</font>"}

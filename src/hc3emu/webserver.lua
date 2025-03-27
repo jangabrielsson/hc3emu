@@ -22,7 +22,7 @@ local function handleUI(url)
       table.insert(params[k],v)
     else params[k] = tonumber(v) or v end
   end
-  print(path,json.encode(params))
+  --print(path,json.encode(params))
   if params.qa then
     local qa = E:getQA(params.qa)
     if qa then
@@ -97,7 +97,7 @@ local function generateUIpage(id,name,fname,UI)
   local buff = {format(header,E.emuIP,E.emuPort+1,id)}
   local function add(s) table.insert(buff,s) end
   local function addf(s,...) table.insert(buff,format(s,...)) end
-  print("Generating UI page")
+  --print("Generating UI page")
   addf('<div class="label">Device: %s</div>',name)
   for _,row in ipairs(UI) do
     if not row[1] then row = {row} end
@@ -115,7 +115,6 @@ local function generateUIpage(id,name,fname,UI)
         -- Determine the initial state based on item.value
         local state = item.value == "true" and "on" or "off"
         local color = state == "on" and "green" or "#007bff" -- Set color based on state
-        print("SWITCH", state) -- Debugging output to verify the state
         addf([[   <button id="%s" class="control-button" data-state="%s" style="background-color: %s;" onclick="toggleButtonState(this)">%s</button>]],
              item.switch, state, color, item.text)
       elseif item.select then 

@@ -441,6 +441,23 @@ local function cancelThreads(runner)
   end
 end
 
+local function copyRsrcFile(file,to)
+  local datafile = require("datafile")
+  local f = datafile.open(file,"r")
+  assert(f,"Failed to open file:"..file)
+  local content = f:read("*a")
+  f:close()
+  local f = io.open(to,"w")
+  assert(f,"Failed to open file:"..to)
+  f:write(content)
+  f:close()
+end
+
+local function installRsrcFiles(to)
+  copyRsrcFile("rsrcs/script.js",to..E.fileSeparator.."script.js")
+  copyRsrcFile("rsrcs/style.css",to..E.fileSeparator.."style.css")
+end
+
 exports._print = _print
 exports.pcall2 = pcall2
 exports.json = json
@@ -448,6 +465,7 @@ exports.urlencode = urlencode
 exports.__assert_type = __assert_type
 exports.readFile = readFile
 exports.writefile = writeFile
+exports.installRsrcFiles = installRsrcFiles
 exports.sunCalc = sunCalc
 exports.EVENT = EVENT
 exports.post = post

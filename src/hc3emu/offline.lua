@@ -122,6 +122,8 @@ local function putDeviceProp(p,data)
   local d = data.deviceId if not d  then return nil,404 end
   local dev = DB.devices[d] if not dev then return nil,404 end
   dev.properties[data.propertyName] = data.value
+  local qa = E:getQA(d)
+  if qa then qa:watchesProperty(data.propertyName,data.value) end
   return nil,200
 end
 local function updateDeviceView(p,data)
@@ -142,8 +144,8 @@ local function createChild(p,data)
     name=data.name,
     type=data.type,
     parentId=parentId,
-    interfaces=data.initialInterfaces,
-    properties=data.initialProperties
+    interfaces=data.initialInterfaces or {},
+    properties=data.initialProperties or {},
   }
   DB.devices[id] = dev
   return dev,200

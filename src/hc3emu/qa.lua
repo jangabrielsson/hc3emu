@@ -278,16 +278,9 @@ local function populateViewCache(QA)
     for _,v in ipairs(r) do
       local componentName = v.label or v.button or v.slider or v.switch or v.select or v.multi
       if componentName then
-        local sval,spf = nil,nil
-        local spf = stockProps[componentName]
-        if spf then
-          sval,spf = spf(QA)
-          if sval ~= nil and spf then 
-            E:addThread(E.systemRunner,spf,sval)
-          end
-        end
+        local sval = stockProps[componentName] and stockProps[componentName](QA) or nil
         viewCache[componentName] = viewCache[componentName] or {}
-        if v.label then viewCache[componentName].text = v.text end
+        if v.label then viewCache[componentName].text = sval or v.text end
         if v.button then viewCache[componentName].text = v.text end
         if v.slider then viewCache[componentName].value = sval or v.value end
         if v.switch then viewCache[componentName].value = v.value end

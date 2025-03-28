@@ -335,7 +335,7 @@ function QA:updateView(data)
   local propertyName = data.propertyName
   local value = data.newValue
   viewCache[componentName] = viewCache[componentName] or {}
-  viewCache[componentName][propertyName] = compMap[propertyName](value)
+  viewCache[componentName][propertyName] = (compMap[propertyName] or function() end)(value)
   E:post({type='quickApp_updateView',id=self.id})
 end
 

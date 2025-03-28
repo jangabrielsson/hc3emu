@@ -23,6 +23,7 @@ local Scene = _G['Scene']; _G['Scene'] = nil
 function Scene:__init(info)
   E.mobdebug.on()
   Runner.__init(self,"Scene")
+  E:setRunner(self)
   self.info = info
   self.fname = info.fname
   self.src = info.src
@@ -78,6 +79,7 @@ function Scene:createSceneStruct()
       {
         tmap = userDate("*t"),
         event=event,
+        env = env,
         time = userTime(), -- So all rules are evaluated with the same time...
       }
     ) end
@@ -111,7 +113,7 @@ function Scene:createSceneStruct()
   for _,ev in pairs(triggers) do -- Add event listeners for the type of events that trigger the scene
     local test = ev.test
     ev.test = nil
-    self:DEBUGF("Adding event listener for %s",json.encodeFast(ev))
+    self:DEBUGF('scene',"Adding event listener for %s",json.encodeFast(ev))
     ev.test = test
     if ev.type=='date' then self:setupDateEvent(engine,ev,eventHandler) else engine.event(ev,eventHandler) end
   end 
@@ -278,7 +280,7 @@ function compilers.device(cond,trs)
   if property == 'centralSceneEvent' then
     a = function(ctx) return ctx.event.value or {} end
   else
-    a = function(ctx) return ctx.fibaro.getValue(id,property) end
+    a = function(ctx) return ctx.env.fibaro.getValue(id,property) end
   end
   local b = function() return value end
   local op = operators[cond.operator]

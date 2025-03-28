@@ -1,6 +1,7 @@
 local exports = {}
 Emulator = Emulator
 local E = Emulator.emulator
+local json = require("hc3emu.json")
 local copas = require("copas")
 
 local queue = {}

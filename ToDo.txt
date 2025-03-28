@@ -9,7 +9,11 @@
 --Sync interfaces declared with proxy's current interfaces..
 --plugins.restart() should only affect the current QA, not the whole emulator. Done
 --Refreshstates emulated (several QAs can poll refreshstates) - Done
---file directive to incude hc3emu.* files - Done
+--file directive to include hc3emu.* files - Done
+--add local web UI - Done
+--Allow for multiple proxy QAs in one run...
+--Add refreshState events for offline mode...
+--Allow for non-offline QA and local children...
 
 -------------------------------------------
 hc3emu funs

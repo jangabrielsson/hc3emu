@@ -46,6 +46,17 @@ local logTime = os.time
 local userDate = os.date
 local dateMark = function(str) return os.date("[%d.%m.%Y][%H:%M:%S][",logTime())..str.."]" end
 
+--[[ Emulator events
+  {type='emulator_started'}             -- when emulator is initialized
+  {type='quickApp_registered',id=qaId}  -- when a quickApp is registered in emulator but not started
+  {type='quickApp_loaded',id=qaId}      -- when a quickApp files are loaded
+  {type='quickApp_initialized',id=qaId} -- before :onInit, QuickApp instance created
+  {type='quickApp_started',id=qaId}     -- after :onInit
+  {type='quickApp_finished',id=qaId}    -- no timers left
+  {type='scene_registered',id=sceneId}
+  {type='time_changed'}
+  {type='midnight'}
+--]]
 Emulator = Emulator -- fool linting...
 function Emulator:__init()
   self.VERSION = VERSION
@@ -342,7 +353,7 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
   end
   --@D uiPage=<string> - If true generates a UI webpage, ex. --%%uiPage=html/MyDevice.html
   function directive.uiPage(d,val) flags.uiPage = tostring(val) end
-  --@D installHtmlFiles=<directory> - If true, installs scrpy.js and style.css in directory, ex. --%%uiPage=html
+  --@D installHtmlFiles=<directory> - If true, installs script.js and style.css in directory, ex. --%%installHtmlFiles=html
   function directive.installHtmlFiles(d,val) flags.installHTML = tostring(val) end
 
   local truncCode = info.src
@@ -492,7 +503,7 @@ function Emulator:run(info) -- { fname = "file.lua", src = "source code" }
     self:setRunner(self.systemRunner) -- Set environment for this coroutine 
     self.timers.midnightLoop() -- Setup loop for midnight events, used to ex. update sunrise/sunset hour
     local runner = fileType == 'Scene' and self.scene.Scene(info) or self.qa.QA(info,nil)
-    self:post({type='emulator_started'},true)
+    self:post({type='emulator_started'})
     runner:run()
   end)
 end

@@ -55,13 +55,7 @@ function QuickAppBase:__init(dev)
   self.uiCallbacks = {}
   self.childDevices = {}
   self.viewCache = {}
-
-  if dev.parentId and dev.parentId > 0 then -- A child device, register it locally
-    E:registerQA(E.qa.QAChild({id=self.id,device=dev,env=_G}))
-  end
-  -- Link QuickAppBase instance to Emulator QA entry
-  E:getQA(dev.id).qa = self
-  E:getQA(dev.id):populateViewCache()
+  self.isProxy = dev.isProxy
 end
 
 function QuickAppBase:debug(...) fibaro.debug(__TAG, ...) end
@@ -202,11 +196,13 @@ function QuickApp:__init(dev)
   __TAG = self.name:upper()..self.id
   plugin._quickApp = self
   self.childDevices = {}
+
+  E:getQA(dev.id).qa = self -- Link QuickApp instance to Emulator QA entry
+  E:post({type='quickApp_initialized', id=self.id})
+
   self:setupUICallbacks()
-  if self.onInit then
-    self:onInit()
-  end
-  if self._childsInited == nil then self:initChildDevices() end
+  if self.onInit then self:onInit() end
+  if not self._childsInited then self:initChildDevices() end
 end
 
 function QuickApp:createChildDevice(props, deviceClass)
@@ -252,6 +248,12 @@ end
 class 'QuickAppChild' (QuickAppBase)
 function QuickAppChild:__init(device)
   QuickAppBase.__init(self, device)
+
+  local qaChild = E.qa.QAChild({id=self.id,device=device,env=_G})
+  qaChild.qa = self
+  E:registerQA(qaChild) -- A child device, register it locally
+  E:post({type='quickApp_initialized', id=self.id})
+
   if self.onInit then self:onInit() end
 end
 

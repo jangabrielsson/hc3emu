@@ -8,7 +8,7 @@ _DEVELOP = true
 local loadQA = fibaro.hc3emu.tools.loadQA
 local EVENT = fibaro.hc3emu.EVENT
 
-function EVENT.qa_finished(ev)
+function EVENT.quickApp_finished(ev)
   print("QA finished",ev.id)
 end
 

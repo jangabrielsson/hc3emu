@@ -304,7 +304,7 @@ local function midnightLoop()
   local midnxt = userTime(d)
   local function loop()
     --print("MID1",E:getRunner(),coroutine.running())
-    E:post({type="midnight"},true)
+    E:post({type="midnight"})
     local d = userDate("*t")
     d.hour,d.min,d.sec = 24,0,0
     midnxt = userTime(d)

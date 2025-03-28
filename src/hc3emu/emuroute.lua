@@ -176,12 +176,12 @@ local function EmuRoute() -- Create emulator route, redirecting API calls to emu
     if qa == nil then return nil,301 end
     return qa.device,200 
   end)
-  route:add('PUT/devices/<id>',putData)  -- puta data
-  route:add('POST/devices/<id>/action/<name>',callAction)       -- Call to ourself
-  route:add('GET/devices/<id>/properties/<name>',getProp) -- Get properties from ourselves, fetch it locally
-  route:add('DELETE/devices/<id>', removeQA) -- Remove QA
+  route:add('PUT/devices/<id>',putData)                    -- Puta data
+  route:add('POST/devices/<id>/action/<name>',callAction)  -- Call to ourself
+  route:add('GET/devices/<id>/properties/<name>',getProp)  -- Get properties from ourselves, fetch it locally
+  route:add('DELETE/devices/<id>', removeQA)               -- Remove QA
 
-  route:add('GET/quickApp/export/<id>',function(p,id,_)  -- Get our local QA
+  route:add('GET/quickApp/export/<id>',function(p,id,_)    -- Get our local QA
     local qa = E:getQA(tonumber(id))
     if qa == nil then return nil,301 end
     return qa:createFQA(tonumber(id)),200 
@@ -194,7 +194,8 @@ local function EmuRoute() -- Create emulator route, redirecting API calls to emu
   route:add('PUT/quickApp/<id>/files/<name>', setQAfiles)
   route:add('PUT/quickApp/<id>/files', function (p,id,...) return setQAfiles(p,id,nil,...) end)
   route:add('DELETE/quickApp/<id>/files/<name>', deleteQAfiles)
-    
+  
+  -- InternalStorage methods
   route:add('PUT/plugins/<id>/variables/<name>', function(p,...) return internalStoragePut(...) end) --id,key,data
   route:add('POST/plugins/<id>/variables', function(p,...) return internalStoragePost(...) end) --id,data
   route:add('GET/plugins/<id>/variables/<name>', function(p,...) return internalStorageGet(...) end) --id,key,data

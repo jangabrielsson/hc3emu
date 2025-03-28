@@ -56,7 +56,7 @@ local function init()
     if not store.devices[1] then store.devices[1] = std.device1 end
   end
   
-  function E.EVENT.emulator_started() -- Update lat,long,suntime at startup
+  function E.EVENT._emulator_started() -- Update lat,long,suntime at startup
     if E.DBG.latitude and E.DBG.longitude then
       store.settings.location.latitude = E.DBG.latitude
       store.settings.location.longitude = E.DBG.longitude
@@ -69,7 +69,7 @@ local function init()
     updateSunTime()
   end
   
-  function E.EVENT.midnight() updateSunTime() end -- Update suntime at midnight
+  function E.EVENT._midnight() updateSunTime() end -- Update suntime at midnight
   
 end
 

@@ -15,7 +15,7 @@ function QuickApp:onInit()
 end
 ]])
 
-function fibaro.hc3emu.EVENT.qa_finished(ev)
+function fibaro.hc3emu.EVENT.quickApp_finished(ev)
   print("QA finished",ev.id)
 end
 

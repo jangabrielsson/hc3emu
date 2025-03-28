@@ -4,6 +4,7 @@
 test.lua
 .project
 *.log
+index.html
 *.out
 test/
 tmp/

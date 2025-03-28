@@ -67,11 +67,11 @@ function toggleButtonState(button) {
 
   if (isOn) {
     button.dataset.state = "off";
-    button.style.backgroundColor = "#007bff";
+    button.style.backgroundColor = "#4272a8";
     fetchActionWithState("switch", button.id, "off");
   } else {
     button.dataset.state = "on";
-    button.style.backgroundColor = "green";
+    button.style.backgroundColor = "blue";
     fetchActionWithState("switch", button.id, "on");
   }
 }

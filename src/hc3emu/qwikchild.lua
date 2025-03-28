@@ -315,7 +315,7 @@ do
   function QuickApp:initChildren(children) -- 
     -- CHeck if we run in emulator and warn if not setup correctly
     if fibaro.hc3emu and not fibaro.hc3emu.DBG.offline then 
-      if not fibaro.hc3emu.proxyId then
+      if not self.__isProxy then
         self:error("initChildren only works with proxy when using HC3emu online")
         os.exit(-1)
       end

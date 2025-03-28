@@ -9,7 +9,7 @@ local mobdebug = require("mobdebug")
 local fmt = string.format 
 local _print = print
 function print(...) if (E.DBG or {}).silent then return end; 
-  _print(...)
+_print(...)
 end
 
 local function pcall2(f,...) local res = {pcall(f,...)} if res[1] then return table.unpack(res,2) else return nil end end
@@ -320,7 +320,7 @@ do
           step=stop; stop = m.max
         else step=(w:match("/(%d+)")) end
       end
----@diagnostic disable-next-line: cast-local-type
+      ---@diagnostic disable-next-line: cast-local-type
       step = tonumber(step)
       _assert(start>=m.min and start<=m.max and stop>=m.min and stop<=m.max,"illegal date intervall")
       while (start ~= stop) do -- 10-2
@@ -377,16 +377,18 @@ local EVENT = setmetatable({}, {
   end
 })
 
-local function post(event,immidiate) ---{type=..., ...}
-  local evhs = eventHandlers[event.type]
-  local function poster() 
-    for _,evh in ipairs(evhs or {}) do 
-      local stat,err = pcall(evh,event)
-      if not stat then E:ERRORF("Event handler error: %s",err) end
-    end 
+local function post(event) ---{type=..., ...}
+  local typ = event.type
+  for _,fun in ipairs(eventHandlers["_"..typ] or {}) do -- sync events
+    local stat,err = pcall(fun,event)
+    if not stat then E:ERRORF("Event handler error: %s",err) end
   end
-  if not immidiate then 
-    E:addThread(E:getRunner(),poster) else poster() end
+  for _,fun in ipairs(eventHandlers[typ] or {}) do -- async events
+    E:addThread(E:getRunner(),function()
+      local stat,err = pcall(fun,event)
+      if not stat then E:ERRORF("Event handler error: %s",err) end
+    end)
+  end
 end
 
 local tasks = {}

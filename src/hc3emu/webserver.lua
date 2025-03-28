@@ -27,7 +27,23 @@ local function handleUI(url)
     local qa = E:getQA(params.qa)
     if qa then
       local typ = ({button='onReleased',switch='onReleased',slider='onChanged',select='onToggled',multi='onToggled'})[path]
-      local args = {elementName=params.id,eventType=typ,values={params.value or params.selectedOptions or params.state=='on'}}
+      if params.id:sub(1,2)=="__" then -- special stock UI element
+        local actionName = params.id:sub(3)
+        local args = {
+          deviceId=qa.id,
+          actionName=actionName,
+          args={params.value or params.selectedOptions or params.state=='on'}
+        }
+        if qa.isChild then qa = E:getQA(qa.device.parentId) end
+        return qa:onAction(params.qa,args)
+      end
+      local args = {
+        deviceId=qa.id,
+        elementName=params.id,
+        eventType=typ,
+        values={params.value or params.selectedOptions or params.state=='on'}
+      }
+      if qa.isChild then qa = E:getQA(qa.device.parentId) end
       qa:onUIEvent(params.qa,args)
     end
   end
@@ -90,15 +106,33 @@ local footer = [[
 </html>
 ]]
 
+local indexheader = [[
+<!DOCTYPE html>
+<html>
+<head>
+  <title>QuickApps</title>
+</head>
+<body>
+  <h1>Installed QuickApps</h1>
+  <ul>
+]]
+local indexfooter = [[
+  </ul>
+</body>
+</html>
+]]
+local styles
+
 local function member(e,l) for _,k in ipairs(l) do if e == k then return true end end return false end
 
-local function generateUIpage(id,name,fname,UI)
+local pages = {}
+local function generateUIpage(id,name,fname,UI,noIndex)
   local format = string.format
   local buff = {format(header,E.emuIP,E.emuPort+1,id)}
   local function add(s) table.insert(buff,s) end
   local function addf(s,...) table.insert(buff,format(s,...)) end
   --print("Generating UI page")
-  addf('<div class="label">Device: %s</div>',name)
+  addf('<div class="label">Device: %s %s</div>',id,name)
   for _,row in ipairs(UI) do
     if not row[1] then row = {row} end
     add('<div class="device-card">')
@@ -114,7 +148,7 @@ local function generateUIpage(id,name,fname,UI)
       elseif item.switch then
         -- Determine the initial state based on item.value
         local state = item.value == "true" and "on" or "off"
-        local color = state == "on" and "green" or "#007bff" -- Set color based on state
+        local color = state == "on" and "blue" or "#4272a8" -- Set color based on state #578ec9;
         addf([[   <button id="%s" class="control-button" data-state="%s" style="background-color: %s;" onclick="toggleButtonState(this)">%s</button>]],
              item.switch, state, color, item.text)
       elseif item.select then 
@@ -145,37 +179,108 @@ local function generateUIpage(id,name,fname,UI)
   assert(f,"Failed to open file for writing: "..fname)
   f:write(table.concat(buff,"\n"))
   f:close()
+  if not noIndex then
+    local qa = E:getQA(id)
+    pages[#pages+1] = {id=qa.id,name=qa.name,path=fname}
+    local buff = {indexheader}
+    local function addf(s,...) table.insert(buff,format(s,...)) end
+    for _,f in ipairs(pages) do
+      addf('<li><a href="%s">%s %s</a></li>',f.path,f.id,f.name)
+    end
+    buff[#buff+1] = indexfooter
+    buff[#buff+1] = styles
+    local f = io.open("index.html","w")
+    assert(f,"Failed to open file for writing: index.html")
+    f:write(table.concat(buff,"\n"))
+    f:close()
+  end
 end
 
-local function updateView(id,name,fname,UI,cache)
+local function updateUI(UI,cache)
   for _,r in ipairs(UI) do
     if not r[1] then r = {r} end
     for _,item in ipairs(r) do
+      local key = item.label or item.button or item.slider or item.switch or item.select or item.multi
+      local entry = cache[key] or {}
+      cache[key] = entry
       if item.label then
-        item.text = cache[item.label]['text'] or ""
+        item.text = entry['text'] or ""
       elseif item.button then
-        item.text = cache[item.button]['text'] or ""
+        item.text = entry['text'] or ""
       elseif item.slider then
-        item.value = cache[item.slider]['value'] or 0
+        item.value = entry['value'] or 0
       elseif item.switch then
-        item.value = tostring(cache[item.switch]['value'])
+        item.value = tostring(entry['value'])
       elseif item.select then
-        item.options = cache[item.select]['options'] or {}
-        item.value = cache[item.select]['value'] or ""
-        print(json.encode(item.value))
+        item.options = entry['options'] or {}
+        item.value = entry['value'] or ""
+        --print(json.encode(item.value))
       elseif item.multi then
-        item.options = cache[item.multi]['options'] or {}
-        item.values = cache[item.multi]['value'] or {}
-        print(json.encode(item.values))
+        item.options = entry['options'] or {}
+        item.values = entry['value'] or {}
+        --print(json.encode(item.values))
       end
     end
   end
-  generateUIpage(id,name,fname,UI)
 end
+
+local function updateView(id,name,fname,UI,cache)
+  updateUI(UI,cache)
+  generateUIpage(id,name,fname,UI,true)
+end
+
+function E.EVENT.quickApp_updateView(ev)
+  local id = ev.id
+  local qa = E:getQA(id)
+  if qa.uiPage then
+    updateView(qa.id,qa.name,qa.uiPage,qa.UI,qa.qa.viewCache)
+  end
+end
+
+styles = [[
+<style>
+  body {
+    font-family: 'Arial', sans-serif;
+    margin: 40px;
+    background-color: #f9f9f9;
+    color: #333;
+    line-height: 1.6;
+  }
+  h1 {
+    color: #2c3e50;
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  ul {
+    list-style-type: none;
+    padding: 0;
+  }
+  li {
+    margin-bottom: 15px;
+  }
+  a {
+    text-decoration: none;
+    color: #fff;
+    background-color: #3498db;
+    display: block;
+    padding: 15px 20px;
+    border-radius: 8px;
+    transition: background-color 0.3s, transform 0.3s;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: none;
+  }
+  a:hover {
+    background-color: #2980b9;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+  }
+</style>
+]]
 
 exports.startServer = startServer
 exports.generateUIpage = generateUIpage
 exports.updateView = updateView
+exports.updateUI = updateUI
 exports.init = init
 
 return exports

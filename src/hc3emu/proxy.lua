@@ -136,8 +136,8 @@ local function getProxy(name,devTempl)
     devStruct.id = math.floor(devStruct.id)
     E:DEBUG("Proxy found: %s %s",devStruct.id,name)
   end
-  E.proxyId = devStruct.id
-  
+  devStruct.isProxy = true
+  E.proxyId = devStruct.id -- Just save the last proxy to be used for restricted API calls
   return devStruct
 end
 
@@ -224,16 +224,17 @@ local function ProxyRoute()
   end
 
   local function putProp(p,data)
-    if data.deviceId == E.proxyId then
-      local qa = E:getQA(data.deviceId)
+    local qa = E:getQA(data.deviceId)
+    if qa then -- emulated QA
       qa.device.properties[data.propertyName] = data.value
+      if qa.isProxy then return nil,301 end -- continue to update HC3 proxy
     end
-    if E.proxyId then return nil,301
-    else return nil,200 end
+    return nil,301
   end
   
   local function blockParentId(p,data)
-    if E:getQA(data.parentId) and not E.proxyId then return block(p,data) end
+    local p = E:getQA(data.parentId)
+    if p and not p.isProxy then return block(p,data) end
     return nil,301
   end
   
@@ -250,7 +251,7 @@ local function ProxyRoute()
     local qa = E:getQA(tonumber(id))
     if qa then
       for k,v in pairs(d) do qa.dev[k] = v end -- update local properties 
-      if E.proxyId then return nil,301 -- and update the HC3 proxy 
+      if qa.isProxy then return nil,301 -- and update the HC3 proxy 
       else return d,200 end
     else return nil,301 end
   end

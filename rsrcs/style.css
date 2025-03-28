@@ -7,7 +7,7 @@ body {
 .device-card {
   background: white;
   border-radius: 8px;
-  padding: 5px;
+  padding: 20px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   max-width: 600px;
   margin: 0 auto;
@@ -51,8 +51,11 @@ body {
   gap: 10px;
 }
 .control-button {
+  font-family: Arial,  sans-serif, sans-serif;
+  font-size: 14px;
+  font-weight: bold;
   padding: 10px;
-  background-color: #007bff;
+  background-color: #4272a8;
   color: white;
   border: none;
   border-radius: 4px;
@@ -101,7 +104,7 @@ body {
 }
 .dropbtn { 
   padding: 10px; 
-  background-color: #007bff; 
+  background-color: #4272a8; 
   color: white; 
   border: none; 
   border-radius: 4px; 

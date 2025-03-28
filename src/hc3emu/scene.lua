@@ -125,7 +125,7 @@ function Scene:run() -- Actually, register scene, run when triggered
   if flags.save then self:save() end
   if flags.project then self:saveProject() end
   self:DEBUGF('info',"Scene '%s' registered",self.name)
-  E:post({type='scene_registered',id=self.id},true)
+  E:post({type='scene_registered',id=self.id})
   E:registerScene(self)
   for _,tr in pairs(flags.triggers or {}) do
     self.env.setTimeout(function() 

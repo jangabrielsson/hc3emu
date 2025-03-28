@@ -127,7 +127,7 @@ class 'MyChild'(QuickAppChild)
 function MyChild:__init(dev) QuickAppChild.__init(self,dev) end
 
 function QuickApp:testChildren()
-  if not fibaro.hc3emu.proxyId then 
+  if not self.__isProxy then 
     self:debug("testChildren only works with proxy")
     return
   end

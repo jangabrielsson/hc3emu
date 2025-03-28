@@ -124,13 +124,14 @@ function QA:createQAstruct(info,noRun) -- noRun -> Ignore proxy
   env.plugin.mainDeviceId = deviceStruct.id -- Now we have a deviceId
   self.name = deviceStruct.name
   self.device = deviceStruct
+  self.isProxy = deviceStruct.isProxy
   self.id = deviceStruct.id
   E:registerQA(self)
-  
+
+  if flags.u == nil then flags.u = {} end
   self.UI = flags.u
-  if flags.u and #flags.u > 0 and flags.uiPage then
-    E.webserver.generateUIpage(self.id,self.name,flags.uiPage,flags.u)
-  end
+
+  E:post({type='quickApp_registered',id=self.id})
 
   return self
 end
@@ -185,6 +186,7 @@ function QA:loadQAFiles()
   local f,err = load(self.src,self.fname,"t",env)
   if not f then error(err) end
   f()
+  E:post({type='quickApp_loaded',id=self.id})
   if not flags.offline then 
     assert(E.URL and E.USER and E.PASSWORD,"Please define URL, USER, and PASSWORD") -- Early check that creds are available
   end
@@ -219,9 +221,9 @@ function QA:run() -- run QA:  create QA struct, load QA files. Runs in a copas t
     if env.QuickApp.onInit then
       if flags.breakOnInit and onInitLine then E.mobdebug.setbreakpoint(self.fname,onInitLine+1) end
       E:DEBUGF('info',"Starting QuickApp '%s'",self.name)
-      E:post({type='quickApp_started',id=self.id},true)
       env.setTimeout(function() end,0,"runSentry")
       env.quickApp = env.QuickApp(self.device) -- quickApp defined first when we return from :onInit()...
+      E:post({type='quickApp_started',id=self.id})
       if flags.speed then E.timers.startSpeedTime(flags.speed) end
     end
   end)
@@ -249,7 +251,6 @@ end
 local UIMap={onReleased='value',onChanged='value',onToggled='value'}
 function QA:onUIEvent(deviceId,value)
   E:addThread(self,self.env.onUIEvent,deviceId,value)
-  local qa = self.qa
   local componentName = value.elementName
   local propertyName = UIMap[value.eventType]
   local value = value.values
@@ -258,9 +259,15 @@ function QA:onUIEvent(deviceId,value)
   copas.sleep(0.01) -- Give called QA a chance to run
 end
 
-function QA:populateViewCache()
-  local qa = self.qa
-  local u = self.UI
+local specialProps = {
+  __setValue = function(qa)
+    local value = E:apiget("/devices/"..qa.id.."/properties/value")
+    if value then return value.value end
+  end
+}
+local function populateViewCache(QA)
+  local qa = QA.qa
+  local u = QA.UI
   qa.viewCache = qa.viewCache or {}
   local viewCache = qa.viewCache
   for _,r in ipairs(u) do
@@ -268,10 +275,11 @@ function QA:populateViewCache()
     for _,v in ipairs(r) do
       local componentName = v.label or v.button or v.slider or v.switch or v.select or v.multi
       if componentName then
+        local sval = specialProps[componentName] and specialProps[componentName](qa)
         viewCache[componentName] = viewCache[componentName] or {}
         if v.label then viewCache[componentName].text = v.text end
         if v.button then viewCache[componentName].text = v.text end
-        if v.slider then viewCache[componentName].value = v.value end
+        if v.slider then viewCache[componentName].value = sval or v.value end
         if v.switch then viewCache[componentName].value = v.value end
         if v.select then 
           viewCache[componentName].value = v.values 
@@ -284,6 +292,43 @@ function QA:populateViewCache()
       end
     end
   end
+end
+
+local stockUIs = {
+  ["com.fibaro.binarySwitch"] = {
+    {{button='__turnOn',text='Turn On',onReleased='turnOn'},{button='__turnOff',text='Turn Off',onReleased='turnOff'}}
+  },
+  ["com.fibaro.multilevelSwitch"] = {
+    {{button='__turnOn',text='Turn On',onReleased='turnOn'},{button='__turnOff',text='Turn Off',onReleased='turnOff'}},
+    {{slider='__setValue',text='Set Value',onChanged='setValue'}}
+  },
+  ["com.fibaro.multilevelSensor"] = {
+  },
+  ["com.fibaro.binarySensor"] = {
+  },
+}
+
+local function addStockUI(typ,UI)
+  local stock = stockUIs[typ]
+  if not stock then return end
+  for i,r in ipairs(stock) do table.insert(UI,i,r) end
+end
+
+function E.EVENT.quickApp_initialized(ev)
+  local qa = E:getQA(ev.id)
+  if qa.flags.uiPage then
+    qa.uiPage = qa.flags.uiPage
+    if qa.isChild then
+      local m,e = qa.uiPage:match("(.-)(%.[hHtTmMlL]+)$")
+      qa.uiPage = m.."_child_"..qa.id..e
+    end
+    addStockUI(qa.device.type,qa.UI)
+    populateViewCache(qa)
+    E.webserver.updateUI(qa.UI,qa.qa.viewCache)
+    E.webserver.generateUIpage(qa.id,qa.name,qa.uiPage,qa.UI)
+    return
+  end
+  populateViewCache(qa)
 end
 
 local compMap = {
@@ -302,9 +347,7 @@ function QA:updateView(data)
   local value = data.newValue
   viewCache[componentName] = viewCache[componentName] or {}
   viewCache[componentName][propertyName] = compMap[propertyName](value)
-  if self.flags.uiPage then 
-    E.webserver.updateView(qa.id,self.name,self.flags.uiPage,self.UI,viewCache)
-  end
+  E:post({type='quickApp_updateView',id=self.id})
 end
 
 function QA:remove()
@@ -345,7 +388,7 @@ function QA:timerCallback(ref,what)
   if what == 'start' then self.timerCount = self.timerCount + 1 else self.timerCount = self.timerCount - 1 end
   --print("Timer count:",self.timerCount,ref.id,what,self.name)
   if self.timerCount == 0 then
-    E:post({type='qa_finished',id=self.id})
+    E:post({type='quickApp_finished',id=self.id})
     if self.flags.exit then os.exit() end
   end
 end
@@ -362,7 +405,12 @@ function QAChild:__init(info)
   self.id = info.id
   self.env = info.env
   self.device = info.device
-  self.name = 'Child'..self.id
+  self.name = info.device.name or ("Child_"..self.id)
+  self.UI = {}
+  local parentQA = E:getQA(self.device.parentId)
+  self.isProxy = parentQA.isProxy
+  self.flags = parentQA.flags
+  self.isChild = true
   E:registerQA(self)
   return self
 end

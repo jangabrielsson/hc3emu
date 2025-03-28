@@ -12,7 +12,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%debug=barf:true
 
 --%%u={label='lbl1',text="LABEL"}
---%%u={button='btn1',text="Btn1", onReleased="myButton"}
+--%%u={button='btn1',text="Btn1", onReleased="myButton", onLongPressDown="myButton2"}
 --%%u={switch='btn2',text="Btn2", onReleased="mySwitch"}
 --%%u={slider='slider1',text="", onChanged="mySlider"}
 --%%u={select='select1',text="Select", onToggled="mySelect",options={}}
@@ -42,6 +42,10 @@ end
 function QuickApp:myButton()
   self:debug("myButton pressed")
   fibaro.hc3emu:DEBUGF('barf','BARF')
+end
+
+function QuickApp:myButton2()
+  self:debug("myButton long pressed")
 end
 
 function QuickApp:mySlider(event)

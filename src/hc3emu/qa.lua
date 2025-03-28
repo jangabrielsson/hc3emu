@@ -253,7 +253,7 @@ function QA:watchesProperty(name,value)
   if self.propWatches[name] then self.propWatches[name](value) end
 end
 
-local UIMap={onReleased='value',onChanged='value',onToggled='value'}
+local UIMap={onReleased='value',onChanged='value',onToggled='value',onLongPressDown='value',onLongPressReleased='value'}
 function QA:onUIEvent(deviceId,value)
   E:addThread(self,self.env.onUIEvent,deviceId,value)
   local componentName = value.elementName

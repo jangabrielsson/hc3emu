@@ -155,6 +155,7 @@ function QuickAppBase:setVariable(name, value)
 end
 
 function QuickAppBase:callAction(name, ...)
+  --if name == "" then return end
   if (type(self[name]) == 'function') then return self[name](self, ...)
   else print(fmt("[WARNING] Class does not have '%s' function defined - action ignored",tostring(name))) end
 end

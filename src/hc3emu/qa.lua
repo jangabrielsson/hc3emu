@@ -20,6 +20,7 @@ function QA:__init(info,noRun)
   self.info = info
   self:createQAstruct(info,noRun)
   self._lock = E:newLock()
+  self.propWatches = {}
   return self
 end
 
@@ -248,6 +249,10 @@ function QA:onAction(deviceId,value)
   copas.sleep(0.01) -- Give called QA a chance to run
 end
 
+function QA:watchesProperty(name,value)
+  if self.propWatches[name] then self.propWatches[name](value) end
+end
+
 local UIMap={onReleased='value',onChanged='value',onToggled='value'}
 function QA:onUIEvent(deviceId,value)
   E:addThread(self,self.env.onUIEvent,deviceId,value)
@@ -259,12 +264,10 @@ function QA:onUIEvent(deviceId,value)
   copas.sleep(0.01) -- Give called QA a chance to run
 end
 
-local specialProps = {
-  __setValue = function(qa)
-    local value = E:apiget("/devices/"..qa.id.."/properties/value")
-    if value then return value.value end
-  end
-}
+local stocks = require("hc3emu.stocks")
+local stockUIs = stocks.stockUIs
+local stockProps = stocks.stockProps
+
 local function populateViewCache(QA)
   local qa = QA.qa
   local u = QA.UI
@@ -275,7 +278,14 @@ local function populateViewCache(QA)
     for _,v in ipairs(r) do
       local componentName = v.label or v.button or v.slider or v.switch or v.select or v.multi
       if componentName then
-        local sval = specialProps[componentName] and specialProps[componentName](qa)
+        local sval,spf = nil,nil
+        local spf = stockProps[componentName]
+        if spf then
+          sval,spf = spf(QA)
+          if sval ~= nil and spf then 
+            E:addThread(E.systemRunner,spf,sval)
+          end
+        end
         viewCache[componentName] = viewCache[componentName] or {}
         if v.label then viewCache[componentName].text = v.text end
         if v.button then viewCache[componentName].text = v.text end
@@ -293,20 +303,6 @@ local function populateViewCache(QA)
     end
   end
 end
-
-local stockUIs = {
-  ["com.fibaro.binarySwitch"] = {
-    {{button='__turnOn',text='Turn On',onReleased='turnOn'},{button='__turnOff',text='Turn Off',onReleased='turnOff'}}
-  },
-  ["com.fibaro.multilevelSwitch"] = {
-    {{button='__turnOn',text='Turn On',onReleased='turnOn'},{button='__turnOff',text='Turn Off',onReleased='turnOff'}},
-    {{slider='__setValue',text='Set Value',onChanged='setValue'}}
-  },
-  ["com.fibaro.multilevelSensor"] = {
-  },
-  ["com.fibaro.binarySensor"] = {
-  },
-}
 
 local function addStockUI(typ,UI)
   local stock = stockUIs[typ]
@@ -411,8 +407,25 @@ function QAChild:__init(info)
   self.isProxy = parentQA.isProxy
   self.flags = parentQA.flags
   self.isChild = true
+  self.propWatches = {}
   E:registerQA(self)
   return self
+end
+
+function QAChild:watchesProperty(name,value)
+  if self.propWatches[name] then self.propWatches[name](value) end
+end
+
+function QAChild:updateView(data)
+  local qa = self.qa
+  qa.viewCache = qa.viewCache or {}
+  local viewCache = qa.viewCache
+  local componentName = data.componentName
+  local propertyName = data.propertyName
+  local value = data.newValue
+  viewCache[componentName] = viewCache[componentName] or {}
+  viewCache[componentName][propertyName] = compMap[propertyName](value)
+  E:post({type='quickApp_updateView',id=self.id})
 end
 
 function QAChild:run() error("Child can not be installed in emulator - create child from main QA") end
@@ -421,6 +434,8 @@ function QAChild:save() error("Child can not be saved") end
 
 exports.QA = QA
 exports.QAChild = QAChild
+exports.stockUIs = stockUIs
+exports.stockProps = stockProps
 exports.init = init
 
 return exports

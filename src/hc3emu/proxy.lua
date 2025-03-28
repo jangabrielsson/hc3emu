@@ -227,6 +227,7 @@ local function ProxyRoute()
     local qa = E:getQA(data.deviceId)
     if qa then -- emulated QA
       qa.device.properties[data.propertyName] = data.value
+      qa:watchesProperty(data.propertyName,data.value)
       if qa.isProxy then return nil,301 end -- continue to update HC3 proxy
     end
     return nil,301
@@ -244,8 +245,12 @@ local function ProxyRoute()
   end
   
   local function updateView(p,data) --ToDo, update local view
-    return nil,301
-  end
+    local qa = E:getQA(tonumber(data.deviceId))
+    if not qa then return nil,301 end
+    if not qa.qa then return nil,404 end
+    qa:updateView(data)
+    if qa.isProxy then return nil,301 end -- and update the HC3 proxy
+    return nil,200  end
   
   local function putStruct(p,id,d) -- Update local struct, and then update HC3...
     local qa = E:getQA(tonumber(id))

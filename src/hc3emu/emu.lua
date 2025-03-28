@@ -509,6 +509,8 @@ function Emulator:run(info) -- { fname = "file.lua", src = "source code" }
 end
 
 function Emulator:getTimers() return self.timers.getTimers() end
+function Emulator:addStockPropWatcher(prop,fun) self.qa.stockProps[prop]=fun end
+function Emulator:addStockUI(typ,UI) self.qa.stockUIs[typ] = UI end 
 
 function Runner:__init(kind)
   self.kind = kind.."Runner"

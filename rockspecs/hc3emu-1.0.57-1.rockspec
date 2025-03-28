@@ -52,6 +52,7 @@ build = {
       ["hc3emu.emuroute"] = "src/hc3emu/emuroute.lua",
       ["hc3emu.tools"] = "src/hc3emu/tools.lua",
       ["hc3emu.qa"] = "src/hc3emu/qa.lua",
+      ["hc3emu.stocks"] = "src/hc3emu/stocks.lua",     
       ["hc3emu.scene"] = "src/hc3emu/scene.lua",
       ["hc3emu.sceneengine"] = "src/hc3emu/sceneengine.lua",
       ["hc3emu.refreshstate"] = "src/hc3emu/refreshstate.lua",

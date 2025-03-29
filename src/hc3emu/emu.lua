@@ -266,7 +266,8 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
   end
   --@D file=<path>:<name> - Add a file to the QA, ex. --%%file=src/lib.lua:lib
   function directive.file(d,val) 
-    local path,m = val:match("(.-)[:,](.-);?%s*$")
+    local path,m = val:match("(.-),(.-);?%s*$")
+    if not path then path,m = val:match("(.-):(.+);?%s*$") end
     if path:match("%$") then 
       path = package.searchpath(path:sub(2),package.path)
     end

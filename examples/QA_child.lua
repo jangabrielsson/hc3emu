@@ -5,7 +5,7 @@ if require and not QuickApp then require('hc3emu') end
 --%%type=com.fibaro.binarySwitch
 --%%proxy=ChildTestProxy
 --% %offline=true
---%%installHtmlFiles=html
+--% %installHtmlFiles=html
 --%%uiPage=html/ChildTest.html
 
 --%%u={label='lbl1', text="<font color='red'>My Label</font>"}

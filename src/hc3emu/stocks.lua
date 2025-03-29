@@ -52,6 +52,9 @@ local stockProps  = {
     end
     return format(dflt(qa.device.properties.value, 0))
   end,
+  __setValue = function(qa)
+    return tostring(dflt(qa.device.properties.value, 0))
+  end,
   __multisensorValue = function(qa)
     local format = function(value) return title("%.2f%%",value) end
     qa.propWatches['value'] = function(value) 

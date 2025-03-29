@@ -143,11 +143,12 @@ local function generateUIpage(id,name,fname,UI,noIndex)
       elseif item.button then
         addf([[    <button id="%s" class="control-button" onclick="fetchAction('button', this.id)">%s</button>]],item.button,item.text)
       elseif item.slider then
-        addf([[    <input id="%s" type="range" value="%s" class="slider-container" oninput="handleSliderInput(this)">
-                   <span id="sliderValue">%s</span>]],item.slider,item.value or 0,item.value or 0)
+        local indicator = item.slider.."Indicator"
+        addf([[    <input id="%s" type="range" value="%s" class="slider-container" oninput="handleSliderInput(this,'%s')">
+                   <span id="%s">%s</span>]],item.slider,item.value or 0,indicator,indicator,item.value or 0)
       elseif item.switch then
         -- Determine the initial state based on item.value
-        local state = item.value == "true" and "on" or "off"
+        local state = tostring(item.value) == "true" and "on" or "off"
         local color = state == "on" and "blue" or "#4272a8" -- Set color based on state #578ec9;
         addf([[   <button id="%s" class="control-button" data-state="%s" style="background-color: %s;" onclick="toggleButtonState(this)">%s</button>]],
              item.switch, state, color, item.text)
@@ -163,7 +164,7 @@ local function generateUIpage(id,name,fname,UI,noIndex)
         addf('<div id="%s" class="dropdown-content">',item.multi)
         for _,opt in ipairs(item.options) do
           local function isCheck(v) 
-            return item.values and member(v,item.values) and "checked" or "" 
+            return item.value and member(v,item.value) and "checked" or "" 
           end
           addf('<label><input type="checkbox" %s value="%s" onchange="sendSelectedOptions(this)"> %s</label>',isCheck(opt.value),opt.value,opt.text)
         end
@@ -196,36 +197,7 @@ local function generateUIpage(id,name,fname,UI,noIndex)
   end
 end
 
-local function updateUI(UI,cache)
-  for _,r in ipairs(UI) do
-    if not r[1] then r = {r} end
-    for _,item in ipairs(r) do
-      local key = item.label or item.button or item.slider or item.switch or item.select or item.multi
-      local entry = cache[key] or {}
-      cache[key] = entry
-      if item.label then
-        item.text = entry['text'] or ""
-      elseif item.button then
-        item.text = entry['text'] or ""
-      elseif item.slider then
-        item.value = entry['value'] or 0
-      elseif item.switch then
-        item.value = tostring(entry['value'])
-      elseif item.select then
-        item.options = entry['options'] or {}
-        item.value = entry['value'] or ""
-        --print(json.encode(item.value))
-      elseif item.multi then
-        item.options = entry['options'] or {}
-        item.values = entry['value'] or {}
-        --print(json.encode(item.values))
-      end
-    end
-  end
-end
-
-local function updateView(id,name,fname,UI,cache)
-  updateUI(UI,cache)
+local function updateView(id,name,fname,UI)
   generateUIpage(id,name,fname,UI,true)
 end
 
@@ -233,7 +205,7 @@ function E.EVENT.quickApp_updateView(ev)
   local id = ev.id
   local qa = E:getQA(id)
   if qa.uiPage then
-    updateView(qa.id,qa.name,qa.uiPage,qa.UI,qa.qa.viewCache)
+    updateView(qa.id,qa.name,qa.uiPage,qa.UI)
   end
 end
 

@@ -18,9 +18,9 @@ local QA = _G['QA']; _G['QA'] = nil
 function QA:__init(info,noRun)
   Runner.__init(self,"QA")
   self.info = info
+  self.propWatches = {}
   self:createQAstruct(info,noRun)
   self._lock = E:newLock()
-  self.propWatches = {}
   return self
 end
 
@@ -263,9 +263,9 @@ function QA:onUIEvent(deviceId,value)
   E:addThread(self,self.env.onUIEvent,deviceId,value)
   local componentName = value.elementName
   local propertyName = UIMap[value.eventType]
-  local value = value.values
-  if propertyName == 'text' then value = value[1] end
-  self:updateView({componentName=componentName,propertyName=propertyName,newValue=value})
+  local value2 = value.values
+  if propertyName == 'text' then value2 = value2[1] end
+  self:updateView({componentName=componentName,propertyName=propertyName,newValue=value2})
   copas.sleep(0.01) -- Give called QA a chance to run
 end
 
@@ -273,42 +273,47 @@ local stocks = require("hc3emu.stocks")
 local stockUIs = stocks.stockUIs
 local stockProps = stocks.stockProps
 
-local function populateViewCache(QA)
-  local qa = QA.qa
-  local u = QA.UI
-  qa.viewCache = qa.viewCache or {}
-  local viewCache = qa.viewCache
-  for _,r in ipairs(u) do
-    if not r[1] then r={r} end
-    for _,v in ipairs(r) do
-      local componentName = v.label or v.button or v.slider or v.switch or v.select or v.multi
-      if componentName then
-        local sval = stockProps[componentName] and stockProps[componentName](QA) or nil
-        viewCache[componentName] = viewCache[componentName] or {}
-        if v.label then viewCache[componentName].text = sval or v.text end
-        if v.button then viewCache[componentName].text = v.text end
-        if v.slider then viewCache[componentName].value = sval or v.value end
-        if v.switch then viewCache[componentName].value = v.value end
-        if v.select then 
-          viewCache[componentName].value = v.values 
-          viewCache[componentName].options = v.options or {}
-        end
-        if v.multi then 
-          viewCache[componentName].value = v.values 
-          viewCache[componentName].options = v.options or {}
-        end
-      end
-    end
-  end
-end
-
 local function addStockUI(typ,UI)
   local stock = stockUIs[typ]
   if not stock then return end
   for i,r in ipairs(stock) do table.insert(UI,i,r) end
 end
 
-function E.EVENT.quickApp_initialized(ev)
+local function getElmType(e) return e.button and 'button' or e.label and 'label' or e.slider and 'slider' or e.switch and 'switch' or e.select and 'select' or e.multi and 'multi' end
+
+-- add type='button' or 'label' or 'slider' or 'switch' or 'select' or 'multi' to UI elements
+-- creates metatable index for UI elements (typed on identifier)
+local function initializeUI(QA,UI,index)
+  if type(UI) ~= 'table' then return end
+  local typ = getElmType(UI)
+  if not typ then for _,r in ipairs(UI) do initializeUI(QA,r,index) end return end
+  UI.type = typ
+  local componentName = UI[typ]
+  if index[componentName] then
+    E:DEBUGF('warn',"Duplicate UI element %s in %s",componentName,QA.name)
+  end
+  index[componentName] = UI
+  if componentName then -- Also primes the UI element with default values, in paricular from stock UI elements
+    local sval = stockProps[componentName] and stockProps[componentName](QA) or nil
+    if UI.label then UI.text = sval or UI.text end
+    if UI.button then UI.text = UI.text end
+    if UI.slider then 
+      UI.value = sval or UI.value 
+    end
+    if UI.switch then UI.value = UI.value end
+    if UI.select then 
+      UI.value = UI.values 
+      UI.options = UI.options or {}
+    end
+    if UI.multi then 
+      UI.value = UI.values 
+      UI.options = UI.options or {}
+    end
+  end
+end
+
+
+function E.EVENT._quickApp_initialized(ev)
   local qa = E:getQA(ev.id)
   if qa.flags.uiPage then
     qa.uiPage = qa.flags.uiPage
@@ -317,12 +322,14 @@ function E.EVENT.quickApp_initialized(ev)
       qa.uiPage = m.."_child_"..qa.id..e
     end
     addStockUI(qa.device.type,qa.UI)
-    populateViewCache(qa)
-    E.webserver.updateUI(qa.UI,qa.qa.viewCache)
+    local index = {}
+    initializeUI(qa,qa.UI,index)
+    setmetatable(qa.UI,{
+      __index=function(t,k) if index[k] then return index[k] else return rawget(t,k) end end,
+    })
     E.webserver.generateUIpage(qa.id,qa.name,qa.uiPage,qa.UI)
     return
   end
-  populateViewCache(qa)
 end
 
 local compMap = {
@@ -333,15 +340,17 @@ local compMap = {
   selectedItems = function(v) return v end
 }
 function QA:updateView(data)
-  local qa = self.qa
-  qa.viewCache = qa.viewCache or {}
-  local viewCache = qa.viewCache
+  local UI = self.UI
   local componentName = data.componentName
   local propertyName = data.propertyName
   local value = data.newValue
-  viewCache[componentName] = viewCache[componentName] or {}
-  viewCache[componentName][propertyName] = (compMap[propertyName] or function(_) end)(value)
-  E:post({type='quickApp_updateView',id=self.id})
+  local elm = UI[componentName]
+  if not elm then return end
+  if compMap[propertyName] then value = compMap[propertyName](value) end
+  if value ~= elm[propertyName] then 
+    elm[propertyName] = value 
+    E:post({type='quickApp_updateView',id=self.id})
+  end
 end
 
 function QA:remove()
@@ -415,15 +424,17 @@ function QAChild:watchesProperty(name,value)
 end
 
 function QAChild:updateView(data)
-  local qa = self.qa
-  qa.viewCache = qa.viewCache or {}
-  local viewCache = qa.viewCache
+  local UI = self.UI
   local componentName = data.componentName
   local propertyName = data.propertyName
   local value = data.newValue
-  viewCache[componentName] = viewCache[componentName] or {}
-  viewCache[componentName][propertyName] = compMap[propertyName](value)
-  E:post({type='quickApp_updateView',id=self.id})
+  local elm = UI[componentName]
+  if not elm then return end
+  if compMap[propertyName] then value = compMap[propertyName](value) end
+  if value ~= elm[propertyName] then 
+    elm[propertyName] = value 
+    E:post({type='quickApp_updateView',id=self.id})
+  end
 end
 
 function QAChild:run() error("Child can not be installed in emulator - create child from main QA") end

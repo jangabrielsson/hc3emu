@@ -47,6 +47,12 @@ function cmds.uploadQA(fname,cf) -- current buffer file
   printf("Uploading QA: %s",fname) -- name
   local qainfo = tools.loadQA(fname,nil,"noRun")
   if not qainfo then ERROR("loading QA") end
+  if not(
+    qainfo.src:match("function%s+QuickApp:onInit") or
+    qainfo.src:match("if require and not QuickApp then require(\"hc3emu\"")
+  ) then 
+    ERROR("file %s does not seem to be a QuickApp",fname)
+  end
   local dev,code = tools.uploadQA(qainfo.device.id)
   if dev then
     printf("Uploaded QA: %s, deviceId: %s",fname,dev.id)

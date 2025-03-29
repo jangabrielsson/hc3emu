@@ -57,6 +57,7 @@ build = {
       ["hc3emu.sceneengine"] = "src/hc3emu/sceneengine.lua",
       ["hc3emu.refreshstate"] = "src/hc3emu/refreshstate.lua",
       ["hc3emu.webserver"] = "src/hc3emu/webserver.lua",
+      ["hc3emu.simdevices"] = "src/hc3emu/simdevices.lua",
       ["hc3emu.event"] = "src/hc3emu/event.lua",
       ["hc3emu.lib"] = "src/hc3emu/lib.lua",
       ["hc3emu.sourcetrigger"] = "src/hc3emu/sourcetrigger.lua",

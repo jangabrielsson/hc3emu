@@ -63,14 +63,14 @@ local stockProps  = {
     return format(dflt(qa.device.properties.value, 0))
   end,
   __doorSensor = function(qa)
-    local function format(value) return title(value and "Closed" or "Open") end
+    local function format(value) return title(value and "Open" or "Closed") end
     qa.propWatches['value'] = function(value) 
       qa.qa:updateView('__doorSensor','text',format(value))
     end
     return format(dflt(qa.device.properties.value,false))
   end,
   __windowSensor = function(qa)
-    local function format(value) return title(value and "Closed" or "Open") end
+    local function format(value) return title(value and "Open" or "Closed") end
     qa.propWatches['value'] = function(value) 
       qa.qa:updateView('__windowSensor','text',format(value))
     end

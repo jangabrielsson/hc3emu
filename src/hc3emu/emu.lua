@@ -24,7 +24,7 @@ lua-websockets-bit32 >= 2.0.1-7
 argparse >= 0.7.1-1
 mobdebug >= 0.80-1
 --]]
-local VERSION = "1.0.63"
+local VERSION = "1.0.64"
 local class = require("hc3emu.class") -- use simple class implementation
 
 local fmt = string.format

@@ -37,12 +37,12 @@ function fetchAction(action, buttonId) {
     .catch(console.error);
 }
 
-function handleSliderInput(slider) {
+function handleSliderInput(slider,indicator) {
   const value = slider.value;
   const sliderId = slider.id;
 
   // Update the value indicator
-  const valueIndicator = document.getElementById("sliderValue");
+  const valueIndicator = document.getElementById(indicator);
   valueIndicator.textContent = value;
 
   // Construct the URL with the slider value and ID as query parameters

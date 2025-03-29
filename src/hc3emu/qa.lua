@@ -180,7 +180,12 @@ function QA:loadQAFiles()
     if lf.content then
       load(lf.content,lf.fname,"t",env)()
     else
-      _,lf.content = E.util.readFile{file=lf.fname,eval=true,env=env,silent=false}
+      local stat,res = pcall(function()
+        _,lf.content = E.util.readFile{file=lf.fname,eval=true,env=env,silent=false}
+      end)
+      if not stat then
+        error(string.format("Error loading included user --%%%%file=%s: %s", lf.fname, res))
+      end 
     end
   end
   E:DEBUGF('files',"Loading user main file %s",self.fname)
@@ -189,7 +194,7 @@ function QA:loadQAFiles()
   f()
   E:post({type='quickApp_loaded',id=self.id})
   if not flags.offline then 
-    assert(E.URL and E.USER and E.PASSWORD,"Please define URL, USER, and PASSWORD") -- Early check that creds are available
+    assert(E.URL and E.USER and E.PASSWORD,"Please define URL, USER, and PASSWORD in config file") -- Early check that creds are available
   end
 end
 
@@ -335,7 +340,7 @@ function QA:updateView(data)
   local propertyName = data.propertyName
   local value = data.newValue
   viewCache[componentName] = viewCache[componentName] or {}
-  viewCache[componentName][propertyName] = (compMap[propertyName] or function() end)(value)
+  viewCache[componentName][propertyName] = (compMap[propertyName] or function(_) end)(value)
   E:post({type='quickApp_updateView',id=self.id})
 end
 

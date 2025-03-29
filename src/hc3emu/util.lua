@@ -80,7 +80,7 @@ local function readFile(args)
   else file,eval,env,silent = args.file,args.eval,args.env,args.silent~=false end
   local f,err,res = io.open(file, "rb")
   if f==nil then if not silent then error(err) end end
-  assert(f)
+  assert(f,"Can't open file: "..file)
   local content = f:read("*all")
   res = content
   f:close()

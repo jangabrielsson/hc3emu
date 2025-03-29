@@ -24,7 +24,7 @@ lua-websockets-bit32 >= 2.0.1-7
 argparse >= 0.7.1-1
 mobdebug >= 0.80-1
 --]]
-local VERSION = "1.0.62"
+local VERSION = "1.0.63"
 local class = require("hc3emu.class") -- use simple class implementation
 
 local fmt = string.format
@@ -166,7 +166,8 @@ function Emulator:init(debug,info)
   self.ui = loadModule("hc3emu.ui") 
   self.tools = loadModule("hc3emu.tools") 
   self.qa = loadModule("hc3emu.qa") 
-  self.scene = loadModule("hc3emu.scene") 
+  self.scene = loadModule("hc3emu.scene")
+  loadModule("hc3emu.simdevices") 
   self.webserver = loadModule("hc3emu.webserver")
   self.webserver.startServer()
   
@@ -430,9 +431,9 @@ function Emulator:HC3Call(method,path,data,silent)
   --print(path)
   if BLOCK then self:ERRORF("HC3 authentication failed again, Emu access cancelled") return nil, 401, "Blocked" end
   if type(data) == 'table' then data = json.encode(data) end
-  assert(self.URL,"Missing hc3emu.URL")
-  assert(self.USER,"Missing hc3emu.USER")
-  assert(self.PASSWORD,"Missing hc3emu.PASSWORD")
+  assert(self.URL,"Missing hc3emu.URL - Please set url to HC3 in config file")
+  assert(self.USER,"Missing hc3emu.USER - Please set user of HC3 in config file")
+  assert(self.PASSWORD,"Missing hc3emu.PASSWORD - Please set password of HC3 in config file")
   local res,stat,headers = self:httpRequest(method,self.URL.."api"..path,{
     ["Accept"] = '*/*',
     ["X-Fibaro-Version"] = 2,

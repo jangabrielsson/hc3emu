@@ -8,5 +8,5 @@
 1.0.56
 -- initial support for vscode "live pages" UI, should work on other platforms too...
 1.0.58
--- More UI support. Custom stock UIs
+-- More UI support. Custom emedded UIs
 

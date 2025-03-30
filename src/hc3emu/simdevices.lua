@@ -8,7 +8,7 @@ local fmt = string.format
 local remote = [[
 --%%name=Remote
 --%%type=com.fibaro.remote
---%%uiPage=html/remote.html
+--%%html=html
 
 --%%u={{button='b1',text='□',onReleased="b1"},{button='b2',text='O',onReleased="b2"}}
 --%%u={{button='b3',text='X',onReleased="b3"},{button='b4',text='△',onReleased="b4"}}

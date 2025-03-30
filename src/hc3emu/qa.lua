@@ -4,6 +4,7 @@ local E = Emulator.emulator
 local json = require("hc3emu.json")
 local class = require("hc3emu.class") -- use simple class implementation
 local copas = require("copas")
+local fmt = string.format
 local userTime,userDate,urlencode
 
 local function init()
@@ -269,14 +270,14 @@ function QA:onUIEvent(deviceId,value)
   copas.sleep(0.01) -- Give called QA a chance to run
 end
 
-local stocks = require("hc3emu.stocks")
-local stockUIs = stocks.stockUIs
-local stockProps = stocks.stockProps
+local embeds = require("hc3emu.embedui")
+local embedUIs = embeds.embedUIs
+local embedProps = embeds.embedProps
 
-local function addStockUI(typ,UI)
-  local stock = stockUIs[typ]
-  if not stock then return end
-  for i,r in ipairs(stock) do table.insert(UI,i,r) end
+local function addEmbedUI(typ,UI)
+  local embed = embedUIs[typ]
+  if not embed then return end
+  for i,r in ipairs(embed) do table.insert(UI,i,r) end
 end
 
 local function getElmType(e) return e.button and 'button' or e.label and 'label' or e.slider and 'slider' or e.switch and 'switch' or e.select and 'select' or e.multi and 'multi' end
@@ -293,8 +294,8 @@ local function initializeUI(QA,UI,index)
     E:DEBUGF('warn',"Duplicate UI element %s in %s",componentName,QA.name)
   end
   index[componentName] = UI
-  if componentName then -- Also primes the UI element with default values, in paricular from stock UI elements
-    local sval = stockProps[componentName] and stockProps[componentName](QA) or nil
+  if componentName then -- Also primes the UI element with default values, in paricular from embedded UI elements
+    local sval = embedProps[componentName] and embedProps[componentName](QA) or nil
     if UI.label then UI.text = sval or UI.text end
     if UI.button then UI.text = UI.text end
     if UI.slider then 
@@ -315,19 +316,22 @@ end
 
 function E.EVENT._quickApp_initialized(ev)
   local qa = E:getQA(ev.id)
-  if qa.flags.uiPage then
-    qa.uiPage = qa.flags.uiPage
+  if qa.flags.html then
+    qa.html = qa.flags.html
     if qa.isChild then
-      local m,e = qa.uiPage:match("(.-)(%.[hHtTmMlL]+)$")
-      qa.uiPage = m.."_child_"..qa.id..e
+      local name = (qa.device.name or "Child"):gsub("[^%w]","")
+      qa.uiPage = fmt("%s_%s.html",name,qa.id)
+    else
+      local name = qa.device.name:gsub("[^%w]","")
+      qa.uiPage = fmt("%s.html",name)
     end
-    addStockUI(qa.device.type,qa.UI)
+    addEmbedUI(qa.device.type,qa.UI)
     local index = {}
     initializeUI(qa,qa.UI,index)
     setmetatable(qa.UI,{
       __index=function(t,k) if index[k] then return index[k] else return rawget(t,k) end end,
     })
-    E.webserver.generateUIpage(qa.id,qa.name,qa.uiPage,qa.UI)
+    E.webserver.generateUIpage(qa.id,qa.name,qa.uiPage,qa.UI,qa.html)
     return
   end
 end
@@ -443,8 +447,8 @@ function QAChild:save() error("Child can not be saved") end
 
 exports.QA = QA
 exports.QAChild = QAChild
-exports.stockUIs = stockUIs
-exports.stockProps = stockProps
+exports.embedUIs = embedUIs
+exports.embedProps = embedProps
 exports.init = init
 
 return exports

@@ -1,7 +1,7 @@
 
 -- Extra UI declarations added first in QAs
 
-local stockUIs = {
+local embedUIs = {
   ["com.fibaro.binarySwitch"] = {
     {{label='__binarysensorValue',text='0'}},
     {{button='__turnOn',text='Turn On',onReleased='turnOn'},{button='__turnOff',text='Turn Off',onReleased='turnOff'}}
@@ -36,7 +36,7 @@ local function title(f,...) return fmt("<center><font size='6' color='blue'>%s</
 local function dflt(val,def) if val == nil then return def else return val end end
 
 -- Special formatter. Maps a property to UI element that should be updated when the property changes.
-local stockProps  = {
+local embedProps  = {
   __binarysensorValue = function(qa)
     local function format(value) return title(value and "On" or "Off") end
     qa.propWatches['value'] = function(value) 
@@ -93,8 +93,8 @@ local stockProps  = {
 }
 
 return {
-  stockUIs = stockUIs,
-  stockProps = stockProps,
+  embedUIs = embedUIs,
+  embedProps = embedProps,
 }
 
 

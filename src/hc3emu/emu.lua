@@ -24,7 +24,7 @@ lua-websockets-bit32 >= 2.0.1-7
 argparse >= 0.7.1-1
 mobdebug >= 0.80-1
 --]]
-local VERSION = "1.0.64"
+local VERSION = "1.0.65"
 local class = require("hc3emu.class") -- use simple class implementation
 
 local fmt = string.format
@@ -353,8 +353,11 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
     assert(delay and trigger,"Bad trigger directive: "..d)
     flags.triggers[#flags.triggers + 1] = {delay = tonumber(delay), trigger = eval(trigger,d)}
   end
-  --@D uiPage=<string> - If true generates a UI webpage, ex. --%%uiPage=html/MyDevice.html
-  function directive.uiPage(d,val) flags.uiPage = tostring(val) end
+  --@D html=<path> - If true generates UI webpages in path, ex. --%%html=html
+  function directive.html(d,val) 
+    flags.html = tostring(val)
+    if flags.html:sub(-1) ~= self.fileSeparator then flags.html = flags.html..self.fileSeparator end
+  end
   --@D installHtmlFiles=<directory> - If true, installs script.js and style.css in directory, ex. --%%installHtmlFiles=html
   function directive.installHtmlFiles(d,val) flags.installHTML = tostring(val) end
 
@@ -511,8 +514,8 @@ function Emulator:run(info) -- { fname = "file.lua", src = "source code" }
 end
 
 function Emulator:getTimers() return self.timers.getTimers() end
-function Emulator:addStockPropWatcher(prop,fun) self.qa.stockProps[prop]=fun end
-function Emulator:addStockUI(typ,UI) self.qa.stockUIs[typ] = UI end 
+function Emulator:addEmbedPropWatcher(prop,fun) self.qa.embedProps[prop]=fun end
+function Emulator:addEmbedUI(typ,UI) self.qa.embedUIs[typ] = UI end 
 
 function Runner:__init(kind)
   self.kind = kind.."Runner"

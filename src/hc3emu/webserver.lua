@@ -22,17 +22,18 @@ local function handleUI(url)
       table.insert(params[k],v)
     else params[k] = tonumber(v) or v end
   end
+  if path=="multi" then params.selectedOptions = params.selectedOptions or {} end
   --print(path,json.encode(params))
   if params.qa then
     local qa = E:getQA(params.qa)
     if qa then
       local typ = ({button='onReleased',switch='onReleased',slider='onChanged',select='onToggled',multi='onToggled'})[path]
-      if params.id:sub(1,2)=="__" then -- special stock UI element
+      if params.id:sub(1,2)=="__" then -- special embedded UI element
         local actionName = params.id:sub(3)
         local args = {
           deviceId=qa.id,
           actionName=actionName,
-          args={params.value or params.selectedOptions or params.state=='on'}
+          args={params.value or params.selectedOptions or params.state=='on' or nil}
         }
         if qa.isChild then qa = E:getQA(qa.device.parentId) end
         return qa:onAction(params.qa,args)
@@ -126,86 +127,108 @@ local styles
 local function member(e,l) for _,k in ipairs(l) do if e == k then return true end end return false end
 
 local pages = {}
-local function generateUIpage(id,name,fname,UI,noIndex)
-  local format = string.format
-  local buff = {format(header,E.emuIP,E.emuPort+1,id)}
-  local function add(s) table.insert(buff,s) end
-  local function addf(s,...) table.insert(buff,format(s,...)) end
-  --print("Generating UI page")
-  addf('<div class="label">Device: %s %s</div>',id,name)
-  for _,row in ipairs(UI) do
-    if not row[1] then row = {row} end
-    add('<div class="device-card">')
-    addf('  <div class="device-controls%s">',#row)
-    for _,item in ipairs(row) do
-      if item.label then
-        addf('    <div class="label">%s</div>',item.text)
-      elseif item.button then
-        addf([[    <button id="%s" class="control-button" onclick="fetchAction('button', this.id)">%s</button>]],item.button,item.text)
-      elseif item.slider then
-        local indicator = item.slider.."Indicator"
-        addf([[    <input id="%s" type="range" value="%s" class="slider-container" oninput="handleSliderInput(this,'%s')">
-                   <span id="%s">%s</span>]],item.slider,item.value or 0,indicator,indicator,item.value or 0)
-      elseif item.switch then
-        -- Determine the initial state based on item.value
-        local state = tostring(item.value) == "true" and "on" or "off"
-        local color = state == "on" and "blue" or "#4272a8" -- Set color based on state #578ec9;
-        addf([[   <button id="%s" class="control-button" data-state="%s" style="background-color: %s;" onclick="toggleButtonState(this)">%s</button>]],
-             item.switch, state, color, item.text)
-      elseif item.select then 
-        addf('<select class="dropdown" name="cars" id="%s" onchange="handleDropdownChange(this)">',item.select)
-        for _,opt in ipairs(item.options) do
-          addf('<option %s value="%s">%s</option>',item.value == opt.value and "selected" or "",opt.value,opt.text)
-        end
-        add('  </select>')
-      elseif item.multi then
-        add('<div class="dropdown-container">')
-        addf([[<button onclick="toggleDropdown('%s')" class="dropbtn">Select Options</button>]],item.multi)
-        addf('<div id="%s" class="dropdown-content">',item.multi)
-        for _,opt in ipairs(item.options) do
-          local function isCheck(v) 
-            return item.value and member(v,item.value) and "checked" or "" 
-          end
-          addf('<label><input type="checkbox" %s value="%s" onchange="sendSelectedOptions(this)"> %s</label>',isCheck(opt.value),opt.value,opt.text)
-        end
-        add('</div>')
-        add('</div>')
-      end
-    end
-    add ('  </div>')
-    add('</div>')
+local render = {}
+function render.label(pr,item)
+  pr:printf('<div class="label">%s</div>',item.text)
+end
+function render.button(pr,item)
+  pr:printf([[<button id="%s" class="control-button" onclick="fetchAction('button', this.id)">%s</button>]],item.button,item.text)
+end
+function render.slider(pr,item)
+  local indicator = item.slider.."Indicator"
+  pr:printf([[<input id="%s" type="range" value="%s" class="slider-container" oninput="handleSliderInput(this,'%s')">
+<span id="%s">%s</span>]],item.slider,item.value or 0,indicator,indicator,item.value or 0)
+end
+function render.switch(pr,item)
+-- Determine the initial state based on item.value
+  local state = tostring(item.value) == "true" and "on" or "off"
+  local color = state == "on" and "blue" or "#4272a8" -- Set color based on state #578ec9;
+  pr:printf([[<button id="%s" class="control-button" data-state="%s" style="background-color: %s;" onclick="toggleButtonState(this)">%s</button>]],
+               item.switch, state, color, item.text)
+end
+function render.select(pr,item)
+  pr:printf('<select class="dropdown" name="cars" id="%s" onchange="handleDropdownChange(this)">',item.select)
+  for _,opt in ipairs(item.options) do
+    pr:printf('<option %s value="%s">%s</option>',item.value == opt.value and "selected" or "",opt.value,opt.text)
   end
-  add(footer)
-  local f = io.open(fname,"w")
-  assert(f,"Failed to open file for writing: "..fname)
-  f:write(table.concat(buff,"\n"))
-  f:close()
-  if not noIndex then
-    local qa = E:getQA(id)
-    pages[#pages+1] = {id=qa.id,name=qa.name,path=fname}
-    local buff = {indexheader}
-    local function addf(s,...) table.insert(buff,format(s,...)) end
-    for _,f in ipairs(pages) do
-      addf('<li><a href="%s">%s %s</a></li>',f.path,f.id,f.name)
+  pr:print('</select>')
+end
+function render.multi(pr,item)
+  pr:print('<div class="dropdown-container">')
+  pr:printf([[<button onclick="toggleDropdown('%s')" class="dropbtn">Select Options</button>]],item.multi)
+  pr:printf('<div id="%s" class="dropdown-content">',item.multi)
+  for _,opt in ipairs(item.options) do
+    local function isCheck(v) 
+      return item.value and member(v,item.value) and "checked" or "" 
     end
-    buff[#buff+1] = indexfooter
-    buff[#buff+1] = styles
-    local f = io.open("index.html","w")
-    assert(f,"Failed to open file for writing: index.html")
-    f:write(table.concat(buff,"\n"))
-    f:close()
+    pr:printf('<label><input type="checkbox" %s value="%s" onchange="sendSelectedOptions(this)"> %s</label>',isCheck(opt.value),opt.value,opt.text)
   end
+  pr:print('</div></div>')
 end
 
-local function updateView(id,name,fname,UI)
-  generateUIpage(id,name,fname,UI,true)
+local function prBuff(init)
+  local self,buff = {},{}
+  if init then buff[#buff+1] = init end
+  function self:print(s) buff[#buff+1]=s end
+  function self:printf(...) buff[#buff+1]=fmt(...) end
+  function self:tostring() return table.concat(buff,"\n") end
+  return self
+end
+
+local function generateUIpage(id,name,fname,UI,root,noIndex)
+  local format,t0 = string.format,os.clock()
+  local pr = prBuff(format(header,E.emuIP,E.emuPort+1,id))
+  --print("Generating UI page")
+  pr:printf('<div class="label">Device: %s %s</div>',id,name)
+  for _,row in ipairs(UI) do
+    if not row[1] then row = {row} end
+    pr:print('<div class="device-card">')
+    pr:printf('  <div class="device-controls%s">',#row)
+    for _,item in ipairs(row) do
+      render[item.type](pr,item)
+    end
+    pr:print('</div>')
+    pr:print('</div>')
+  end
+  pr:print(footer)
+  local f = io.open(root..fname,"w")
+  assert(f,"Failed to open file for writing: "..fname)
+  f:write(pr:tostring())
+  f:close()
+  if not noIndex then -- generate index file
+    local qa = E:getQA(id)
+    local path = qa.uiPage:match("(.*[/\\])") or E.fileSeparator
+    pages[#pages+1] = {id=qa.id,name=qa.name,path=fname}
+    local pr = prBuff(indexheader)
+    for _,f in ipairs(pages) do
+      pr:printf('<li><a href="%s">%s %s</a></li>',f.path,f.id,f.name)
+    end
+    pr:print(indexfooter)
+    pr:print(styles)
+    local f = io.open(root.."_index.html","w")
+    assert(f,"Failed to open file for writing: index.html")
+    f:write(pr:tostring())
+    f:close()
+  end
+  local elapsed = os.clock() - t0
+  E:DEBUGF('info',"UI page generated in %.3f seconds",elapsed)
+end
+
+local ref = nil
+local function updateView(id,name,fname,UI,root)
+  if ref then return end
+  ref = E:addThread(E.systemRunner,function()
+    copas.sleep(0.3)
+    ref=nil
+    generateUIpage(id,name,fname,UI,root,true)
+  end)
 end
 
 function E.EVENT.quickApp_updateView(ev)
   local id = ev.id
   local qa = E:getQA(id)
   if qa.uiPage then
-    updateView(qa.id,qa.name,qa.uiPage,qa.UI)
+    updateView(qa.id,qa.name,qa.uiPage,qa.UI, qa.html)
   end
 end
 
@@ -252,7 +275,6 @@ styles = [[
 exports.startServer = startServer
 exports.generateUIpage = generateUIpage
 exports.updateView = updateView
-exports.updateUI = updateUI
 exports.init = init
 
 return exports

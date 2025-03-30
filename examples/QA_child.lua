@@ -6,7 +6,7 @@ if require and not QuickApp then require('hc3emu') end
 --%%proxy=ChildTestProxy
 --% %offline=true
 --% %installHtmlFiles=html
---%%uiPage=html/ChildTest.html
+--%%html=html
 
 --%%u={label='lbl1', text="<font color='red'>My Label</font>"}
 --%%u={button='b1', text='My Button', onReleased='myButton'}

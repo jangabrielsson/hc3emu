@@ -181,6 +181,7 @@ do
   end
 end 
 
+local escTab = {["\\"]="\\\\",['"']='\\"'}
 do
   local sortKeys = {"type","device","deviceID","id","value","oldValue","val","key","arg","event","events","msg","res"}
   local sortOrder={}
@@ -190,12 +191,13 @@ do
     return av < bv
   end
   
+  --gsub("[\\\"]",{["\\"]="\\\\",['"']='\\"'})
   -- our own json encode, as we don't have 'pure' json structs, and sorts keys in order (i.e. "stable" output)
   local function prettyJsonFlat(e0) 
     local res,seen = {},{}
     local function pretty(e)
       local t = type(e)
-      if t == 'string' then res[#res+1] = '"' res[#res+1] = e res[#res+1] = '"'
+      if t == 'string' then res[#res+1] = '"' res[#res+1] = e:gsub("[\\\"]",escTab) res[#res+1] = '"'
       elseif t == 'number' then res[#res+1] = e
       elseif t == 'boolean' or t == 'function' or t=='thread' or t=='userdata' then res[#res+1] = tostring(e)
       elseif t == 'table' then
@@ -274,7 +276,7 @@ do -- Used for print device table structs - sortorder for device structs
       elseif type(t)=='boolean' then
         printf(key and tab or 0,"%s",t and 'true' or 'false')
       elseif type(t)=='string' then
-        printf(key and tab or 0,'"%s"',t:gsub('(%")','\\"'))
+        printf(key and tab or 0,'"%s"',t:gsub("[\\\"]",escTab))
       end
     end
     pretty(0,t0,true)

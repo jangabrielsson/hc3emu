@@ -29,7 +29,7 @@ if not qa or not qa.isProxy then
   fibaro.hc3emu.tools.loadQAString([[
 --%%name=QA1
 --%%type=com.fibaro.binarySwitch
---%%uiPage=html/SceneQA.html
+--%%html=html
 --%%proxy=SceneQAProxy
 
 function QuickApp:onInit() end

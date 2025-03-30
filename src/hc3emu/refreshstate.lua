@@ -16,6 +16,7 @@ end
 local function removeRefreshStateListener(listener) listeners[listener] = nil end
 
 local function addEvent(event)
+  E:DEBUGF("refresh","Refresh %s",json.encode(event))
   if not event.created then event.created = os.time() end
   first = first + 1
   queue[first] = event
@@ -24,6 +25,13 @@ local function addEvent(event)
     last = last + 1
   end
   for l,_ in pairs(listeners) do l(event) end
+end
+
+local events = require("hc3emu.refreshstateevents")
+local post = {}
+for k,v in pairs(events) do
+  local f,m = k,v
+  post[k] = function(...) addEvent(m(...)) end
 end
 
 local function getEvents(l)
@@ -58,7 +66,6 @@ local function refreshStatePoller()
     events = data.events
     if events ~= nil then
       for _, event in pairs(events) do
-        --print(json.encode(event))
         addEvent(event)
       end
     end
@@ -78,5 +85,6 @@ exports.addRefreshStateListener = addRefreshStateListener
 exports.removeRefreshStateListener = removeRefreshStateListener
 exports.getRefreshStateEvents = getEvents -- (last)
 exports.addRefreshStateEvent = addEvent -- (event)
+exports.post = post -- (event)
 
 return exports

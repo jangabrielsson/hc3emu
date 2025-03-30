@@ -161,8 +161,8 @@ function Emulator:init(debug,info)
   self.route = loadModule("hc3emu.route")                -- Route object
   self.emuroute = loadModule("hc3emu.emuroute")          -- Emulator API routes
   self.proxy = loadModule("hc3emu.proxy")                -- Proxy creation and Proxy API routes
-  self.offline = loadModule("hc3emu.offline")            -- Offline API routes
   self.refreshState = loadModule("hc3emu.refreshstate") 
+  self.offline = loadModule("hc3emu.offline")            -- Offline API routes
   self.ui = loadModule("hc3emu.ui") 
   self.tools = loadModule("hc3emu.tools") 
   self.qa = loadModule("hc3emu.qa") 

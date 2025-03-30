@@ -413,15 +413,16 @@ local function addThread(runner,call,...)
     mobdebug.on() 
     copas.seterrorhandler(errfun)
     runner:lock()
-    local stat,res = pcall(call,...) 
-    runner:unlock()
-    if not stat then
-      res = tostring(res)
-      res = res:gsub('^%[(string) ',function(s) return "[file " end)
-      if runner then runner:_error(res)
-      else E:ERRORF("Task error: %s",res) end
-      print(copas.gettraceback("",coroutine.running(),nil))
+    local function ef(err,a)
+        local res = tostring(err)
+        local source = debug.getinfo(3).source -- long source name
+        res = res:gsub('%[.-%]:',function(s) return "["..source.."]:" end)
+        if runner then runner:_error(res)
+        else E:ERRORF("Task error: %s",res) end
+        print(copas.gettraceback("",coroutine.running(),nil))
     end
+    local stat,res = xpcall(call,ef,...) 
+    runner:unlock()
     tasks[task]=nil 
   end,...)
   -- Keep track of what QA started what task

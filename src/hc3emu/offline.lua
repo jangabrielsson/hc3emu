@@ -36,10 +36,12 @@ local E = Emulator.emulator
 local json = require("hc3emu.json")
 local function printf(...) print(string.format(...)) end
 
-local DB
+local DB,refresh
+
 local function init() 
   DB = E.store.DB 
   E.route.OfflineRoute = exports.OfflineRoute
+  refresh = E.refreshState.post
 end
 
 local filterkeys = {
@@ -76,21 +78,103 @@ local function valueList(t) local r = {} for _,v in pairs(t) do r[#r+1]=v end re
 local function DEVICE(id) id = tonumber(id) if DB.devices[id] then return DB.devices[id],200 else rerror(404,"not found") end end
 
 local function CHK(x,v,e) if x==nil then return nil,e else return x,v end end
-local function getGlobals(p,name) if name then return CHK(DB.globalVariables[name],200,404) else return valueList(DB.globalVariables),200 end end
+
+------------- GlobalVariables -------------------
+local function getGlobals(p,name) 
+  if name then return CHK(DB.globalVariables[name],200,404) 
+  else return valueList(DB.globalVariables),200 end
+end
+
 local function createGlobal(p,data)
   local d = {name=data.name,value=data.value,created=os.time(),modified=os.time(),readOnly=false,isEnum=false,enumValues={}}
   DB.globalVariables[data.name]=d 
+  refresh.GlobalVariableAddedEvent(data.name,data.value)
   return d,201
 end
+
 local function setGlobal(p,name,data)
   local d = DB.globalVariables[name]
   if not d then return nil,404 
   else  
+    local oldValue = d.value
     d.value = data.value 
+    refresh.GlobalVariableChangedEvent(data.name,d.value,oldValue)
     return d,200 
   end
 end
-local function deleteGlobal(p,name) if not DB.globalVariables[name] then return nil,404 else  DB.globalVariables[name].value = nil return nil,200 end end
+
+local function deleteGlobal(p,name) 
+  if not DB.globalVariables[name] then return nil,404 
+  else  
+    DB.globalVariables[name].value = nil 
+    refresh.GlobalVariableRemovedEvent(name)
+    return nil,200
+  end 
+end
+
+--------------------- Rooms -----------------------
+local function getRooms(p,id,_) 
+  if id then return CHK(DB.rooms[id],200,404) else 
+  return valueList(DB.rooms),200 end
+end
+
+local ROOM_ID = 9000
+local SECTION_ID = 10000
+local function getNextRoomId() ROOM_ID=ROOM_ID+1 return ROOM_ID end
+local function getNextSectionId() SECTION_ID=SECTION_ID+1 return SECTION_ID end
+
+local function createRoom(p,data) 
+  local id = getNextRoomId()
+  local room = {id=id,name=data.name,devices={}}
+  DB.rooms[id] = room
+  refresh.RoomCreatedEvent(id)
+  return room,201
+end
+
+local function putRoom(p,id,data) 
+  id = tonumber(id)
+  local room = DB.rooms[id]
+  if not room then return nil,404 end
+  room.name = data.name or room.name
+  refresh.RoomModifiedEvent(id)
+  return room,200
+end
+
+local function deleteRoom(p,id) 
+  id = tonumber(id)
+  if not DB.rooms[id] then return nil,404 end 
+  DB.rooms[id] = nil 
+  refresh.RoomRemovedEvent(id)
+  return true,200
+end
+--------------------- Sections -----------------------
+local function getSections(p,id,_) if id then return CHK(DB.sections[id],200,404) else return valueList(DB.sections),200 end end
+
+local function createSection(p,data) 
+  local id = getNextSectionId()
+  local section = {id=id,name=data.name,devices={}}
+  DB.sections[id] = section
+  refresh.SectionCreatedEvent(tonumber(id))
+  return section,201
+end
+
+local function putSection(p,id,data)
+  id = tonumber(id)
+  local section = DB.sections[id]
+  if not section then return nil,404 end
+  section.name = data.name or section.name
+  refresh.SectionModifiedEvent(id)
+  return section,200
+end
+
+local function deleteSection(p,id) 
+  id = tonumber(id)
+  if not DB.sections[id] then return nil,404 end 
+  DB.sections[id] = nil 
+  refresh.SectionRemovedEvent(id)
+  return true,200
+end
+-------------------- Devices -----------------------
 local function getDevices(p,id,query) 
   if id then return DEVICE(id) 
   else
@@ -113,11 +197,12 @@ local function callAction(p,id,name,data)
   return 'OK',200
 end
 
-local function deleteDevice(p,id) if not DB.devices[id] then return nil,404 end 
-DB.devices[id] = nil return true,200
+local function deleteDevice(p,id) 
+  if not DB.devices[id] then return nil,404 end 
+  DB.devices[id] = nil 
+  return true,200
 end
-local function getRooms(p,id,_) if id then return CHK(DB.rooms[id],200,404) else return valueList(DB.rooms),200 end end
-local function getSections(p,id,_) if id then return CHK(DB.sections[id],200,404) else return valueList(DB.sections),200 end end
+
 local function putDeviceProp(p,data) 
   local d = data.deviceId if not d  then return nil,404 end
   local dev = DB.devices[d] if not dev then return nil,404 end
@@ -176,6 +261,17 @@ local function OfflineRoute()
   route:add('PUT/globalVariables/<name>',setGlobal) -- data = {value="value"}
   route:add('DELETE/globalVariables/<name>',deleteGlobal) 
   
+  route:add('GET/rooms',function (p,...) return getRooms(p,nil,...) end)
+  route:add('GET/rooms/<id>',getRooms)
+  route:add('POST/rooms',createRoom) 
+  route:add('PUT/rooms/<id>',putRoom)
+  route:add('DELETE/rooms/<id>',deleteRoom)
+  route:add('GET/sections',function(p,...) return getSections(p,nil,...) end)
+  route:add('GET/sections/<id>',getSections)
+  route:add('POST/sections',createSection)
+  route:add('PUT/sections/<id>',putSection)
+  route:add('DELETE/sections/<id>',deleteSection)
+
   -- filters ?parentId=<id> ?name=<name> ?type=<type>
   
   route:add('GET/devices',function(p,...) return getDevices(p,nil,...) end)
@@ -188,11 +284,6 @@ local function OfflineRoute()
   route:add("GET/devices/1/properties/<name>",function(p,name) 
     return {value=DB.devices[1].properties[name]},200 
   end)
-  
-  route:add('GET/rooms',function (p,...) return getRooms(p,nil,...) end)
-  route:add('GET/rooms/<id>',getRooms)
-  route:add('GET/sections',function(p,...) return getSections(p,nil,...) end)
-  route:add('GET/sections/<id>',getSections)
   
   route:add('POST/plugins/updateProperty',putDeviceProp) -- data = {key="value"}
   route:add('POST/plugins/updateView',updateDeviceView) -- data = {key="value"}

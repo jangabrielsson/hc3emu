@@ -14,7 +14,6 @@ local MT = {
   end
 }
 
-
 function QuickApp:onInit()
   self:debug("onInit")
   local devices = api.get("/devices")

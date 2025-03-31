@@ -78,6 +78,7 @@ function QA:createQAstruct(info,noRun) -- noRun -> Ignore proxy
   deviceStruct.roomID = 219
   deviceStruct.enabled = true
   deviceStruct.visible = true
+  deviceStruct.properties = {}
   deviceStruct.properties.apiVersion = "1.3"
   deviceStruct.properties.quickAppVariables = qvs
   deviceStruct.properties.uiCallbacks = uiCallbacks

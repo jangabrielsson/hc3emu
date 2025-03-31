@@ -5,11 +5,12 @@ local json = require("hc3emu.json")
 local class = require("hc3emu.class") -- use simple class implementation
 local copas = require("copas")
 local fmt = string.format
-local userTime,userDate,urlencode
+local userTime,userDate,urlencode,deviceTypes
 
 local function init()
   userTime,userDate = E.timers.userTime,E.timers.userDate
   urlencode = E.util.urlencode
+  deviceTypes = E.util.loadRsrcJson("rsrcs/devices.json")
 end
 Runner = Runner 
 
@@ -68,19 +69,26 @@ function QA:createQAstruct(info,noRun) -- noRun -> Ignore proxy
   local ifs = table.copy(flags.interfaces or {})
   ---@diagnostic disable-next-line: undefined-field
   if not table.member(ifs,"quickApp") then ifs[#ifs+1] = "quickApp" end
-  local deviceStruct = {
-    id=tonumber(flags.id),
-    type=flags.type or 'com.fibaro.binarySwitch',
-    name=flags.name or 'MyQA',
-    roomID = 219,
-    enabled = true,
-    visible = true,
-    properties = { apiVersion = "1.3", quickAppVariables = qvs, uiCallbacks = uiCallbacks, useUiView = false, viewLayout = viewLayout, uiView = uiView, typeTemplateInitialized = true },
-    useUiView = false,
-    interfaces = ifs,
-    created = os.time(),
-    modified = os.time()
-  }
+  flags.type = flags.type or "com.fibaro.binarySwitch"
+  local deviceStruct = deviceTypes[flags.type]
+  assert(deviceStruct,"Device type "..flags.type.." not found")
+  deviceStruct.id=tonumber(flags.id)
+  deviceStruct.type=flags.type
+  deviceStruct.name=flags.name or 'MyQA'
+  deviceStruct.roomID = 219
+  deviceStruct.enabled = true
+  deviceStruct.visible = true
+  deviceStruct.properties.apiVersion = "1.3"
+  deviceStruct.properties.quickAppVariables = qvs
+  deviceStruct.properties.uiCallbacks = uiCallbacks
+  deviceStruct.properties.useUiView = false
+  deviceStruct.properties.viewLayout = viewLayout
+  deviceStruct.properties.uiView = uiView
+  deviceStruct.properties.typeTemplateInitialized = true 
+  deviceStruct.useUiView = false
+  deviceStruct.interfaces = ifs
+  deviceStruct.created = os.time()
+  deviceStruct.modified = os.time()
   for k,p in pairs({
     model="model",uid="quickAppUuid",manufacturer="manufacturer",
     role="deviceRole",description="userDescription"

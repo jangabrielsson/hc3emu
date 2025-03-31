@@ -141,7 +141,7 @@ local function putRoom(p,id,data)
 end
 
 local function deleteRoom(p,id) 
-  id = tonumber(id)
+  id = tonumber(id) assert(id,"Room ID must be a number")
   if not DB.rooms[id] then return nil,404 end 
   DB.rooms[id] = nil 
   refresh.RoomRemovedEvent(id)
@@ -168,11 +168,46 @@ local function putSection(p,id,data)
 end
 
 local function deleteSection(p,id) 
-  id = tonumber(id)
+  id = tonumber(id) assert(id,"Section ID must be a number")
   if not DB.sections[id] then return nil,404 end 
   DB.sections[id] = nil 
   refresh.SectionRemovedEvent(id)
   return true,200
+end
+
+--------------------- CustomEvents -----------------------
+local function getCustom(p,name,...) 
+  if name then return CHK(DB.customEvents[name],200,404) 
+  else return valueList(DB.customEvents),200 end
+end
+
+local function createCustom(p,data) 
+  local name = data.name
+  if DB.customEvents[name] then return nil,409 end
+  local ce = {name=name,userDescription=data.userDescription or ""}
+  DB.customEvents[name] = ce
+  refresh.CustomEventCreatedEvent(ce.name,ce.userDescription)
+  return ce,201
+end
+local function emitCustom(p,name) 
+  local ce = DB.customEvents[name]
+  if not ce then return nil,404 end
+  refresh.CustomEvent(ce.name,ce.userDescription)
+  return nil,200
+end
+local function putCustom(p,name,data) 
+  local ce = DB.customEvents[name]
+  if not ce then return nil,404 end
+  ce.userDescription = data.userDescription or ce.userDescription
+  refresh.CustomEventModifiedEvent(ce.name,ce.userDescription)
+  return nil,200
+end
+local function deleteCustom(p,name) 
+  local ce = DB.customEvents[name]
+  if not ce then return nil,404 end
+  DB.customEvents[name] = nil
+  refresh.CustomEventRemovedEvent(name)
+  return nil,200
 end
 -------------------- Devices -----------------------
 local function getDevices(p,id,query) 
@@ -198,8 +233,11 @@ local function callAction(p,id,name,data)
 end
 
 local function deleteDevice(p,id) 
+  id = tonumber(id)
+  assert(id,"Device ID must be a number")
   if not DB.devices[id] then return nil,404 end 
   DB.devices[id] = nil 
+  refresh.DeviceRemovedEvent(id)
   return true,200
 end
 
@@ -211,6 +249,7 @@ local function putDeviceProp(p,data)
   if qa then qa:watchesProperty(data.propertyName,data.value) end
   return nil,200
 end
+
 local function updateDeviceView(p,data)
   local qa = E:getQA(tonumber(data.deviceId))
   if not qa then return nil,301 end
@@ -233,6 +272,7 @@ local function createChild(p,data)
     properties=data.initialProperties or {},
   }
   DB.devices[id] = dev
+  refresh.DeviceCreatedEvent(id)
   return dev,200
 end
 
@@ -241,6 +281,7 @@ local function deleteChild(p,id)
   if not id then return nil,501 end
   if not DB.devices[id] then return nil,404 end
   DB.devices[id] = nil
+  refresh.DeviceRemovedEvent(id)
   return nil,200
 end
 
@@ -271,9 +312,14 @@ local function OfflineRoute()
   route:add('POST/sections',createSection)
   route:add('PUT/sections/<id>',putSection)
   route:add('DELETE/sections/<id>',deleteSection)
+  route:add('GET/customEvents',function (p,...) return getCustom(p,nil,...) end)
+  route:add('GET/customEvents/<name>',getCustom)
+  route:add('POST/customEvents',createCustom)
+  route:add('POST/customEvents/<name>',emitCustom)
+  route:add('PUT/customEvents/<name>',putCustom)
+  route:add('DELETE/customEvents/<name>',deleteCustom)
 
   -- filters ?parentId=<id> ?name=<name> ?type=<type>
-  
   route:add('GET/devices',function(p,...) return getDevices(p,nil,...) end)
   route:add('GET/devices/1',function() return DB.devices[1],200 end)
   route:add('GET/devices/<id>',getDevices)
@@ -297,8 +343,6 @@ local function OfflineRoute()
   route:add('GET/settings/info',function() return DB.settings.info,200 end)
   route:add('GET/settings/location',function() return DB.settings.location,200 end)
   route:add('GET/home',function() return DB.home,200 end)
-  
-  route:add('POST/customEvents/<name>',blocked)
   
   route:add('GET/refreshStates',refreshState)
     

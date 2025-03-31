@@ -1,4 +1,4 @@
-_DEVELOP=true
+--_DEVELOP=true
 if require and not QuickApp then require('hc3emu') end
 
 --%%name=OfflineRefresh
@@ -22,5 +22,8 @@ function QuickApp:onInit()
   api.put("/sections/"..section.id,{ name = "test2"})
   api.delete("/sections/"..section.id)
 
-
+  local custom = api.post("/customEvents",{ name = "test", userDecsription="fopp"})
+  api.put("/customEvents/test",{ userDecsription="hupp"})
+  api.post("/customEvents/test")
+  api.delete("/customEvents/test")
 end

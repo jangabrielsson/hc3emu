@@ -8,6 +8,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%id=5001
 --%%debug=info:true,http:true,onAction:true,onUIEvent:true
 local fmt = string.format 
+local io = fibaro.hc3emu.lua.io
 
 local paths = {
   "/settings/info",
@@ -39,7 +40,7 @@ function QuickApp:onInit()
     return v
   end)
 
-  local f = io.open("src/stdStructs.lua", "w")
+  local f = io.open("rsrcs/stdStructs.lua", "w")
   assert(f)
   f:write(fmt("return [[%s]]",json.encode(data)))
   f:close()

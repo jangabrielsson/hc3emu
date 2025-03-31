@@ -180,7 +180,6 @@ function events.SprinklerSequenceStartedEvent(sequenceId)
   return {type='SprinklerSequenceStartedEvent', data={sequenceId=sequenceId}}
 end
 function events.SprinklerSequenceFinishedEvent(sequenceId)
-  
   return {type='SprinklerSequenceFinishedEvent', data={sequenceId=sequenceId}}
 end
 function events.DeviceGroupActionRanEvent(actionName)

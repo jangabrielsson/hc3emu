@@ -712,6 +712,7 @@ do
   local builtin = {}
   function key.id(t,k,v) FID=v; ID = v=="_" and (anonEventName..anonEvent) or v; props = {} end
   function key.handler(t,k,v) 
+    assert(FID,"Event: no Event.id declared")
     Event[FID] = v
     for k,v in pairs(props) do if k~='tag' then _handler[ID][dprops[k]] = v end end
     _handler[ID]._tag = props.tag and tostring(props.tag) or props.tag==nil and ID or nil

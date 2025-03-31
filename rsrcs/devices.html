@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HC3 Devices</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .device-list {
+            list-style: none;
+            padding: 0;
+        }
+        .device-item {
+            border: 1px solid #ccc;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .device-details {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .device-details.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>HC3 Devices</h1>
+    <div id="deviceContainer">
+        <ul id="deviceList" class="device-list"></ul>
+    </div>
+
+    <script>
+        async function loadDevices() {
+            try {
+                const response = await fetch('devices.json');
+                const devices = await response.json();
+                displayDevices(devices);
+            } catch (error) {
+                console.error('Error loading devices:', error);
+                document.getElementById('deviceContainer').innerHTML = 
+                    '<p style="color: red;">Error loading devices</p>';
+            }
+        }
+
+        function sortDeviceProperties(device) {
+            const order = ['id', 'name', 'type', 'baseType', 'interfaces', 'roomID', 
+                          'parentId', 'visible', 'enabled', 'hasUIView', 'isPlugin', 
+                          'configXml', 'viewXml', 'sortOrder', 'properties', 'view', 'actions', 
+                          'modified', 'created'];
+            
+            return Object.keys(device)
+                .sort((a, b) => {
+                    const indexA = order.indexOf(a);
+                    const indexB = order.indexOf(b);
+                    if (indexA === -1) return 1;
+                    if (indexB === -1) return -1;
+                    return indexA - indexB;
+                })
+                .reduce((obj, key) => {
+                    obj[key] = device[key];
+                    return obj;
+                }, {});
+        }
+
+        function displayDevices(devices) {
+            const deviceList = document.getElementById('deviceList');
+            deviceList.innerHTML = '';
+
+            Object.entries(devices)
+                .sort(([,a], [,b]) => (a.type || '').localeCompare(b.type || ''))
+                .forEach(([id, device]) => {
+                    const li = document.createElement('li');
+                    li.className = 'device-item';
+                    const sortedDevice = sortDeviceProperties(device);
+                    li.innerHTML = `
+                        <div>Type: ${device.type || 'N/A'}</div>
+                        <div class="device-details">${JSON.stringify(sortedDevice, null, 2)}</div>
+                    `;
+                    li.addEventListener('click', () => {
+                        li.querySelector('.device-details').classList.toggle('show');
+                    });
+                    deviceList.appendChild(li);
+                });
+        }
+
+        // Load devices when the page loads
+        document.addEventListener('DOMContentLoaded', loadDevices);
+    </script>
+</body>
+</html>

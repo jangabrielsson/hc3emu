@@ -11,7 +11,16 @@ local function keyMap(list,key)
 end
 
 -- Internal storage (always local)
-local store = { devices = {}, globalVariables = {}, rooms = {}, sections = {}, settings={}, internalStorage={}, quickapp={} }
+local store = { 
+  devices = {}, 
+  globalVariables = {}, 
+  rooms = {}, 
+  sections = {}, 
+  settings={}, 
+  internalStorage={}, 
+  quickapp={},
+  customEvents = {},
+}
 local mainStore = {}
 
 local userTime,userDate
@@ -48,8 +57,7 @@ local function init()
   end
   
   do
-    local data = require("hc3emu.stdStructs")
-    local std = json.decode(data)
+    local std = E.util.loadRsrcJson("rsrcs/stdStructs.json")
     if not store.settings.info then store.settings.info = std.info end
     if not store.home then store.home = std.home end
     if not store.settings.location then store.settings.location = std.location end

@@ -446,6 +446,16 @@ local function cancelThreads(runner)
   end
 end
 
+local function loadRsrcJson(path)
+  local datafile = require("datafile")
+  local p = datafile.path(path)
+  local f = datafile.open(path,"r")
+  assert(f,"Failed to open file:"..path)
+  local data = f:read("*a")
+  f:close()
+  return json.decode(data)
+end
+
 local function copyRsrcFile(file,to)
   local datafile = require("datafile")
   local f = datafile.open(file,"r")
@@ -470,6 +480,7 @@ exports.urlencode = urlencode
 exports.__assert_type = __assert_type
 exports.readFile = readFile
 exports.writefile = writeFile
+exports.loadRsrcJson = loadRsrcJson
 exports.installRsrcFiles = installRsrcFiles
 exports.sunCalc = sunCalc
 exports.EVENT = EVENT

@@ -13,6 +13,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%project=5566
 --%%offline=true
 --%%html=html
+--%%install=true
 --%%debug=info:true,api2:true,onAction:true,onUIEvent:true
 --%%var=debug:"main,wsc,child,color,battery,speaker,send,late"
 

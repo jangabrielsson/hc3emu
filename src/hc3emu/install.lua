@@ -65,8 +65,9 @@ local function settings() --const EMU_API = "127.0.0.1:8888";
     end)
   end
   p = p:sub(1,-12)
+  p = p:gsub("\\","/")
   patchVar("EMU_API",fmt("http://%s:%s",E.emuIP,E.emuPort+1))
-  patchVar("USER_HOME",E.homeDir)
+  patchVar("USER_HOME",E.homeDir:gsub("\\","/"))
   patchVar("RSRC_DIR",p)
   writeFile("setup.html", page)
   E:DEBUG("setup.html installed")

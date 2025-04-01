@@ -24,7 +24,7 @@ lua-websockets-bit32 >= 2.0.1-7
 argparse >= 0.7.1-1
 mobdebug >= 0.80-1
 --]]
-local VERSION = "1.0.69"
+local VERSION = "1.0.70"
 local class = require("hc3emu.class") -- use simple class implementation
 
 local fmt = string.format
@@ -61,8 +61,8 @@ Emulator = Emulator -- fool linting...
 function Emulator:__init()
   self.VERSION = VERSION
   Emulator.emulator = self
-  self.cfgFileName = "hc3emu_cfg.lua"   -- Config file in current directory
-  self.homeCfgFileName = ".hc3emu.lua"  -- Config file in home directory
+  self.cfgFileName = "hc3emu.json"   -- Config file in current directory
+  self.homeCfgFileName = ".hc3emu.json"  -- Config file in home directory
   
   local win = (os.getenv('WINDIR') or (os.getenv('OS') or ''):match('[Ww]indows')) and not (os.getenv('OSTYPE') or ''):match('cygwin') -- exclude cygwin
   self.fileSeparator = win and '\\' or '/'
@@ -121,25 +121,16 @@ function Emulator:init(debug,info)
   self:setRunner(self.systemRunner)
   self.mainFile = info.fname
   
-  local function ll(fn) local f,e = loadfile(fn) if f then return f() else return not tostring(e):match("such file") and error(e) or nil end end
-  
-  -- Get home project file, defaults to {}
-  self:DEBUGF('info',"Loading home config file %s",self.homeCfgFileName)
-  local homeCfg = ll(self.homeDir.."/"..self.homeCfgFileName) or {}
-  
-  -- Get project config file, defaults to {}
-  self:DEBUGF('info',"Loading project config file ./%s",self.cfgFileName)
-  local cfgFlags = ll(self.cfgFileName) or {}
-  
-  ---@diagnostic disable-next-line: undefined-field
-  self.baseFlags = table.merge(homeCfg,cfgFlags) -- merge with home config
+  self.install = require("hc3emu.install")
+
+  self.baseFlags = self.install.getSettings() or {}
   
   self.mobdebug = { on = function() end, start = function(_,_) end }
   if not self.nodebug then
     self.mobdebug = require("mobdebug") or self.mobdebug
     self.mobdebug.start('127.0.0.1', 8818)
   end
-  
+
   self:parseDirectives(info)
 
   for _,globalFlag in ipairs({'offline','state','logColor','stateReadOnly','dark','longitude','latitude','lock'}) do
@@ -164,7 +155,8 @@ function Emulator:init(debug,info)
   self.refreshState = loadModule("hc3emu.refreshstate") 
   self.offline = loadModule("hc3emu.offline")            -- Offline API routes
   self.ui = loadModule("hc3emu.ui") 
-  self.tools = loadModule("hc3emu.tools") 
+  self.tools = loadModule("hc3emu.tools")
+  self.install = loadModule("hc3emu.install") 
   self.qa = loadModule("hc3emu.qa") 
   self.scene = loadModule("hc3emu.scene")
   loadModule("hc3emu.simdevices") 
@@ -221,7 +213,7 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
   
   local flags = {
     name='MyQA', type='com.fibaro.binarySwitch', debug={}, logColor = true,
-    var = {}, gv = {}, files = {}, creds = {}, u={}, conceal = {}, 
+    var = {}, gv = {}, files = {}, u={}, conceal = {}, 
   }
   
   local function eval(str,d,force)
@@ -247,6 +239,7 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
     ---local vs = val:split(",")
     --for _,v in ipairs(vs) do
     local v = val
+    if self.baseFlags.var then v=v..","..self.baseFlags.var self.baseFlags.var=nil end
     local name,expr = v:match("(.-):(.*)")
     assert(name and expr,"Bad var directive: "..d) 
     local e = eval(expr,d)
@@ -258,24 +251,37 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
     ---local vs = val:split(",")
     --for _,v in ipairs(vs) do
     local v = val
+    if self.baseFlags.conceal then 
+      v=v..","..self.baseFlags.conceal self.baseFlags.conceal=nil end
     local name,expr = v:match("(.-):(.*)")
     assert(name and expr,"Bad conceal directive: "..d) 
     --local e = eval(expr,d)
     if expr then flags.conceal[name] = expr end
     --end
   end
-  --@D file=<path>:<name> - Add a file to the QA, ex. --%%file=src/lib.lua:lib
-  function directive.file(d,val) 
-    local path,m = val:match("(.-),(.-);?%s*$")
-    if not path then path,m = val:match("(.-):(.+);?%s*$") end
-    if path:match("%$") then 
-      path = package.searchpath(path:sub(2),package.path)
+  --@D file=<path>;<name> - Add a file to the QA, ex. --%%file=src/lib.lua;lib
+  function directive.file(d,val)
+    local function addFile(val) 
+      local path,m = val:match("(.-),(.-);?%s*$")
+      if not path then path,m = val:match("(.-):(.+);?%s*$") end
+      if path:match("%$") then 
+        path = package.searchpath(path:sub(2),package.path)
+      end
+      assert(path and m,"Bad file directive: "..d)
+      flags.files[#flags.files+1] = {fname=path,name=m}
     end
-    assert(path and m,"Bad file directive: "..d)
-    flags.files[#flags.files+1] = {fname=path,name=m}
+    addFile(val)
+    if self.debugFlags.file then
+      local fs = self.debugFlags.file:split(",")
+      for _,f in ipairs(fs) do addFile(f:gsub(";",",")) end
+      self.debugFlags.file = nil
+    end
   end
   --@D debug=<name>:<expr> - Set debug flag, ex. --%%debug=info:true,http:true,onAction:true,onUIEvent:true
-  function directive.debug(d,val) 
+  function directive.debug(d,val)
+    if self.baseFlags.debug then 
+      val=val..","..self.baseFlags.debug self.baseFlags.debug=nil
+    end
     local vs = val:split(",")
     for _,v in ipairs(vs) do
       local name,expr = v:match("(.-):(.*)")
@@ -287,7 +293,14 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
   --@D u=<expr> - Adds UI element, ex. --%%u={button='bt1',text="MyButton",onReleased="myButton"}
   function directive.u(d,val) flags.u[#flags.u+1] = eval(val,d) end
   --@D interfaces=<list expr> - Set interfaces, ex. --%%interfaces={"energy","battery"}
-  function directive.interfaces(d,val) flags.interfaces = eval(val,d) end
+  function directive.interfaces(d,val)
+    local ifs = self.baseFlags.interfaces
+    if ifs then ifs = ifs:split(",") self.baseFlags.interfaces= nil end
+    flags.interfaces = eval(val,d)
+    for _,i in ipairs(ifs or {}) do
+      if not table.member(i,flags.interfaces) then table.insert(flags.interfaces,i) end
+    end
+  end
   --@D uid=<UID> - Set quickAppUuid property, ex. --%%uid=345345235324
   function directive.uid(d,val) flags.uid = val end
   --@D manufacturer=name - Set manufacturer property, ex. --%%manufacturer=Acme Inc
@@ -358,8 +371,8 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
     flags.html = tostring(val)
     if flags.html:sub(-1) ~= self.fileSeparator then flags.html = flags.html..self.fileSeparator end
   end
-  --@D installHtmlFiles=<directory> - If true, installs script.js and style.css in directory, ex. --%%installHtmlFiles=html
-  function directive.installHtmlFiles(d,val) flags.installHTML = tostring(val) end
+  --@D install=<boolean> - If true, installs setup files, ex. --%%install=true
+  function directive.install(d,val) flags.install = eval(val) end
 
   local truncCode = info.src
   local eod = info.src:find("ENDOFDIRECTIVES")
@@ -495,14 +508,16 @@ function Emulator:run(info) -- { fname = "file.lua", src = "source code" }
     if flags[globalFlag]~=nil then self.DBG[globalFlag] = flags[globalFlag] end
   end
   
-  self.USER = (flags.creds or {}).user or self.USER            -- Get credentials (again), if changed
-  self.PASSWORD = (flags.creds or {}).password or self.PASSWORD
-  self.URL = (flags.creds or {}).url or self.URL
-  self.PIN = (flags.creds or {}).pin or self.PIN
+  self.USER = flags.user or self.USER            -- Get credentials (again), if changed
+  self.PASSWORD = flags.password or self.PASSWORD
+  self.URL = flags.IP or self.URL
+  self.PIN = flags.pin or self.PIN
   
   print(self.log.colorStr('orange',"HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..self.VERSION))
   local fileType = flags.type == 'scene' and 'Scene' or 'QuickApp'
   
+  if flags.install then self.install.settings() end
+
   copas(function() -- This is the first task we create
     self.mobdebug.on()
     self:setRunner(self.systemRunner) -- Set environment for this coroutine 

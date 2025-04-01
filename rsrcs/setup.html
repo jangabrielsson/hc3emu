@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HC3Emu Setup</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #2c3e50;
+      text-align: center;
+    }
+    .task-list {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-radius: 5px;
+    }
+    .task-item {
+      margin-bottom: 10px;
+      padding: 10px;
+      border: none;
+      background-color: #4CAF50;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      width: 100%;
+      text-align: left;
+      transition: background-color 0.3s;
+    }
+    .task-item:hover {
+      background-color: #45a049;
+    }
+    .task-container {
+      margin-bottom: 20px;
+    }
+    .task-description {
+      margin-top: 5px;
+      padding-left: 10px;
+      color: #666;
+      font-size: 0.9em;
+    }
+    .task-item.loading {
+      background-color: #666;
+      cursor: wait;
+    }
+    .task-item.success {
+      background-color: #28a745;
+    }
+    .task-item.error {
+      background-color: #dc3545;
+    }
+  </style>
+  <script>
+    const EMU_API = "http://192.168.1.32:8265";
+    const USER_HOME = "/Users/jangabrielsson";
+    const RSRC_DIR = "/rsrc";
+    const API_URLS = {
+      installVscode: `${EMU_API}/install?cmd=vscode`,
+      installWebFiles: `${EMU_API}/install?cmd=css`,
+      createProj: `${EMU_API}/install?cmd=createProj`,
+      createGlobal: `${EMU_API}/install?cmd=createGlobal`,
+      editConfig: `${RSRC_DIR}/editSettings.html?file=../hc3emu.json&rep=${EMU_API}/saveSettings&type=local`,
+      editGlobal: `${RSRC_DIR}/editSettings.html?file=${EMU_API}/${USER_HOME}/.hc3emu.json&rep=${EMU_API}/saveSettings&type=global`
+    };
+    
+    async function handleTask(button, url) {
+      button.classList.add('loading');
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Request failed');
+        button.classList.remove('loading');
+        button.classList.add('success');
+        setTimeout(() => button.classList.remove('success'), 2000);
+      } catch (error) {
+        button.classList.remove('loading');
+        button.classList.add('error');
+        setTimeout(() => button.classList.remove('error'), 2000);
+        console.error('Error:', error);
+      }
+    }
+  </script>
+</head>
+<body>
+  <h1>HC3Emu Setup</h1>
+  <div class="task-list">
+    <div class="task-container">
+      <button class="task-item" onclick="window.location.href=API_URLS.editConfig">Edit hc3emu.json file</button>
+      <div class="task-description">Edit project specific config file red from project/workspace directory. Place to store your project-specific settings that overrides global configuration. Directives in the QA file overide these settings.</div>
+    </div>
+    <div class="task-container">
+      <button class="task-item" onclick="window.location.href=API_URLS.editGlobal">Edit global ~/.hc3emu.json file</button>
+      <div class="task-description">Edit global configuration stored in home directory. Will be created if it does not exist. Used across all projects/workspaces. A good place to store HC3 credentials</div>
+    </div>
+    <div class="task-container">
+      <button class="task-item" onclick="handleTask(this, API_URLS.installVscode)">Install homedir\.vscode.lua</button>
+      <div class="task-description">Installs file for running HC3Emu vscode tasks</div>
+    </div>
+    <div class="task-container">
+      <button class="task-item" onclick="handleTask(this, API_URLS.installWebFiles)">Install script.json and style.css in html directory</button>
+      <div class="task-description">Installs required web interface files for the emulator when it generates html UI files. Requires html directory created and specified</div>
+    </div>
+    <div class="task-container">
+      <button class="task-item" onclick="handleTask(this, API_URLS.createProj)">Install project config file, hc3emu.json</button>
+      <div class="task-description"></div>
+    </div>
+    <div class="task-container">
+      <button class="task-item" onclick="handleTask(this, API_URLS.createGlobal)">Install global confi file, homedir/.hc3emu.json</button>
+      <div class="task-description"></div>
+    </div>
+  </div>
+</body>
+</html>

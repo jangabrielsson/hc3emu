@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HC3 Emulator Settings</title>
+    <style>
+        :root {
+            --primary-color: #2196F3;
+            --hover-color: #1976D2;
+            --background-color: #f5f5f5;
+            --border-color: #e0e0e0;
+        }
+        
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            margin: 0;
+            background-color: var(--background-color);
+            color: #333;
+        }
+        
+        .header {
+            background: var(--primary-color);
+            color: white;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-weight: 400;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        table { 
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        th, td { 
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        th { 
+            background-color: #f8f9fa;
+            font-weight: 500;
+            color: #555;
+        }
+        
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        input[type="text"], input[type="number"] { 
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        
+        input[type="text"]:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+        
+        button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin: 20px 0;
+        }
+        
+        button:hover {
+            background: var(--hover-color);
+        }
+        
+        .success { 
+            color: #4CAF50;
+            padding: 10px;
+            background: #E8F5E9;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        
+        .error { 
+            color: #F44336;
+            padding: 10px;
+            background: #FFEBEE;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+        .dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .dialog {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            min-width: 300px;
+            max-width: 500px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .dialog-title {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .dialog-content {
+            margin: 15px 0;
+        }
+
+        .dialog-buttons {
+            text-align: right;
+        }
+
+        .dialog-buttons button {
+            margin-left: 10px;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>HC3 Emulator Settings</h1>
+            <h2></h2>
+        </div>
+    </div>
+    
+    <div class="container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Setting</th>
+                    <th>Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody id="settingsBody"></tbody>
+        </table>
+        <button onclick="saveSettings()">Save Settings</button>
+        <div id="message"></div>
+    </div>
+
+    <!-- Add dialog template -->
+    <div class="dialog-overlay" id="dialogOverlay">
+        <div class="dialog">
+            <h3 class="dialog-title">Save Result</h3>
+            <div class="dialog-content" id="dialogContent"></div>
+            <div class="dialog-buttons">
+                <button onclick="closeDialog()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let settings = [];
+        
+        function getJsonFileName() {
+            const params = new URLSearchParams(window.location.search);
+            const file = params.get('file') || 'settings';
+            const rep = params.get('rep');
+            const type = params.get('type');
+            return { file, rep, type };
+        }
+
+        async function loadSettings() {
+            const { file, type } = getJsonFileName();
+            const h2 = document.querySelector('.header h2');
+            h2.textContent = type || '';
+            try {
+                console.log('Loading settings from:', file);
+                let url = file;
+                if (file.startsWith('http://')) {
+                    const urlObj = new URL(file);
+                    const path = urlObj.pathname.substring(1); // Remove leading slash
+                    url = `http://${urlObj.host}/getLocal?path=${encodeURIComponent(path)}`;
+                    console.log('Transformed URL:', url);
+                }
+                const response = await fetch(url);
+                settings = await response.json();
+                createForm(settings);
+            } catch (error) {
+                showMessage('Error loading settings: ' + file + ' '+ error, true);
+            }
+        }
+
+        function createForm(settingsArray) {
+            const tbody = document.getElementById('settingsBody');
+            tbody.innerHTML = '';
+            
+            settingsArray.forEach((setting, index) => {
+                const row = document.createElement('tr');
+                
+                const nameCell = document.createElement('td');
+                nameCell.textContent = setting.name;
+                
+                const valueCell = document.createElement('td');
+                const input = createInput(setting);
+                input.dataset.index = index;
+                valueCell.appendChild(input);
+                
+                const descCell = document.createElement('td');
+                descCell.textContent = setting.description || '';
+                
+                row.appendChild(nameCell);
+                row.appendChild(valueCell);
+                row.appendChild(descCell);
+                tbody.appendChild(row);
+            });
+        }
+
+        function createInput(setting) {
+            const input = document.createElement('input');
+            
+            switch(setting.type) {
+                case 'boolean':
+                    input.type = 'checkbox';
+                    input.checked = setting.value;
+                    break;
+                case 'number':
+                    input.type = 'number';
+                    input.value = setting.value !== null ? setting.value : '';
+                    break;
+                case 'string':
+                    input.type = 'text';
+                    input.value = setting.value !== null ? setting.value : '';
+                    break;
+                case 'array':
+                    input.type = 'text';
+                    input.value = Array.isArray(setting.value) ? JSON.stringify(setting.value) : '[]';
+                    input.placeholder = 'Enter array as JSON (e.g. ["item1","item2"])';
+                    break;
+                case 'object':
+                    input.type = 'text';
+                    input.value = JSON.stringify(setting.value);
+                    input.readOnly = true;
+                    break;
+            }
+            return input;
+        }
+
+        async function saveSettings() {
+            const inputs = document.querySelectorAll('input');
+            let updatedSettings = [...settings];
+            
+            inputs.forEach(input => {
+                const index = parseInt(input.dataset.index);
+                const setting = updatedSettings[index];
+                
+                try {
+                    if (setting.type === 'boolean') {
+                        setting.value = input.checked;
+                    } else if (setting.type === 'number') {
+                        setting.value = input.value ? Number(input.value) : null;
+                    } else if (setting.type === 'string') {
+                        setting.value = input.value || null;
+                    } else if (setting.type === 'array') {
+                        const arrayValue = JSON.parse(input.value);
+                        if (!Array.isArray(arrayValue)) throw new Error('Invalid array format');
+                        setting.value = arrayValue;
+                    }
+                } catch (error) {
+                    throw new Error(`Invalid value for ${setting.name}: ${error.message}`);
+                }
+            });
+
+            try {
+                const { file, rep, type } = getJsonFileName();
+                let saveUrl = rep || file;
+                if (type) {
+                    const separator = saveUrl.includes('?') ? '&' : '?';
+                    saveUrl = `${saveUrl}${separator}type=${encodeURIComponent(type)}`;
+                }
+                const response = await fetch(saveUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedSettings, null, 2)
+                });
+                
+                if (!response.ok) throw new Error('Save failed');
+                showMessage('Settings saved successfully!');
+            } catch (error) {
+                showMessage('Error saving settings: ' + error, true);
+            }
+        }
+
+        function showDialog(title, message, isError = false) {
+            const dialog = document.getElementById('dialogOverlay');
+            const dialogTitle = dialog.querySelector('.dialog-title');
+            const dialogContent = document.getElementById('dialogContent');
+            
+            dialogTitle.textContent = title;
+            dialogContent.textContent = message;
+            dialogContent.className = 'dialog-content ' + (isError ? 'error' : 'success');
+            
+            dialog.style.display = 'flex';
+        }
+
+        function closeDialog() {
+            const dialog = document.getElementById('dialogOverlay');
+            dialog.style.display = 'none';
+        }
+
+        function showMessage(text, isError = false) {
+            showDialog(isError ? 'Error' : 'Success', text, isError);
+        }
+
+        loadSettings();
+    </script>
+</body>
+</html>

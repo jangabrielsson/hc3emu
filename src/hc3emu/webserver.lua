@@ -11,8 +11,38 @@ local function init()
   urlencode = E.util.urlencode
 end
 
-local function handleUI(url)
+local function urldecode(str) 
+  return str and str:gsub('%%(%x%x)',function(x)
+    return string.char(tonumber(x, 16)) 
+  end)
+end
+
+local commands = {}
+function commands.install(params,_)
+  if E.install[params.cmd] then E.install[params.cmd](params) end
+end
+
+function commands.getLocal(params,skt)
+  local path = urldecode(params.path)
+  local f = io.open(path,"r")
+  if f then
+    local content = f:read("*a")
+    f:close()
+    copas.send(skt,"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: "..(#content).."\r\n\r\n"..content)
+    return true
+  else
+    E:ERRORF("Failed to open file for reading: %s",params.path)
+  end
+end
+
+function commands.saveSettings(data,params,skt)
+  local typ = params.type
+  E.install.saveSettings(typ,data)
+end
+
+local function parseUrl(url)
   local path,query = url:match("([^%?]+)%?(.*)")
+  if path==nil then path = url query = "" end
   local qs = query:split("&")
   local params = {}
   for _,p in ipairs(qs) do
@@ -22,8 +52,17 @@ local function handleUI(url)
       table.insert(params[k],v)
     else params[k] = tonumber(v) or v end
   end
+  if path:sub(1,1) == '/' then path = path:sub(2) end
+  return path,params
+end
+
+local function handleGET(url,headers,skt)
+  local path,params = parseUrl(url)
   if path=="multi" then params.selectedOptions = params.selectedOptions or {} end
   --print(path,json.encode(params))
+  if commands[path] then
+    return commands[path](params,skt)
+  end
   if params.qa then
     local qa = E:getQA(params.qa)
     if qa then
@@ -50,6 +89,29 @@ local function handleUI(url)
   end
 end
 
+local function handlePOST(url,headers,skt)
+  local path,params = parseUrl(url)
+  local len = 0
+  for _,header in ipairs(headers) do
+    len = header:match("Content%-Length: (%d+)")
+    if len then len = tonumber(len) or 0 break end
+  end
+  local data = copas.receive(skt,len)
+  if commands[path] then
+    commands[path](data,params,skt)
+  end
+  copas.send(skt,"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
+  return true
+end
+
+-- CORS control from client - answer yes...
+local function handleOPTIONS(path,headers,skt)
+  local date = os.date("!%a, %d %b %Y %H:%M:%S GMT")
+  copas.send(skt,
+  "HTTP/1.1 200 OK\r\nDate: " .. date .. "\r\nServer: Apache/2.0.61 (Unix)\r\nAccess-Control-Allow-Origin:*\r\nAccess-Control-Allow-Methods: POST, GET, OPTIONS\r\nAccess-Control-Allow-Headers:X-PINGOTHER, Content-Type\r\n\r\n")
+  return true
+end
+
 local started = false
 local function startServer(id)
   if started then return end
@@ -57,31 +119,40 @@ local function startServer(id)
   local ip = "0.0.0.0"
   local port = tonumber(E.emuPort) + 1
   E:DEBUGF('info',"Starting webserver at %s:%s",ip,port)
-
+  
   local function handle(skt)
     E.mobdebug.on()
     E:setRunner(E.systemRunner)
     local name = skt:getpeername() or "N/A"
     --E._client = skt
     E:DEBUGF("server","New connection: %s",name)
-    local request = nil
+    local request = copas.receive(skt)
+    local headers = {}
     while true do
-      local reqdata = copas.receive(skt)
-      request = request or reqdata
-      if reqdata == "" then
+      local header = copas.receive(skt)
+      headers[#headers+1] = header
+      if header == "" then
+        local method,path = request:match("([^%s]+) ([^%s]+)")
+        if method == 'GET' and handleGET(path,headers,skt) then 
+          break
+        end
+        if method == "OPTIONS" then 
+          handleOPTIONS(path,headers,skt) break 
+        end
+        if method == "POST" then 
+          handlePOST(path,headers,skt) break
+        end
         copas.send(skt, "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
-        --copas.send(skt, "<html><body><h1>HC3 Emulator</h1><p>Emulator is running</p></body></html>")
-        local url = request:match("GET /([^%s]+)")
-        if url then handleUI(url) end
         break
       end
+      E:DEBUGF("server","Connection closed: %s",name)
     end
-    --E._client = nil
-    E:DEBUGF("server","Connection closed: %s",name)
   end
+
   local server,err = socket.bind('*', port)
-  if not server then error(fmt("Failed open socket %s: %s",port,tostring(err))) end
-  --E._server = server
+  if not server then 
+    error(fmt("Failed open socket %s: %s",port,tostring(err)))
+  end
   copas.addserver(server, handle)
 end
 
@@ -140,11 +211,11 @@ function render.slider(pr,item)
 <span id="%s">%s</span>]],item.slider,item.value or 0,indicator,indicator,item.value or 0)
 end
 function render.switch(pr,item)
--- Determine the initial state based on item.value
+  -- Determine the initial state based on item.value
   local state = tostring(item.value) == "true" and "on" or "off"
   local color = state == "on" and "blue" or "#4272a8" -- Set color based on state #578ec9;
   pr:printf([[<button id="%s" class="control-button" data-state="%s" style="background-color: %s;" onclick="toggleButtonState(this)">%s</button>]],
-               item.switch, state, color, item.text)
+  item.switch, state, color, item.text)
 end
 function render.select(pr,item)
   pr:printf('<select class="dropdown" name="cars" id="%s" onchange="handleDropdownChange(this)">',item.select)
@@ -192,9 +263,12 @@ local function generateUIpage(id,name,fname,UI,root,noIndex)
   end
   pr:print(footer)
   local f = io.open(root..fname,"w")
-  assert(f,"Failed to open file for writing: "..fname)
-  f:write(pr:tostring())
-  f:close()
+  if f then
+    f:write(pr:tostring())
+    f:close()
+  else
+    E:ERRORF("Failed to open file for writing: %s",root..fname)
+  end
   if not noIndex then -- generate index file
     local qa = E:getQA(id)
     local path = qa.uiPage:match("(.*[/\\])") or E.fileSeparator
@@ -205,10 +279,13 @@ local function generateUIpage(id,name,fname,UI,root,noIndex)
     end
     pr:print(indexfooter)
     pr:print(styles)
-    local f = io.open(root.."_index.html","w")
-    assert(f,"Failed to open file for writing: index.html")
-    f:write(pr:tostring())
-    f:close()
+    local f = io.open(root.."_quickapps.html","w")
+    if f then
+      f:write(pr:tostring())
+      f:close()
+    else
+      E:ERRORF("Failed to open index file for writing: %s",root.."_quickapps.html")
+    end
   end
   local elapsed = os.clock() - t0
   E:DEBUGF('info',"UI page generated in %.3f seconds",elapsed)

@@ -1,8 +1,8 @@
 package = "hc3emu"
-version = "1.0.66-1" -- updated version to match the new version number
+version = "1.0.70-1" -- updated version to match the new version number
 source = {
    url = "git://github.com/jangabrielsson/hc3emu",
-   tag = "v1.0.66", -- updated tag to match version
+   tag = "v1.0.70", -- updated tag to match version
 }
 description = {
    summary = "hc3emu is an emulator for developing Fibaro HC3 QuickApps offline.",
@@ -41,6 +41,7 @@ build = {
       ["hc3emu.quickapp"] = "src/hc3emu/quickapp.lua",
       ["hc3emu.class"] = "src/hc3emu/class.lua",
       ["hc3emu.timers"] = "src/hc3emu/timers.lua",
+      ["hc3emu.install"] = "src/hc3emu/install.lua",
       ["hc3emu.net"] = "src/hc3emu/net.lua",
       ["hc3emu.ui"] = "src/hc3emu/ui.lua",
       ["hc3emu.util"] = "src/hc3emu/util.lua",
@@ -56,6 +57,7 @@ build = {
       ["hc3emu.scene"] = "src/hc3emu/scene.lua",
       ["hc3emu.sceneengine"] = "src/hc3emu/sceneengine.lua",
       ["hc3emu.refreshstate"] = "src/hc3emu/refreshstate.lua",
+      ["hc3emu.refreshstateevents"] = "src/hc3emu/refreshstateevents.lua",
       ["hc3emu.webserver"] = "src/hc3emu/webserver.lua",
       ["hc3emu.simdevices"] = "src/hc3emu/simdevices.lua",
       ["hc3emu.event"] = "src/hc3emu/event.lua",
@@ -63,8 +65,7 @@ build = {
       ["hc3emu.sourcetrigger"] = "src/hc3emu/sourcetrigger.lua",
       ["hc3emu.qwikchild"] = "src/hc3emu/qwikchild.lua",
       ["hc3emu.eventlib"] = "src/hc3emu/eventlib.lua",
-      ["hc3emu.sha2"] = "src/hc3emu/sha2.lua",
-      ["hc3emu.stdStructs"] = "src/hc3emu/stdStructs.lua",
+      ["hc3emu.sha2"] = "src/hc3emu/sha2.lua"
   },
   copy_directories = { "doc", "rsrcs" }
 }

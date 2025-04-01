@@ -199,7 +199,9 @@ do
       local t = type(e)
       if t == 'string' then res[#res+1] = '"' res[#res+1] = e:gsub("[\\\"]",escTab) res[#res+1] = '"'
       elseif t == 'number' then res[#res+1] = e
-      elseif t == 'boolean' or t == 'function' or t=='thread' or t=='userdata' then res[#res+1] = tostring(e)
+      elseif t == 'boolean' or t == 'function' or t=='thread' or t=='userdata' then
+        if e == json.null then res[#res+1]='null'
+        else res[#res+1] = tostring(e) end
       elseif t == 'table' then
         if next(e)==nil then res[#res+1]='{}'
         elseif seen[e] then res[#res+1]="..rec.."
@@ -277,6 +279,8 @@ do -- Used for print device table structs - sortorder for device structs
         printf(key and tab or 0,"%s",t and 'true' or 'false')
       elseif type(t)=='string' then
         printf(key and tab or 0,'"%s"',t:gsub("[\\\"]",escTab))
+      elseif type(t)=='userdata' then
+        if t == json.null then printf(key and tab or 0,"null") end
       end
     end
     pretty(0,t0,true)

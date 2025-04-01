@@ -4,7 +4,8 @@
 test.lua
 .project
 *.log
-index.html
+hc3emu.json
+setup.html
 *.out
 test/
 tmp/

@@ -210,7 +210,8 @@ function Emulator:ERRORF(f,...) _print(dateMark('SYSERR'),fmt(f,...)) end
 
 function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} to info
   self:DEBUGF('info',"Parsing %s directives...",info.fname)
-  
+  local baseFlags = table.copy(self.baseFlags)
+
   local flags = {
     name='MyQA', type='com.fibaro.binarySwitch', debug={}, logColor = true,
     var = {}, gv = {}, files = {}, u={}, conceal = {}, 
@@ -239,7 +240,7 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
     ---local vs = val:split(",")
     --for _,v in ipairs(vs) do
     local v = val
-    if self.baseFlags.var then v=v..","..self.baseFlags.var self.baseFlags.var=nil end
+    if baseFlags.var then v=v..","..baseFlags.var baseFlags.var=nil end
     local name,expr = v:match("(.-):(.*)")
     assert(name and expr,"Bad var directive: "..d) 
     local e = eval(expr,d)
@@ -251,8 +252,7 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
     ---local vs = val:split(",")
     --for _,v in ipairs(vs) do
     local v = val
-    if self.baseFlags.conceal then 
-      v=v..","..self.baseFlags.conceal self.baseFlags.conceal=nil end
+    if baseFlags.conceal then v=v..","..baseFlags.conceal baseFlags.conceal=nil end
     local name,expr = v:match("(.-):(.*)")
     assert(name and expr,"Bad conceal directive: "..d) 
     --local e = eval(expr,d)
@@ -271,17 +271,15 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
       flags.files[#flags.files+1] = {fname=path,name=m}
     end
     addFile(val)
-    if self.debugFlags.file then
-      local fs = self.debugFlags.file:split(",")
+    if baseFlags.file then
+      local fs = baseFlags.file:split(",")
       for _,f in ipairs(fs) do addFile(f:gsub(";",",")) end
-      self.debugFlags.file = nil
+      baseFlags.file = nil
     end
   end
   --@D debug=<name>:<expr> - Set debug flag, ex. --%%debug=info:true,http:true,onAction:true,onUIEvent:true
   function directive.debug(d,val)
-    if self.baseFlags.debug then 
-      val=val..","..self.baseFlags.debug self.baseFlags.debug=nil
-    end
+    if baseFlags.debug then val=val..","..baseFlags.debug baseFlags.debug=nil end
     local vs = val:split(",")
     for _,v in ipairs(vs) do
       local name,expr = v:match("(.-):(.*)")
@@ -408,7 +406,7 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
     else self:WARNINGF("Unknown directive: %s",tostring(f)) end
   end)
   
-  info.directives = table.merge(table.copy(self.baseFlags),flags)
+  info.directives = table.merge(table.copy(baseFlags),flags)
   info.files = flags.files
 end
 

@@ -5,7 +5,7 @@
   <script>
     async function loadEmuInfo() {
       try {
-        const response = await fetch('/html/_zinfo.json');
+        const response = await fetch('_zinfo.json');
         const data = await response.json();
         const stats = data.stats || {};
         Object.keys(stats).forEach(key => {

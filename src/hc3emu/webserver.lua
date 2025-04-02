@@ -255,7 +255,7 @@ local function generateUIpage(id,name,fname,UI,root)
     E:ERRORF("Failed to open file for writing: %s",root..fname)
   end
   local elapsed = os.clock() - t0
-  E:DEBUGF('info',"UI page generated in %.3f seconds",elapsed)
+  E:DEBUGF('web',"UI page generated in %.3f seconds",elapsed)
 end
 
 local ref = nil

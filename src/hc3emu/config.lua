@@ -5,7 +5,9 @@ local json = require("hc3emu.json")
 local lfs = require("lfs")
 local fmt = string.format
 
-local function findFile(path,fn)
+local function findFile(path,fn,n)
+  n = n or 0
+  if n > 4 then return nil end
   local dirs = {}
   for file in lfs.dir(path) do
     if file ~= "." and file ~= ".." then
@@ -19,7 +21,7 @@ local function findFile(path,fn)
     end
   end
   for i,dir in ipairs(dirs) do
-    local f = findFile(dir,fn)
+    local f = findFile(dir,fn,n+1)
     if f then return f end
   end
   return nil
@@ -46,7 +48,10 @@ local function setupRsrscsDir()
   end
 
   local p = os.getenv("EMU_RSRCS")
-  if p then return p end
+  if p then 
+    local f = findFile(p,file)
+    if f then return f:sub(1,len) end
+  end
 end
 
 local function rsrcPath(file,open)

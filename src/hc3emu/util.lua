@@ -469,11 +469,6 @@ local function copyRsrcFile(file,to)
   f:close()
 end
 
-local function installRsrcFiles(to)
-  copyRsrcFile("script.js",to..E.fileSeparator.."script.js")
-  copyRsrcFile("style.css",to..E.fileSeparator.."style.css")
-end
-
 exports._print = _print
 exports.pcall2 = pcall2
 exports.json = json
@@ -482,7 +477,6 @@ exports.__assert_type = __assert_type
 exports.readFile = readFile
 exports.writefile = writeFile
 exports.loadRsrcJson = loadRsrcJson
-exports.installRsrcFiles = installRsrcFiles
 exports.sunCalc = sunCalc
 exports.EVENT = EVENT
 exports.post = post

@@ -322,7 +322,6 @@ local function initializeUI(QA,UI,index)
   end
 end
 
-
 function E.EVENT._quickApp_initialized(ev)
   local qa = E:getQA(ev.id)
   if qa.flags.html then
@@ -341,6 +340,7 @@ function E.EVENT._quickApp_initialized(ev)
       __index=function(t,k) if index[k] then return index[k] else return rawget(t,k) end end,
     })
     E.webserver.generateUIpage(qa.id,qa.name,qa.uiPage,qa.UI,qa.html)
+    E.webserver.generateEmuPage(qa.html)
     return
   end
 end

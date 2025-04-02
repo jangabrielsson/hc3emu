@@ -25,11 +25,12 @@ dependencies = {
    "lua-json >= 1.0.0-1",
    "bit32 >= 5.3.5.1-1",
    "lua-websockets-bit32 >= 2.0.1-7",
-   --"luafilesystem >= 1.8.0-1", -- try to avoid this dependency...
+   "luafilesystem >= 1.8.0-1",
    "argparse >= 0.7.1-1",
    "datafile >= 0.10-1",
    "mobdebug >= 0.80-1",
 }
+
 build = {
    type = "builtin",
    modules = {

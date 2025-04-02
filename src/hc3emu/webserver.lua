@@ -148,7 +148,7 @@ local function startServer(id)
       E:DEBUGF("server","Connection closed: %s",name)
     end
   end
-
+  
   local server,err = socket.bind('*', port)
   if not server then 
     error(fmt("Failed open socket %s: %s",port,tostring(err)))
@@ -177,23 +177,6 @@ local footer = [[
 </body>
 </html>
 ]]
-
-local indexheader = [[
-<!DOCTYPE html>
-<html>
-<head>
-  <title>QuickApps</title>
-</head>
-<body>
-  <h1>Installed QuickApps</h1>
-  <ul>
-]]
-local indexfooter = [[
-  </ul>
-</body>
-</html>
-]]
-local styles
 
 local function member(e,l) for _,k in ipairs(l) do if e == k then return true end end return false end
 
@@ -246,7 +229,7 @@ local function prBuff(init)
   return self
 end
 
-local function generateUIpage(id,name,fname,UI,root,noIndex)
+local function generateUIpage(id,name,fname,UI,root)
   local format,t0 = string.format,os.clock()
   local pr = prBuff(format(header,E.emuIP,E.emuPort+1,id))
   --print("Generating UI page")
@@ -266,26 +249,9 @@ local function generateUIpage(id,name,fname,UI,root,noIndex)
   if f then
     f:write(pr:tostring())
     f:close()
+    pages[fname] = {name=name,link=fname}
   else
     E:ERRORF("Failed to open file for writing: %s",root..fname)
-  end
-  if not noIndex then -- generate index file
-    local qa = E:getQA(id)
-    local path = qa.uiPage:match("(.*[/\\])") or E.fileSeparator
-    pages[#pages+1] = {id=qa.id,name=qa.name,path=fname}
-    local pr = prBuff(indexheader)
-    for _,f in ipairs(pages) do
-      pr:printf('<li><a href="%s">%s %s</a></li>',f.path,f.id,f.name)
-    end
-    pr:print(indexfooter)
-    pr:print(styles)
-    local f = io.open(root.."_quickapps.html","w")
-    if f then
-      f:write(pr:tostring())
-      f:close()
-    else
-      E:ERRORF("Failed to open index file for writing: %s",root.."_quickapps.html")
-    end
   end
   local elapsed = os.clock() - t0
   E:DEBUGF('info',"UI page generated in %.3f seconds",elapsed)
@@ -297,7 +263,7 @@ local function updateView(id,name,fname,UI,root)
   ref = E:addThread(E.systemRunner,function()
     copas.sleep(0.3)
     ref=nil
-    generateUIpage(id,name,fname,UI,root,true)
+    generateUIpage(id,name,fname,UI,root)
   end)
 end
 
@@ -309,48 +275,31 @@ function E.EVENT.quickApp_updateView(ev)
   end
 end
 
-styles = [[
-<style>
-  body {
-    font-family: 'Arial', sans-serif;
-    margin: 40px;
-    background-color: #f9f9f9;
-    color: #333;
-    line-height: 1.6;
-  }
-  h1 {
-    color: #2c3e50;
-    text-align: center;
-    margin-bottom: 30px;
-  }
-  ul {
-    list-style-type: none;
-    padding: 0;
-  }
-  li {
-    margin-bottom: 15px;
-  }
-  a {
-    text-decoration: none;
-    color: #fff;
-    background-color: #3498db;
-    display: block;
-    padding: 15px 20px;
-    border-radius: 8px;
-    transition: background-color 0.3s, transform 0.3s;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    border: none;
-  }
-  a:hover {
-    background-color: #2980b9;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
-  }
-</style>
-]]
+local started = false
+local function generateEmuPage(html)
+  if started then return else started = true end
+  E:addThread(E.systemRunner,function()
+    local p = {} 
+    for _,e in pairs(pages) do p[#p+1]= e end
+    table.sort(p,function(a,b) return a.name < b.name end)
+    local emuInfo = {
+      stats = {
+        version = E.version,
+        memory = "0 KB",
+        timers = "0",
+        ports = "none"
+      },
+      quickApps = p
+    }
+    local f = io.open(html.."_zinfo.json","w")
+    if f then f:write((json.encode(emuInfo))) f:close() end
+    copas.pause(2.0)
+  end)
+end
 
 exports.startServer = startServer
 exports.generateUIpage = generateUIpage
+exports.generateEmuPage = generateEmuPage
 exports.updateView = updateView
 exports.init = init
 

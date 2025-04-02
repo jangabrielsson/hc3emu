@@ -133,15 +133,21 @@ local function vscode()
   E:DEBUG(".vscode.lua installed")
 end
 
-local function css()
+local function installHTML()
+  local files = {
+    ['style.css']="style.css",
+    ['script.js']="script.js",
+    ['emu.html']="_emu.html",
+    ['quickapps.html']="_quickapps.html",
+  }
   local id,qa = next(E.QA_DIR)
   assert(qa,"No QA installed")
   local dir = qa.flags.html
-  local page = loadResource("style.css")
-  writeFile(dir.."style.css", page)
-  page = loadResource("script.js")
-  writeFile(dir.."script.js", page)
-  E:DEBUG("style.css and script.js installed")
+  for source,dest in pairs(files) do
+    local page = loadResource(source)
+    writeFile(dir..dest, page)
+    E:DEBUG("%s%s installed",dir,dest)
+  end
 end
 
 local function createconfig(file,templ)
@@ -243,7 +249,7 @@ end
 exports = {}
 exports.settings = settings
 exports.vscode = vscode
-exports.css = css
+exports.installHTML = installHTML
 exports.createProj = createProj
 exports.createGlobal = createGlobal
 exports.getSettings = getSettings

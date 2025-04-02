@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>HC3Emu</title>
+  <script>
+    async function loadEmuInfo() {
+      try {
+        const response = await fetch('/html/_zinfo.json');
+        const data = await response.json();
+        const stats = data.stats || {};
+        Object.keys(stats).forEach(key => {
+          const element = document.getElementById(key);
+          if (element) element.textContent = stats[key];
+        });
+      } catch (error) {
+        console.error('Error loading EMU_INFO:', error);
+      }
+    }
+
+    window.onload = loadEmuInfo;
+  </script>
+</head>
+<body>
+  <h1>HC3 Emulator</h1>
+  <div class="content">
+    <div class="info-panel">
+      <div class="info-item">
+        <span>Version:</span>
+        <span id="version"></span>
+      </div>
+      <div class="info-item">
+        <span>Memory Used:</span>
+        <span id="memory"></span>
+      </div>
+      <div class="info-item">
+        <span>Number of timers:</span>
+        <span id="timers"></span>
+      </div>
+      <div class="info-item">
+        <span>Open ports:</span>
+        <span id="ports"></span>
+      </div>
+    </div>
+    <h2>Emulator Controls</h2>
+    <div class="controls">
+      <!-- Controls will be added here -->
+    </div>
+  </div>
+</body>
+
+<style>
+  body {
+    font-family: 'Arial', sans-serif;
+    margin: 40px;
+    background-color: #f9f9f9;
+    color: #333;
+    line-height: 1.6;
+  }
+  
+  h1 {
+    color: #2c3e50;
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  
+  .content {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  .controls {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .info-panel {
+    background-color: #edf2f7;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .info-item {
+    background-color: white;
+    padding: 10px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+
+  .info-item span:first-child {
+    font-weight: bold;
+    color: #2c3e50;
+  }
+</style>

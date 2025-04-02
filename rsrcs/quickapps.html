@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>QuickApps</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 40px;
+      background-color: #f9f9f9;
+      color: #333;
+      line-height: 1.6;
+    }
+    h1 {
+      color: #2c3e50;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    li {
+      margin-bottom: 15px;
+    }
+    a {
+      text-decoration: none;
+      color: #fff;
+      background-color: #3498db;
+      display: block;
+      padding: 15px 20px;
+      border-radius: 8px;
+      transition: background-color 0.3s, transform 0.3s;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      border: none;
+    }
+    a:hover {
+      background-color: #2980b9;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+    }
+  </style>
+</head>
+<body>
+  <h1>Installed QuickApps</h1>
+  <div id="quickAppsList">Loading QuickApps...</div>
+
+  <script>
+    console.log('Loading QuickApps...');
+    fetch('/html/_zinfo.json')  // Changed from '../_zinfo.json' to '/html/_zinfo.json'
+      .then(response => {
+        console.log('Response:', response);
+        return response.json();
+      })
+      .then(data => {
+        console.log('Data:', data);
+        const quickAppsList = document.getElementById('quickAppsList');
+        
+        if (!data || !data.quickApps) {
+          quickAppsList.innerHTML = 'No QuickApps found';
+          return;
+        }
+
+        const ul = document.createElement('ul');
+        Object.entries(data.quickApps).forEach(([id, app]) => {
+          console.log('Processing app:', id, app);
+          const li = document.createElement('li');
+          const a = document.createElement('a');
+          a.href = app.link;
+          a.textContent = app.name;
+          li.appendChild(a);
+          ul.appendChild(li);
+        });
+        
+        quickAppsList.innerHTML = '';
+        quickAppsList.appendChild(ul);
+      })
+      .catch(error => {
+        console.error('Error loading QuickApps:', error);
+        document.getElementById('quickAppsList').innerHTML = 'Error loading QuickApps: ' + error.message;
+      });
+  </script>
+</body>
+</html>

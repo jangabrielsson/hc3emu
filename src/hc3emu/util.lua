@@ -451,9 +451,7 @@ local function cancelThreads(runner)
 end
 
 local function loadRsrcJson(path)
-  local datafile = require("datafile")
-  local p = datafile.path(path)
-  local f = datafile.open(path,"r")
+  local f,p = E.config.rsrcPath(path,"r")
   assert(f,"Failed to open file:"..path)
   local data = f:read("*a")
   f:close()
@@ -461,8 +459,7 @@ local function loadRsrcJson(path)
 end
 
 local function copyRsrcFile(file,to)
-  local datafile = require("datafile")
-  local f = datafile.open(file,"r")
+  local f = E.config.rsrcPath(file,"r")
   assert(f,"Failed to open file:"..file)
   local content = f:read("*a")
   f:close()
@@ -473,8 +470,8 @@ local function copyRsrcFile(file,to)
 end
 
 local function installRsrcFiles(to)
-  copyRsrcFile("rsrcs/script.js",to..E.fileSeparator.."script.js")
-  copyRsrcFile("rsrcs/style.css",to..E.fileSeparator.."style.css")
+  copyRsrcFile("script.js",to..E.fileSeparator.."script.js")
+  copyRsrcFile("style.css",to..E.fileSeparator.."style.css")
 end
 
 exports._print = _print

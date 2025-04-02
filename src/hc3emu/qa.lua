@@ -10,7 +10,7 @@ local userTime,userDate,urlencode,deviceTypes
 local function init()
   userTime,userDate = E.timers.userTime,E.timers.userDate
   urlencode = E.util.urlencode
-  deviceTypes = E.util.loadRsrcJson("rsrcs/devices.json")
+  deviceTypes = E.util.loadRsrcJson("devices.json")
 end
 Runner = Runner 
 

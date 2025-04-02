@@ -2,7 +2,61 @@ local exports = {}
 Emulator = Emulator
 local E = Emulator.emulator
 local json = require("hc3emu.json")
+local lfs = require("lfs")
 local fmt = string.format
+
+local function findFile(path,fn)
+  local dirs = {}
+  for file in lfs.dir(path) do
+    if file ~= "." and file ~= ".." then
+      local f = path..'/'..file
+      if fn == file then return f end
+      local attr = lfs.attributes (f)
+      assert(type(attr) == "table")
+      if attr.mode == "directory" then
+        dirs[#dirs+1] = f
+      end
+    end
+  end
+  for i,dir in ipairs(dirs) do
+    local f = findFile(dir,fn)
+    if f then return f end
+  end
+  return nil
+end
+
+-- Try to locate the user's rsrcrs directory in the installed rock
+local function setupRsrscsDir()
+  local file = "stdStructs.json"
+  local path = "rsrcs/"..file
+  local len = -(#file+2)
+  local datafile = require("datafile")
+  local f,p = datafile.open(path)
+  if f then f:close() return p:sub(1,len) end
+  p = package.searchpath(path,"hc3emu")
+  assert(p,"Failed to find "..path)
+
+  -- Try to locate scoop installed rock
+  -- C:\Users\jgab\scoop\apps\luarocks\3.11.1\rocks\lib\luarocks\rocks-5.4\hc3emu\1.0.70-1\rsrcs
+  local dir = p:match(".:\\Users\\%w+\\scoop\\apps\\luarocks\\")
+  if dir then
+    dir = dir.."3.11.1\\rocks\\lib\\luarocks\\rocks-5.4\\hc3emu\\"
+    local p = findFile(dir,file)
+    if p then return p:sub(1,len) end
+  end
+
+  local p = os.getenv("EMU_RSRCS")
+  if p then return p end
+end
+
+local function rsrcPath(file,open)
+  assert(E.rsrcsDir,"rsrcsDir not set")
+  local p = findFile(E.rsrcsDir,file)
+  if p then
+    if open then return io.open(p,open == true and "r" or open),p end
+    return p 
+  end
+end
 
 local function writeFile(filename, content)
   local file = io.open(filename, "w")
@@ -40,8 +94,7 @@ local function readFile(filename,decode,silent)
 end
 
 local function loadResource(file,decode)
-  local datafile = require("datafile")
-  local f,p = datafile.open(file)
+  local f,p = rsrcPath(file,true)
   assert(f, "Failed to open file: " .. file)
   local data = f:read("*a")
   f:close()
@@ -57,7 +110,7 @@ local function loadResource(file,decode)
 end
 
 local function settings() --const EMU_API = "127.0.0.1:8888";
-  local page,p = loadResource("rsrcs/setup.html",false)
+  local page,p = loadResource("setup.html",false)
   assert(page and p,"Failed to load setup.html")
   local function patchVar(var,value)
     page = page:gsub(var.." = \"(.-)\";",function(ip) 
@@ -84,9 +137,9 @@ local function css()
   local id,qa = next(E.QA_DIR)
   assert(qa,"No QA installed")
   local dir = qa.flags.html
-  local page = loadResource("rsrcs/style.css")
+  local page = loadResource("style.css")
   writeFile(dir.."style.css", page)
-  page = loadResource("rsrcs/script.js")
+  page = loadResource("script.js")
   writeFile(dir.."script.js", page)
   E:DEBUG("style.css and script.js installed")
 end
@@ -108,11 +161,11 @@ local function createconfig(file,templ)
 end
 
 local function createProj()
-  return createconfig(PROJFILE,"rsrcs/settings.json")
+  return createconfig(PROJFILE,"settings.json")
 end
 
 local function createGlobal()
-  return createconfig(GLOBFILE,"rsrcs/settings.json")
+  return createconfig(GLOBFILE,"settings.json")
 end
 
 local function saveSettings(typ,jsondata)
@@ -125,7 +178,7 @@ local function saveSettings(typ,jsondata)
 
   local cfg = readFile(file,true,true) or {}
   if next(cfg) == nil then
-    cfg = createconfig(file,"rsrcs/settings.json")
+    cfg = createconfig(file,"settings.json")
     assert(cfg,"Failed to create config")
   end
   local index = {}
@@ -195,5 +248,7 @@ exports.createProj = createProj
 exports.createGlobal = createGlobal
 exports.getSettings = getSettings
 exports.saveSettings = saveSettings
+exports.setupRsrscsDir = setupRsrscsDir
+exports.rsrcPath = rsrcPath
 
 return exports

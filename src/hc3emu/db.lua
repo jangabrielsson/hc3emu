@@ -57,7 +57,7 @@ local function init()
   end
   
   do
-    local std = E.util.loadRsrcJson("rsrcs/stdStructs.json")
+    local std = E.util.loadRsrcJson("stdStructs.json")
     if not store.settings.info then store.settings.info = std.info end
     if not store.home then store.home = std.home end
     if not store.settings.location then store.settings.location = std.location end

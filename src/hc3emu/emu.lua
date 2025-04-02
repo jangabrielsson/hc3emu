@@ -24,7 +24,7 @@ lua-websockets-bit32 >= 2.0.1-7
 argparse >= 0.7.1-1
 mobdebug >= 0.80-1
 --]]
-local VERSION = "1.0.71"
+local VERSION = "1.0.72"
 local class = require("hc3emu.class") -- use simple class implementation
 
 local fmt = string.format
@@ -121,9 +121,9 @@ function Emulator:init(debug,info)
   self:setRunner(self.systemRunner)
   self.mainFile = info.fname
   
-  self.install = require("hc3emu.install")
+  self.config = require("hc3emu.config")
 
-  self.baseFlags = self.install.getSettings() or {}
+  self.baseFlags = self.config.getSettings() or {}
   
   self.mobdebug = { on = function() end, start = function(_,_) end }
   if not self.nodebug then
@@ -148,6 +148,9 @@ function Emulator:init(debug,info)
   self.timers = loadModule("hc3emu.timers") 
   logTime = self.timers.userTime
   userDate = self.timers.userDate
+  self.config = loadModule("hc3emu.config") 
+  self.rsrcsDir = self.config.setupRsrscsDir()
+  assert(self.rsrcsDir,"Failed to find rsrcs directory")
   self.store = loadModule("hc3emu.db")                   -- Database for storing data
   self.route = loadModule("hc3emu.route")                -- Route object
   self.emuroute = loadModule("hc3emu.emuroute")          -- Emulator API routes
@@ -156,14 +159,12 @@ function Emulator:init(debug,info)
   self.offline = loadModule("hc3emu.offline")            -- Offline API routes
   self.ui = loadModule("hc3emu.ui") 
   self.tools = loadModule("hc3emu.tools")
-  self.install = loadModule("hc3emu.install") 
   self.qa = loadModule("hc3emu.qa") 
   self.scene = loadModule("hc3emu.scene")
   loadModule("hc3emu.simdevices") 
   self.webserver = loadModule("hc3emu.webserver")
   self.webserver.startServer()
   
-  if info.directives.installHTML then self.util.installRsrcFiles(info.directives.installHTML) end
   self.route.createConnections() -- Setup connections for API calls, emulator/offline/proxy
   self.connection = self.route.hc3Connection
 end

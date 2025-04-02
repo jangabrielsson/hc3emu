@@ -19,7 +19,7 @@ end
 
 local commands = {}
 function commands.install(params,_)
-  if E.install[params.cmd] then E.install[params.cmd](params) end
+  if E.config[params.cmd] then E.config[params.cmd](params) end
 end
 
 function commands.getLocal(params,skt)
@@ -37,7 +37,7 @@ end
 
 function commands.saveSettings(data,params,skt)
   local typ = params.type
-  E.install.saveSettings(typ,data)
+  E.config.saveSettings(typ,data)
 end
 
 local function parseUrl(url)

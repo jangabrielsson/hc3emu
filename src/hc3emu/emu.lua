@@ -152,6 +152,7 @@ function Emulator:init(debug,info)
   self.config = loadModule("hc3emu.config") 
   self.rsrcsDir = self.config.setupRsrscsDir()
   assert(self.rsrcsDir,"Failed to find rsrcs directory")
+  self.config.setupDirectory(info.directives.webui)
   self.store = loadModule("hc3emu.db")                   -- Database for storing data
   self.route = loadModule("hc3emu.route")                -- Route object
   self.emuroute = loadModule("hc3emu.emuroute")          -- Emulator API routes
@@ -180,9 +181,11 @@ function Emulator:getNextSceneId() self.SCENEID = self.SCENEID + 1 return self.S
 
 function Emulator:registerQA(qa) 
   assert(qa.id,"Can't register QA without id")
+  if not self.QA_DIR[qa.id] then
+    self.stats.qas = self.stats.qas + 1
+  end
   self.QA_DIR[qa.id] = qa 
   self.store.DB.devices[qa.id] = qa.device
-  self.stats.qas = self.stats.qas + 1
 end
 
 function Emulator:unregisterQA(id) 
@@ -370,12 +373,7 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
     flags.triggers[#flags.triggers + 1] = {delay = tonumber(delay), trigger = eval(trigger,d)}
   end
   --@D html=<path> - If true generates UI webpages in path, ex. --%%html=html
-  function directive.html(d,val) 
-    flags.html = tostring(val)
-    if flags.html:sub(-1) ~= self.fileSeparator then flags.html = flags.html..self.fileSeparator end
-  end
-  --@D install=<boolean> - If true, installs setup files, ex. --%%install=true
-  function directive.install(d,val) flags.install = eval(val) end
+  function directive.webui(d,val) flags.webui = eval(val) end
 
   local truncCode = info.src
   local eod = info.src:find("ENDOFDIRECTIVES")
@@ -518,8 +516,6 @@ function Emulator:run(info) -- { fname = "file.lua", src = "source code" }
   
   print(self.log.colorStr('orange',"HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..self.VERSION))
   local fileType = flags.type == 'scene' and 'Scene' or 'QuickApp'
-  
-  if flags.install then self.config.settings() end
 
   copas(function() -- This is the first task we create
     self.mobdebug.on()

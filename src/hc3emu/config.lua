@@ -5,6 +5,11 @@ local json = require("hc3emu.json")
 local lfs = require("lfs")
 local fmt = string.format
 
+local PROJFILE = E.cfgFileName
+local GLOBFILE = E.homeDir..E.fileSeparator..E.homeCfgFileName
+local EMU_DIR = "emu"
+local EMUSUB_DIR = "emu/pages"
+
 local function findFile(path,fn,n)
   n = n or 0
   if n > 4 then return nil end
@@ -75,9 +80,6 @@ local function writeFile(filename, content)
   end
 end
 
-local PROJFILE = E.cfgFileName
-local GLOBFILE = E.homeDir..E.fileSeparator..E.homeCfgFileName
-
 local function readFile(filename,decode,silent)
   local file = io.open(filename, "r")
   if file then
@@ -114,7 +116,34 @@ local function loadResource(file,decode)
   return data,p
 end
 
-local function settings() --const EMU_API = "127.0.0.1:8888";
+local function vscode()
+  local homedir = E.homeDir
+  local page = loadResource("vscode.lua")
+  writeFile(homedir..E.fileSeparator..".vscode.lua", page)
+  E:DEBUG(".vscode.lua installed")
+end
+
+local function setupDirectory(flag)
+  local files = {
+    ['style.css']=EMUSUB_DIR.."/style.css",
+    ['script.js']=EMUSUB_DIR.."/script.js",
+    ['quickapps.html']=EMUSUB_DIR.."/quickapps.html",
+    ['devices.html']=EMUSUB_DIR.."/devices.html",
+    ['editSettings.html']=EMUSUB_DIR.."/editSettings.html",
+    ['emu.html']=EMU_DIR.."/_emu.html",
+  }
+
+  local a,b = lfs.mkdir(EMU_DIR)
+  local a,b = lfs.mkdir(EMUSUB_DIR)
+  assert((b==nil or b=="File exists"),"Failed to create directory "..EMU_DIR)
+  if flag ~= "install" and b == "File exists" then return end
+
+  for source,dest in pairs(files) do
+    local page = loadResource(source)
+    writeFile(dest, page)
+    E:DEBUG("%s installed",dest)
+  end
+  
   local page,p = loadResource("setup.html",false)
   assert(page and p,"Failed to load setup.html")
   local function patchVar(var,value)
@@ -122,37 +151,11 @@ local function settings() --const EMU_API = "127.0.0.1:8888";
       return fmt(var.." = \"%s\";",value)
     end)
   end
-  p = p:sub(1,-12)
-  p = p:gsub("\\","/")
   patchVar("EMU_API",fmt("http://%s:%s",E.emuIP,E.emuPort+1))
   patchVar("USER_HOME",E.homeDir:gsub("\\","/"))
-  patchVar("RSRC_DIR",p)
-  writeFile("setup.html", page)
-  E:DEBUG("setup.html installed")
-end
-
-local function vscode()
-  local homedir = E.homeDir
-  local page = loadResource("rsrcs/vscode.lua")
-  writeFile(homedir..E.fileSeparator..".vscode.lua", page)
-  E:DEBUG(".vscode.lua installed")
-end
-
-local function installHTML()
-  local files = {
-    ['style.css']="style.css",
-    ['script.js']="script.js",
-    ['emu.html']="_emu.html",
-    ['quickapps.html']="_quickapps.html",
-  }
-  local id,qa = next(E.QA_DIR)
-  assert(qa,"No QA installed")
-  local dir = qa.flags.html
-  for source,dest in pairs(files) do
-    local page = loadResource(source)
-    writeFile(dir..dest, page)
-    E:DEBUG("%s%s installed",dir,dest)
-  end
+  patchVar("EMUSUB_DIR",EMUSUB_DIR)
+  writeFile(EMU_DIR.."/_setup.html", page)
+  E:DEBUG(EMU_DIR.."/_setup.html installed")
 end
 
 local function createconfig(file,templ)
@@ -252,9 +255,10 @@ local function getSettings()
 end
 
 exports = {}
-exports.settings = settings
+exports.EMU_DIR = EMU_DIR
+exports.EMUSUB_DIR = EMUSUB_DIR
 exports.vscode = vscode
-exports.installHTML = installHTML
+exports.setupDirectory = setupDirectory
 exports.createProj = createProj
 exports.createGlobal = createGlobal
 exports.getSettings = getSettings

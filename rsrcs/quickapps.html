@@ -46,7 +46,7 @@
 
   <script>
     console.log('Loading QuickApps...');
-    fetch('_zinfo.json')  // Changed from '../_zinfo.json' to '/html/_zinfo.json'
+    fetch('info.json')  // Changed from '../_zinfo.json' to '/html/_zinfo.json'
       .then(response => {
         console.log('Response:', response);
         return response.json();
@@ -65,7 +65,7 @@
           console.log('Processing app:', id, app);
           const li = document.createElement('li');
           const a = document.createElement('a');
-          a.href = app.link;
+          a.href = `../${app.link}`;
           a.textContent = app.name;
           li.appendChild(a);
           ul.appendChild(li);

@@ -11,7 +11,7 @@
 
     async function loadEmuInfo() {
       try {
-        const response = await fetch('_zinfo.json');
+        const response = await fetch('pages/info.json');
         const data = await response.json();
         const stats = data.stats || {};
         rsrcPrefix = data.rsrcLink || '';
@@ -38,7 +38,7 @@
         <span id="version"></span>
       </div>
       <div class="info-item">
-        <span><a href="_quickapps.html">QuickApps:</a></span>
+        <span><a href="pages/quickapps.html">QuickApps:</a></span>
         <span id="numqas"></span>
       </div>
       <div class="info-item">

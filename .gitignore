@@ -9,7 +9,7 @@ setup.html
 *.out
 test/
 tmp/
-html/
+emu/
 
 
 

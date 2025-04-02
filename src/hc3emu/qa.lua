@@ -324,8 +324,8 @@ end
 
 function E.EVENT._quickApp_initialized(ev)
   local qa = E:getQA(ev.id)
-  if qa.flags.html then
-    qa.html = qa.flags.html
+  if qa.flags.webui then
+    qa.webui = true
     if qa.isChild then
       local name = (qa.device.name or "Child"):gsub("[^%w]","")
       qa.uiPage = fmt("%s_%s.html",name,qa.id)
@@ -339,8 +339,8 @@ function E.EVENT._quickApp_initialized(ev)
     setmetatable(qa.UI,{
       __index=function(t,k) if index[k] then return index[k] else return rawget(t,k) end end,
     })
-    E.webserver.generateUIpage(qa.id,qa.name,qa.uiPage,qa.UI,qa.html)
-    E.webserver.generateEmuPage(qa.html)
+    E.webserver.generateUIpage(qa.id,qa.name,qa.uiPage,qa.UI)
+    E.webserver.generateEmuPage()
     return
   end
 end

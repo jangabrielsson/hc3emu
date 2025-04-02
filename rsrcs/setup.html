@@ -58,14 +58,14 @@
   <script>
     const EMU_API = "http://192.168.1.32:8265";
     const USER_HOME = "/Users/jangabrielsson";
-    const RSRC_DIR = "/rsrc";
+    const EMUSUB_DIR = "/emu";
     const API_URLS = {
       installVscode: `${EMU_API}/install?cmd=vscode`,
       installWebFiles: `${EMU_API}/install?cmd=installHTML`,
       createProj: `${EMU_API}/install?cmd=createProj`,
       createGlobal: `${EMU_API}/install?cmd=createGlobal`,
-      editConfig: `${RSRC_DIR}/editSettings.html?file=../hc3emu.json&rep=${EMU_API}/saveSettings&type=local`,
-      editGlobal: `${RSRC_DIR}/editSettings.html?file=${EMU_API}/${USER_HOME}/.hc3emu.json&rep=${EMU_API}/saveSettings&type=global`
+      editConfig: `/${EMUSUB_DIR}/editSettings.html?file=/hc3emu.json&rep=${EMU_API}/saveSettings&type=local`,
+      editGlobal: `/${EMUSUB_DIR}/editSettings.html?file=${EMU_API}/${USER_HOME}/.hc3emu.json&rep=${EMU_API}/saveSettings&type=global`
     };
     
     async function handleTask(button, url) {
@@ -101,8 +101,8 @@
       <div class="task-description">Installs file for running HC3Emu vscode tasks</div>
     </div>
     <div class="task-container">
-      <button class="task-item" onclick="handleTask(this, API_URLS.installWebFiles)">Install HTML helper files in html directory</button>
-      <div class="task-description">Installs required web interface files for the emulator when it generates html UI files. Requires that html directory is created and specified with the directive<pre>--%%html=&lt;directory&gt;</pre></div>
+      <button class="task-item" onclick="handleTask(this, API_URLS.installWebFiles)">Reinstall emu web pages</button>
+      <div class="task-description">Installs required web interface files for the emulator when it generates html UI files.</div>
     </div>
     <div class="task-container">
       <button class="task-item" onclick="handleTask(this, API_URLS.createProj)">Install project config file, hc3emu.json</button>

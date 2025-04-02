@@ -164,12 +164,12 @@ local header = [[
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Device View</title>
-  <link rel="stylesheet" href="style.css"> <!-- Include external CSS -->
+  <link rel="stylesheet" href="pages/style.css"> <!-- Include external CSS -->
   <script>
     const SERVER_IP = "http://%s:%s"; // Define the server IP address
     const DEVICE_ID = "%s"; // Define the QA id
   </script>
-  <script src="script.js" defer></script> <!-- Include external JavaScript -->
+  <script src="pages/script.js" defer></script> <!-- Include external JavaScript -->
 </head>
 <body>
 ]]
@@ -230,7 +230,7 @@ local function prBuff(init)
   return self
 end
 
-local function generateUIpage(id,name,fname,UI,root)
+local function generateUIpage(id,name,fname,UI)
   local format,t0 = string.format,os.clock()
   local pr = prBuff(format(header,E.emuIP,E.emuPort+1,id))
   --print("Generating UI page")
@@ -246,25 +246,25 @@ local function generateUIpage(id,name,fname,UI,root)
     pr:print('</div>')
   end
   pr:print(footer)
-  local f = io.open(root..fname,"w")
+  local f = io.open(E.config.EMU_DIR.."/"..fname,"w")
   if f then
     f:write(pr:tostring())
     f:close()
     pages[fname] = {name=name,link=fname}
   else
-    E:ERRORF("Failed to open file for writing: %s",root..fname)
+    E:ERRORF("Failed to open file for writing: %s",E.config.EMU_DIR.."/"..fname)
   end
   local elapsed = os.clock() - t0
   E:DEBUGF('web',"UI page generated in %.3f seconds",elapsed)
 end
 
 local ref = nil
-local function updateView(id,name,fname,UI,root)
+local function updateView(id,name,fname,UI)
   if ref then return end
   ref = E:addThread(E.systemRunner,function()
     copas.sleep(0.3)
     ref=nil
-    generateUIpage(id,name,fname,UI,root)
+    generateUIpage(id,name,fname,UI)
   end)
 end
 
@@ -272,12 +272,12 @@ function E.EVENT.quickApp_updateView(ev)
   local id = ev.id
   local qa = E:getQA(id)
   if qa.uiPage then
-    updateView(qa.id,qa.name,qa.uiPage,qa.UI, qa.html)
+    updateView(qa.id,qa.name,qa.uiPage,qa.UI)
   end
 end
 
 local started = false
-local function generateEmuPage(html)
+local function generateEmuPage()
   if started then return else started = true end
   E:addThread(E.systemRunner,function()
     while true do
@@ -297,7 +297,7 @@ local function generateEmuPage(html)
         quickApps = p,
         rsrcLink = ("/"..E.rsrcsDir.."/"):gsub("\\","/"),
       }
-      local f = io.open(html.."_zinfo.json","w")
+      local f = io.open(E.config.EMUSUB_DIR.."/info.json","w")
       if f then f:write((json.encode(emuInfo))) f:close() end
       copas.pause(2.0)
     end

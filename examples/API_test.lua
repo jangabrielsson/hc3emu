@@ -8,7 +8,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%proxy=TestProxy
 --%%debug=info:false,api:true,http:true
 --%%dark=true
---%%local=true
+--%%offline=true
 
 local function printf(...) print(string.format(...)) end
 local function setLocal(flag) fibaro.setOffline(flag) end

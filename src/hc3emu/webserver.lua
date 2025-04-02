@@ -119,6 +119,7 @@ local function startServer(id)
   local ip = "0.0.0.0"
   local port = tonumber(E.emuPort) + 1
   E:DEBUGF('info',"Starting webserver at %s:%s",ip,port)
+  E.stats.ports[port] = true
   
   local function handle(skt)
     E.mobdebug.on()
@@ -279,21 +280,26 @@ local started = false
 local function generateEmuPage(html)
   if started then return else started = true end
   E:addThread(E.systemRunner,function()
-    local p = {} 
-    for _,e in pairs(pages) do p[#p+1]= e end
-    table.sort(p,function(a,b) return a.name < b.name end)
-    local emuInfo = {
-      stats = {
-        version = E.version,
-        memory = "0 KB",
-        timers = "0",
-        ports = "none"
-      },
-      quickApps = p
-    }
-    local f = io.open(html.."_zinfo.json","w")
-    if f then f:write((json.encode(emuInfo))) f:close() end
-    copas.pause(2.0)
+    while true do
+      local p = {} 
+      for _,e in pairs(pages) do p[#p+1]= e end
+      table.sort(p,function(a,b) return a.name < b.name end)
+      local po = {} 
+      for p,_ in pairs(E.stats.ports) do po[#po+1] = tostring(p) end
+      local emuInfo = {
+        stats = {
+          version = E.VERSION,
+          memory = fmt("%.2f KB", collectgarbage("count")),
+          numqas = E.stats.qas,
+          timers = E.stats.timers,
+          ports =  table.concat(po,","),
+        },
+        quickApps = p
+      }
+      local f = io.open(html.."_zinfo.json","w")
+      if f then f:write((json.encode(emuInfo))) f:close() end
+      copas.pause(2.0)
+    end
   end)
 end
 

@@ -79,6 +79,7 @@ function Emulator:__init()
   self.post = function(_,...) return self.util.post(...) end
   self.addThread = function(_,...) return self.util.addThread(...) end
   
+  self.stats = { qas = 0, scenes = 0, timers = 0, ports = {} }
   self.QA_DIR={} -- Directory for all QAs - devicesId -> QA object
   self.SCENE_DIR={} -- Directory for all Scenes - sceneId -> Scene object
   self.EMUVAR = "TQEMU" -- HC3 GV with connection data for HC3 proxy
@@ -181,16 +182,19 @@ function Emulator:registerQA(qa)
   assert(qa.id,"Can't register QA without id")
   self.QA_DIR[qa.id] = qa 
   self.store.DB.devices[qa.id] = qa.device
+  self.stats.qas = self.stats.qas + 1
 end
 
 function Emulator:unregisterQA(id) 
   self.QA_DIR[id] = nil 
   self.store.DB.devices[id] = nil
+  self.stats.qas = self.stats.qas - 1
 end
 
 function Emulator:registerScene(scene) 
   assert(scene.id,"Can't register Scene without id")
   self.SCENE_DIR[scene.id] = scene
+  self.stats.scenes = self.stats.scenes + 1
   --self.store.DB.scenes[scene.id] = scene.device
 end
 

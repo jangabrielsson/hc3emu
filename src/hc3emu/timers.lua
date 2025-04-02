@@ -64,6 +64,7 @@ local function cancelTimerRef(id)
     ref.cancelled = true
     E:DEBUGF('timer_dev',"cancelTimerRef:%s",id)
     ref.timer:cancel()
+    E.stats.timers = E.stats.timers - 1
     pcall(ref.runner.timerCallback,ref.runner,ref,"cancel")
     timers[id] = nil
   end
@@ -101,6 +102,7 @@ local function callback(_,id)
   if ref.runner.lock then ref.runner:unlock() end
   E:setRunner(oldRunner)
   pcall(ref.runner.timerCallback,ref.runner,ref,"expire")
+  E.stats.timers = E.stats.timers - 1
   if not stat then
     ref.runner:_error(fmt("setTimeout:%s",tostring(err)))
   end
@@ -244,6 +246,7 @@ local function startSpeedTimeAux(hours)
         local stat,err = pcall(ref.fun)
         E:setRunner(oldRunner)
         pcall(ref.runner.timerCallback,ref.runner,ref,"expire")
+        E.stats.timers = E.stats.timers - 1
         if not stat then
           t.runner:_error(fmt("setTimeout:%s",tostring(err)))
         end
@@ -289,6 +292,7 @@ function setTimeoutRef(ref)
     setTimeoutStd(ref)
   end
   pcall(ref.runner.timerCallback,ref.runner,ref,"start")
+  E.stats.timers = E.stats.timers + 1
   return ref.id
 end
 

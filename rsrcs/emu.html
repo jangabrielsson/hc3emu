@@ -3,24 +3,24 @@
 <head>
   <title>HC3Emu</title>
   <script>
+    let rsrcPrefix = '';
+    
+    function openDevices() {
+      window.location.href = rsrcPrefix + 'devices.html';
+    }
+
     async function loadEmuInfo() {
       try {
         const response = await fetch('_zinfo.json');
         const data = await response.json();
         const stats = data.stats || {};
-        const rsrcLink = data.rsrcLink || '';
+        rsrcPrefix = data.rsrcLink || '';
         
         // Update stats
         Object.keys(stats).forEach(key => {
           const element = document.getElementById(key);
           if (element) element.textContent = stats[key];
         });
-
-        // Update devices link
-        const devicesLink = document.getElementById('devicesLink');
-        if (devicesLink) {
-          devicesLink.href = rsrcLink + 'devices.html';
-        }
       } catch (error) {
         console.error('Error loading EMU_INFO:', error);
       }
@@ -56,7 +56,7 @@
     </div>
     <hr class="divider">
     <div class="button-container">
-      <a href="devices.html" class="button" id="devicesLink">Devices types</a>
+      <a class="button" onclick="openDevices()">Device types</a>
     </div>
   </div>
 </body>

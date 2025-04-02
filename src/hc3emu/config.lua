@@ -40,7 +40,7 @@ local function setupRsrscsDir()
   local datafile = require("datafile")
   local f,p = datafile.open(path)
   if f then f:close() return p:sub(1,len) end
-  p = package.searchpath(path,"hc3emu")
+  p = package.searchpath("hc3emu",package.path)
   assert(p,"Failed to find "..path)
 
   -- Try to locate scoop installed rock

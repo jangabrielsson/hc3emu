@@ -294,7 +294,8 @@ local function generateEmuPage(html)
           timers = E.stats.timers,
           ports =  table.concat(po,","),
         },
-        quickApps = p
+        quickApps = p,
+        rsrcLink = ("/"..E.rsrcsDir.."/"):gsub("\\","/"),
       }
       local f = io.open(html.."_zinfo.json","w")
       if f then f:write((json.encode(emuInfo))) f:close() end

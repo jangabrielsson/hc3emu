@@ -515,7 +515,7 @@ function Emulator:run(info) -- { fname = "file.lua", src = "source code" }
   print(self.log.colorStr('orange',"HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..self.VERSION))
   local fileType = flags.type == 'scene' and 'Scene' or 'QuickApp'
   
-  if flags.install then self.install.settings() end
+  if flags.install then self.config.settings() end
 
   copas(function() -- This is the first task we create
     self.mobdebug.on()

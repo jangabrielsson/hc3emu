@@ -24,10 +24,14 @@ end
 
 function commands.getLocal(params,skt)
   local path = urldecode(params.path)
-  local f = io.open(path,"r")
-  if f then
-    local content = f:read("*a")
-    f:close()
+  local content = nil
+  if params.type and params.type == 'rsrc' then
+    content = E.config.loadResource(path)
+  else
+    local f = io.open(path,"r")
+    if f then content = f:read("*a") f:close() end
+  end
+  if content then
     copas.send(skt,"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: "..(#content).."\r\n\r\n"..content)
     return true
   else

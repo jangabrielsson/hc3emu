@@ -124,13 +124,26 @@ local function vscode()
 end
 
 local function setupDirectory(flag)
+  local function transVars(page)
+    local function patchVar(var,value)
+      page = page:gsub(var.." = \"(.-)\";",function(ip) 
+        return fmt(var.." = \"%s\";",value)
+      end)
+    end
+    patchVar("EMU_API",fmt("http://%s:%s",E.emuIP,E.emuPort+1))
+    patchVar("USER_HOME",E.homeDir:gsub("\\","/"))
+    patchVar("EMUSUB_DIR",EMUSUB_DIR)
+    return page
+  end
+
   local files = {
-    ['style.css']=EMUSUB_DIR.."/style.css",
-    ['script.js']=EMUSUB_DIR.."/script.js",
-    ['quickapps.html']=EMUSUB_DIR.."/quickapps.html",
-    ['devices.html']=EMUSUB_DIR.."/devices.html",
-    ['editSettings.html']=EMUSUB_DIR.."/editSettings.html",
-    ['emu.html']=EMU_DIR.."/_emu.html",
+    ['style.css']={dest=EMUSUB_DIR.."/style.css"},
+    ['script.js']={dest=EMUSUB_DIR.."/script.js"},
+    ['quickapps.html']={dest=EMUSUB_DIR.."/quickapps.html"},
+    ['devices.html']={dest=EMUSUB_DIR.."/devices.html",trans=transVars},
+    ['editSettings.html']={dest=EMUSUB_DIR.."/editSettings.html"},
+    ['emu.html']={dest=EMU_DIR.."/_emu.html"},
+    ['setup.html']={dest=EMU_DIR.."/_setup.html",trans=transVars},
   }
 
   local a,b = lfs.mkdir(EMU_DIR)
@@ -140,22 +153,10 @@ local function setupDirectory(flag)
 
   for source,dest in pairs(files) do
     local page = loadResource(source)
-    writeFile(dest, page)
-    E:DEBUG("%s installed",dest)
+    if dest.trans then page = dest.trans(page) end
+    writeFile(dest.dest, page)
+    E:DEBUG("%s installed",dest.dest)
   end
-  
-  local page,p = loadResource("setup.html",false)
-  assert(page and p,"Failed to load setup.html")
-  local function patchVar(var,value)
-    page = page:gsub(var.." = \"(.-)\";",function(ip) 
-      return fmt(var.." = \"%s\";",value)
-    end)
-  end
-  patchVar("EMU_API",fmt("http://%s:%s",E.emuIP,E.emuPort+1))
-  patchVar("USER_HOME",E.homeDir:gsub("\\","/"))
-  patchVar("EMUSUB_DIR",EMUSUB_DIR)
-  writeFile(EMU_DIR.."/_setup.html", page)
-  E:DEBUG(EMU_DIR.."/_setup.html installed")
 end
 
 local function clearDirectory()

@@ -42,7 +42,8 @@
     <script>
         async function loadDevices() {
             try {
-                const response = await fetch('devices.json');
+                const EMU_API = "http://127.0.0.1:8265";
+                const response = await fetch(`${EMU_API}/getLocal?path=devices.json&type=rsrc`);
                 const devices = await response.json();
                 displayDevices(devices);
             } catch (error) {

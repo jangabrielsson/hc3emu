@@ -420,12 +420,12 @@ function Emulator:checkConnection(flags)
   self.PASSWORD = flags.password or self.PASSWORD
   self.URL = flags.IP or self.URL
   self.PIN = flags.pin or self.PIN
+  if self.URL and self.URL:sub(-1)~="/" then self.URL = self.URL.."/" end
   if not self.DBG.offline then -- Early check if we are connected.
     if not self.URL then 
       self:ERRORF("Missing hc3emu.URL - Please set url to HC3 in config file")
       os.exit(1)
     end
-    if self.URL:sub(-1)~="/" then self.URL = self.URL.."/" end
     if not self.URL:match("https?://%w+%.%w+%.%w+%.%w+/") then
       self:ERRORF("Invalid format, hc3emu.URL - Must be http(s)://<ip>/")
       os.exit(1)

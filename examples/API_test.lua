@@ -8,7 +8,8 @@ if require and not QuickApp then require("hc3emu") end
 --%%proxy=TestProxy
 --%%debug=info:false,api:true,http:true
 --%%dark=true
---%%offline=true
+--% %offline=true
+--%%webui="install"
 
 local function printf(...) print(string.format(...)) end
 local function setLocal(flag) fibaro.setOffline(flag) end
@@ -41,7 +42,7 @@ local function test(testf,str,method,path,...)
   if c1==c2 and testf(r1,r2) then 
     printf("OK %s %s",method,str) 
   else 
-    printf("FAILED %s %s",method,str)
+    fibaro.error(__TAG,string.format("FAILED %s %s",method,str))
     printf("  %s %s",tostring(c1),tostring(c2))
     r1 = type(r1)=="table" and json.encodeFast(r1) or tostring(r1)
     r2 = type(r2)=="table" and json.encodeFast(r2) or tostring(r2)
@@ -58,6 +59,7 @@ local function testType2(str,method,path,...)
 end
 
 function QuickApp:onInit()
+  print(self.name,self.id)
   testRes2("GlobalVariable undef","get","/globalVariables/shjdgfhgs")
   testRes2("GlobalVariable undef","put","/globalVariables/shjdgfhgs",{value='a'})
   testRes2("GlobalVariable","post","/globalVariables",{name="hc3emuvar",value='a'})

@@ -59,7 +59,7 @@ local function setupRsrscsDir()
   end
 end
 
-local function rsrcPath(file,open)
+local function rsrcPath(file,open) -- Like datafile's open...
   assert(E.rsrcsDir,"rsrcsDir not set")
   local p = findFile(E.rsrcsDir,file)
   if p then
@@ -156,6 +156,16 @@ local function setupDirectory(flag)
   patchVar("EMUSUB_DIR",EMUSUB_DIR)
   writeFile(EMU_DIR.."/_setup.html", page)
   E:DEBUG(EMU_DIR.."/_setup.html installed")
+end
+
+local function clearDirectory()
+  for file in lfs.dir(EMU_DIR) do
+    if file ~= "." and file ~= ".." and file:sub(1,1) ~= "_" then
+      if file:match("%.html") then
+        os.remove(EMU_DIR.."/"..file)
+      end
+    end
+  end
 end
 
 local function createconfig(file,templ)
@@ -259,11 +269,13 @@ exports.EMU_DIR = EMU_DIR
 exports.EMUSUB_DIR = EMUSUB_DIR
 exports.vscode = vscode
 exports.setupDirectory = setupDirectory
+exports.clearDirectory = clearDirectory
 exports.createProj = createProj
 exports.createGlobal = createGlobal
 exports.getSettings = getSettings
 exports.saveSettings = saveSettings
 exports.setupRsrscsDir = setupRsrscsDir
 exports.rsrcPath = rsrcPath
+exports.loadResource = loadResource
 
 return exports

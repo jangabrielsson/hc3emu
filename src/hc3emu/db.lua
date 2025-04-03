@@ -57,7 +57,7 @@ local function init()
   end
   
   do
-    local std = E.util.loadRsrcJson("stdStructs.json")
+    local std = E.config.loadResource("stdStructs.json",true)
     if not store.settings.info then store.settings.info = std.info end
     if not store.home then store.home = std.home end
     if not store.settings.location then store.settings.location = std.location end

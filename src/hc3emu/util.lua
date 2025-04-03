@@ -450,25 +450,6 @@ local function cancelThreads(runner)
   end
 end
 
-local function loadRsrcJson(path)
-  local f,p = E.config.rsrcPath(path,"r")
-  assert(f,"Failed to open file:"..path)
-  local data = f:read("*a")
-  f:close()
-  return json.decode(data)
-end
-
-local function copyRsrcFile(file,to)
-  local f = E.config.rsrcPath(file,"r")
-  assert(f,"Failed to open file:"..file)
-  local content = f:read("*a")
-  f:close()
-  local f = io.open(to,"w")
-  assert(f,"Failed to open file:"..to)
-  f:write(content)
-  f:close()
-end
-
 exports._print = _print
 exports.pcall2 = pcall2
 exports.json = json
@@ -476,7 +457,6 @@ exports.urlencode = urlencode
 exports.__assert_type = __assert_type
 exports.readFile = readFile
 exports.writefile = writeFile
-exports.loadRsrcJson = loadRsrcJson
 exports.sunCalc = sunCalc
 exports.EVENT = EVENT
 exports.post = post

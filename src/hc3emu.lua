@@ -42,8 +42,7 @@ if src:match("%-%-%%%%nodebug=true") then DBG.nodebug = true end
 if src:match("%-%-%%%%shellscript=true") then DBG.nodebug = true DBG.shellscript=true end
 if src:match("%-%-%%%%silent=true") then DBG.silent = true end
 
-local Emulator = require("hc3emu.emu") -- This is the main emulator that we load and that will emulate the main file for us.
-local emulator = Emulator()
+local Emulator = require("hc3emu.emu") -- This is the emulator that we load and that will emulate the main file for us.
 local info = {fname=mainfile,src=src}
-emulator:init(DBG,info)
+local emulator = Emulator(DBG,info)
 emulator:run(info)

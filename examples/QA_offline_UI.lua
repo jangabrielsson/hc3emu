@@ -6,12 +6,10 @@ if require and not QuickApp then require("hc3emu") end
 
 --%%name=Offline2QA
 --%%type=com.fibaro.multilevelSwitch
---%%dark=true
---%%color=true
 --%%time=12/31 10:00:12
 --%%state=state.db
 --%%project=5566
---%%offline=true
+--% %offline=true
 --%%webui="install"
 --%%debug=info:true,api2:true,onAction:true,onUIEvent:true
 --%%var=debug:"main,wsc,child,color,battery,speaker,send,late"

@@ -58,7 +58,7 @@ local dateMark = function(str) return os.date("[%d.%m.%Y][%H:%M:%S][",logTime())
   {type='midnight'}
 --]]
 Emulator = Emulator -- fool linting...
-function Emulator:__init()
+function Emulator:__init(debug,info)
   self.VERSION = VERSION
   Emulator.emulator = self
   self.cfgFileName = "hc3emu.json"   -- Config file in current directory
@@ -90,6 +90,7 @@ function Emulator:__init()
   self.exports = {} -- functions to export to QA
   self.RunnerClass = Runner
   
+  -- Determine the IP address of the emulator
   local someRandomIP = "192.168.1.122" --This address you make up
   local someRandomPort = "3102" --This port you make up
   local mySocket = socket.udp() --Create a UDP socket like normal
@@ -112,9 +113,7 @@ function Emulator:__init()
   self.lua = {require = require, dofile = dofile, loadfile = loadfile, type = type, io = io, print = _print, package = package } -- used from fibaro.hc3emu.lua.x 
   
   json,urlencode = self.json,self.util.urlencode
-end
 
-function Emulator:init(debug,info) 
   self.silent = debug.silent
   self.nodebug = debug.nodebug
   self.DBG = debug
@@ -132,11 +131,18 @@ function Emulator:init(debug,info)
     self.mobdebug.start('127.0.0.1', 8818)
   end
 
+  -- The QA/Scene we invoke the emulator with is the ""main" file
+  -- and will set the flags fo some overal settings self.DBG (offline, etc)
   self:parseDirectives(info)
-
+  local flags = info.directives
   for _,globalFlag in ipairs({'offline','state','logColor','stateReadOnly','dark','longitude','latitude','lock'}) do
-    if info.directives[globalFlag]~=nil then self.DBG[globalFlag] = info.directives[globalFlag] end
+    if flags[globalFlag]~=nil then self.DBG[globalFlag] = flags[globalFlag] end
   end
+
+  self.rsrcsDir = self.config.setupRsrscsDir()
+  assert(self.rsrcsDir,"Failed to find rsrcs directory")
+  self.config.setupDirectory(info.directives.webui)
+  self.config.clearDirectory()
 
   local function loadModule(name)
     self:DEBUGF('modules',"Loading module %s",name)
@@ -149,10 +155,6 @@ function Emulator:init(debug,info)
   self.timers = loadModule("hc3emu.timers") 
   logTime = self.timers.userTime
   userDate = self.timers.userDate
-  self.config = loadModule("hc3emu.config") 
-  self.rsrcsDir = self.config.setupRsrscsDir()
-  assert(self.rsrcsDir,"Failed to find rsrcs directory")
-  self.config.setupDirectory(info.directives.webui)
   self.store = loadModule("hc3emu.db")                   -- Database for storing data
   self.route = loadModule("hc3emu.route")                -- Route object
   self.emuroute = loadModule("hc3emu.emuroute")          -- Emulator API routes
@@ -413,6 +415,39 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
   info.files = flags.files
 end
 
+function Emulator:checkConnection(flags)
+  self.USER = flags.user or self.USER -- Get credentials
+  self.PASSWORD = flags.password or self.PASSWORD
+  self.URL = flags.IP or self.URL
+  self.PIN = flags.pin or self.PIN
+  if not self.DBG.offline then -- Early check if we are connected.
+    if not self.URL then 
+      self:ERRORF("Missing hc3emu.URL - Please set url to HC3 in config file")
+      os.exit(1)
+    end
+    if self.URL:sub(-1)~="/" then self.URL = self.URL.."/" end
+    if not self.URL:match("https?://%w+%.%w+%.%w+%.%w+/") then
+      self:ERRORF("Invalid format, hc3emu.URL - Must be http(s)://<ip>/")
+      os.exit(1)
+    end
+    if not self.USER then 
+      self:ERRORF("Missing hc3emu.USER - Please set user to HC3 in config file")
+      os.exit(1)
+    end
+    if not self.PASSWORD then 
+      self:ERRORF("Missing hc3emu.PASSWORD - Please set password to HC3 in config file")
+      os.exit(1)
+    end
+    local a,b,c = self:HC3Call("GET","/settings/info")
+    if not a then
+      self:ERRORF("Failed to connect to HC3, please check your config file")
+      self:ERRORF("Error: %s",tostring(b))
+      self:ERRORF("Please check your network connection and the HC3 IP address")
+      os.exit(1)
+    end
+  end
+end
+
 function Emulator:httpRequest(method,url,headers,data,timeout,user,pwd)
   local resp, req = {}, {}
   req.url = url
@@ -500,19 +535,9 @@ end
 
 function Emulator:run(info) -- { fname = "file.lua", src = "source code" } 
   self:DEBUGF('info',"Main QA file %s",info.fname)
-  self.mainFile = info.fname
   info.src = info.src:gsub("#!/usr/bin/env","--#!/usr/bin/env") 
   info.env = {}
-  if not info.directives then self:parseDirectives(info) end
   local flags = info.directives
-  for _,globalFlag in ipairs({'offline','state','logColor','stateReadOnly','dark','longitude','latitude','lock'}) do
-    if flags[globalFlag]~=nil then self.DBG[globalFlag] = flags[globalFlag] end
-  end
-  
-  self.USER = flags.user or self.USER            -- Get credentials (again), if changed
-  self.PASSWORD = flags.password or self.PASSWORD
-  self.URL = flags.IP or self.URL
-  self.PIN = flags.pin or self.PIN
   
   print(self.log.colorStr('orange',"HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..self.VERSION))
   local fileType = flags.type == 'scene' and 'Scene' or 'QuickApp'
@@ -520,6 +545,7 @@ function Emulator:run(info) -- { fname = "file.lua", src = "source code" }
   copas(function() -- This is the first task we create
     self.mobdebug.on()
     self:setRunner(self.systemRunner) -- Set environment for this coroutine 
+    self:checkConnection(flags) -- If online, check connection to HC3 or bail-out
     self.timers.midnightLoop() -- Setup loop for midnight events, used to ex. update sunrise/sunset hour
     local runner = fileType == 'Scene' and self.scene.Scene(info) or self.qa.QA(info,nil)
     self:post({type='emulator_started'})
@@ -560,7 +586,6 @@ end
 
 SystemRunner = SystemRunner
 class 'SystemRunner'(Runner)
-
 
 function SystemRunner:__init()
   Runner.__init(self,"System")

@@ -17,54 +17,52 @@ Runner = Runner
 class 'QA'(Runner)
 local QA = _G['QA']; _G['QA'] = nil
 
-function QA:__init(info,noRun)
+function QA:__init(info,noRun) -- create QA struct, 
   Runner.__init(self,"QA")
-  self.info = info
+  self.fname = info.fname
+  self.src = info.src
+  self.files = info.files
+  if info.directives == nil then E:parseDirectives(info) end
+  self.directives = info.directives
+  self.dbg = info.directives.debug or {}
+  self.env = info.env
+
   self.propWatches = {}
-  self:createQAstruct(info,noRun)
+  self.timerCount = 0
   self._lock = E:newLock()
-  return self
+
+  local flags = info.directives
+
+  local uiCallbacks,viewLayout,uiView = self:setupUI(flags)
+
+  local deviceStruct =self:setupStruct(flags,uiCallbacks,viewLayout,uiView)
+  
+  if flags.offline and flags.proxy then
+    flags.proxy = nil
+    E:DEBUG("Offline mode, proxy directive ignored")
+  end
+  
+  if flags.proxy and not noRun then 
+    deviceStruct = self:setupProxy(flags,info,deviceStruct) 
+  end
+  
+  self.name = deviceStruct.name
+  self.device = deviceStruct
+  self.isProxy = deviceStruct.isProxy
+  self.id = deviceStruct.id -- Now we have a deviceId
+  
+  E:registerQA(self)
+  
+  E:post({type='quickApp_registered',id=self.id})
 end
 
 function QA:lock() self._lock:get() end
 function QA:unlock() self._lock:release() end
+function QA:nextId() return E:getNextDeviceId() end
 
-function QA:createQAstruct(info,noRun) -- noRun -> Ignore proxy
-  if info.directives == nil then E:parseDirectives(info) end
-  self.fname = info.fname
-  self.src = info.src
-  self.files = info.files
-  self.directives = info.directives
-  self.dbg = info.directives.debug or {}
-  self.env = info.env
-  local flags = info.directives
-  local env = info.env
-  local qvs = json.util.InitArray(flags.var or {})
-  self.timerCount = 0
-  
-  local uiCallbacks,viewLayout,uiView
-  if flags.u and #flags.u > 0 then
-    uiCallbacks,viewLayout,uiView = E.ui.compileUI(flags.u)
-  else
-    viewLayout = json.decode([[{
-        "$jason": {
-          "body": {
-            "header": {
-              "style": { "height": "0" },
-              "title": "quickApp_device_57"
-            },
-            "sections": { "items": [] }
-          },
-          "head": { "title": "quickApp_device_57" }
-        }
-      }
-  ]])
-    viewLayout['$jason']['body']['sections']['items'] = json.util.InitArray({})
-    uiView = json.util.InitArray({})
-    uiCallbacks = json.util.InitArray({})
-  end
-  
+function QA:setupStruct(flags,uiCallbacks,viewLayout,uiView)
   if flags.id == nil then flags.id = self:nextId() end
+  local qvs = json.util.InitArray(flags.var or {})
   ---@diagnostic disable-next-line: undefined-field
   local ifs = table.copy(flags.interfaces or {})
   ---@diagnostic disable-next-line: undefined-field
@@ -94,57 +92,67 @@ function QA:createQAstruct(info,noRun) -- noRun -> Ignore proxy
     model="model",uid="quickAppUuid",manufacturer="manufacturer",
     role="deviceRole",description="userDescription"
   }) do deviceStruct.properties[p] = flags[k] end
-  info.env.__TAG = (deviceStruct.name..(deviceStruct.id or "")):upper()
-  -- Find or create proxy if specified
-  if flags.offline and flags.proxy then
-    flags.proxy = nil
-    E:DEBUG("Offline mode, proxy directive ignored")
-  end
-  
-  if flags.proxy and not noRun then
-    local pname = tostring(flags.proxy)
-    local pop = pname:sub(1,1)
-    if pop == '-' or pop == '+' then -- delete proxy if name is preceeded with "-" or "+"
-      pname = pname:sub(2)
-      flags.proxy = pname
-      local qa = E:apiget("/devices?name="..urlencode(pname))
-      assert(type(qa)=='table')
-      for _,d in ipairs(qa) do
-        E:apidelete("/devices/"..d.id)
-        E:DEBUGF('info',"Proxy device %s deleted",d.id)
-      end
-      if pop== '-' then flags.proxy = false end -- If '+' go on and generate a new Proxy
-    end
-    if flags.proxy then
-      deviceStruct = E.proxy.getProxy(flags.proxy,deviceStruct) -- Get deviceStruct from HC3 proxy
-      assert(deviceStruct, "Can't get proxy device")
-      local id,name = deviceStruct.id,deviceStruct.name
-      info.env.__TAG = (name..(id or "")):upper()
-      E:apipost("/plugins/updateProperty",{deviceId=id,propertyName='quickAppVariables',value=qvs})
-      if flags.logUI then E.ui.logUI(id) end
-      E.proxy.startServer(id)
-      E:apipost("/devices/"..id.."/action/CONNECT",{args={{ip=E.emuIP,port=E.emuPort}}})
-      info.isProxy = true
-    end
-  end
+  return deviceStruct
+end
 
-  -- info.device = deviceStruct
-  -- info.id = deviceStruct.id
-  env.plugin = env.plugin or {}
-  env.plugin._dev = deviceStruct
-  env.plugin.mainDeviceId = deviceStruct.id -- Now we have a deviceId
-  self.name = deviceStruct.name
-  self.device = deviceStruct
-  self.isProxy = deviceStruct.isProxy
-  self.id = deviceStruct.id
-  E:registerQA(self)
+function QA:setupProxy(flags,info,deviceStruct)
+  -- Find or create proxy
+  local pname = tostring(flags.proxy)
+  local pop = pname:sub(1,1)
+  if pop == '-' or pop == '+' then -- delete proxy if name is preceeded with "-" or "+"
+    pname = pname:sub(2)
+    flags.proxy = pname
+    local qa = E:apiget("/devices?name="..urlencode(pname))
+    assert(type(qa)=='table')
+    for _,d in ipairs(qa) do
+      E:apidelete("/devices/"..d.id)
+      E:DEBUGF('info',"Proxy device %s deleted",d.id)
+    end
+    if pop== '-' then flags.proxy = false end -- If '+' go on and generate a new Proxy
+  end
+  if flags.proxy then
+    deviceStruct = E.proxy.getProxy(flags.proxy,deviceStruct) -- Get deviceStruct from HC3 proxy
+    assert(deviceStruct, "Can't get proxy device")
+    local id,name = deviceStruct.id,deviceStruct.name
+    info.env.__TAG = (name..(id or "")):upper()
+    E:apipost("/plugins/updateProperty",{
+      deviceId=id,
+      propertyName='quickAppVariables',
+      value=deviceStruct.properties.quickAppVariables
+    })
+    if flags.logUI then E.ui.logUI(id) end
+    E.proxy.startServer(id)
+    E:apipost("/devices/"..id.."/action/CONNECT",{args={{ip=E.emuIP,port=E.emuPort}}})
+    info.isProxy = true
+  end
+  return deviceStruct
+end
 
+function QA:setupUI(flags)
+  local uiCallbacks,viewLayout,uiView
+  if flags.u and #flags.u > 0 then
+    uiCallbacks,viewLayout,uiView = E.ui.compileUI(flags.u)
+  else
+    viewLayout = json.decode([[{
+        "$jason": {
+          "body": {
+            "header": {
+              "style": { "height": "0" },
+              "title": "quickApp_device_57"
+            },
+            "sections": { "items": [] }
+          },
+          "head": { "title": "quickApp_device_57" }
+        }
+      }
+  ]])
+    viewLayout['$jason']['body']['sections']['items'] = json.util.InitArray({})
+    uiView = json.util.InitArray({})
+    uiCallbacks = json.util.InitArray({})
+  end
   if flags.u == nil then flags.u = {} end
   self.UI = flags.u
-
-  E:post({type='quickApp_registered',id=self.id})
-
-  return self
+  return uiCallbacks,viewLayout,uiView
 end
 
 function QA:loadQAFiles()
@@ -156,7 +164,7 @@ function QA:loadQAFiles()
     E.timers.setTime(t) 
   end
   local userTime,userDate = E.timers.userTime,E.timers.userDate
-
+  
   local env = self.env
   local os2 = { time = userTime, clock = os.clock, difftime = os.difftime, date = userDate, exit = os.exit, remove = os.remove, require = require }
   local fibaro = { hc3emu = E, HC3EMU_VERSION = E.VERSION, flags = flags, DBG = E.DBG }
@@ -208,9 +216,7 @@ function QA:loadQAFiles()
   end
 end
 
-function QA:nextId() return E:getNextDeviceId() end
-
-function QA:saveProject()
+function QA:saveProject() -- Save project to .project file
   local r = {}
   for _,f in ipairs(self.files) do
     r[f.name] = f.fname
@@ -222,15 +228,23 @@ function QA:saveProject()
   f:close()
 end
 
-function QA:run() -- run QA:  create QA struct, load QA files. Runs in a copas task.
+function QA:setupEnv()
+  local env,flags = self.env,self.directives or {}
+  env.__debugFlags = flags.debug or {}
+  env.__TAG = (self.name..(self.id or "")):upper()
+  env.plugin = env.plugin or {}
+  env.plugin._dev = self.device
+  env.plugin.mainDeviceId = self.id 
+end
+
+function QA:run() -- run QA:  load QA files. Runs in a copas task.
   E.mobdebug.on()
-  local env = self.env
+  local env,flags = self.env,self.directives or {}
   E:addThread(self,function()
     E:setRunner(self)
-    local flags = self.directives or {}
-    env.__debugFlags = flags.debug or {}
     local firstLine,onInitLine = E.tools.findFirstLine(self.src)
     if flags.breakOnLoad and firstLine then E.mobdebug.setbreakpoint(self.fname,firstLine) end
+    self:setupEnv()
     self:loadQAFiles()
     if flags.save then E.tools.saveQA(self.id) end
     if flags.project then self:saveProject() end
@@ -405,7 +419,10 @@ function QA:timerCallback(ref,what)
   --print("Timer count:",self.timerCount,ref.id,what,self.name)
   if self.timerCount == 0 then
     E:post({type='quickApp_finished',id=self.id})
-    if self.flags.exit then os.exit() end
+    if self.flags.exit then
+      E.webserver.updateEmuPage()
+      os.exit() 
+    end
   end
 end
 
@@ -417,12 +434,13 @@ class 'QAChild' -- Just a placeholder for child QA, NOT a runner, only mother QA
 local QAChild = _G['QAChild']; _G['QAChild'] = nil
 
 function QAChild:__init(info)
-  self.info = info
   self.id = info.id
   self.env = info.env
   self.device = info.device
   self.name = info.device.name or ("Child_"..self.id)
-  self.UI = {}
+  if self.device.properties.uiView then
+    self.UI = E.ui.uiView2UI(self.device.properties.uiView,self.device.properties.uiCallbacks or {})
+  else self.UI = {} end
   local parentQA = E:getQA(self.device.parentId)
   self.isProxy = parentQA.isProxy
   self.flags = parentQA.flags

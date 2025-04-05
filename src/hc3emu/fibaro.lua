@@ -1,3 +1,4 @@
+---@diagnostic disable-next-line: undefined-field
 local E = fibaro.hc3emu
 
 

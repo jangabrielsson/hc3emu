@@ -13,6 +13,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%offline=true
 --%%dark=true
 --%%state=state.db
+--%%webui=true
 --%%debug=info:true,http:true,onAction:true,onUIEvent:true,proxyAPI:true
 --%%var=debug:"main,wsc,child,color,battery,speaker,send,late"
 --%%file=$hc3emu.qwikchild:QC
@@ -47,19 +48,19 @@ local children = {
       {slider='s1',text='S1',onChanged='mySlider'}
     },
   },
-  bar22 = {
-    name = "Bar2",
-    type = "com.fibaro.multilevelSwitch",
-    className = "MyChild"
-  },
-  bar3 = {
-    name = "Bar3",
-    type = "com.fibaro.multilevelSwitch",
-    className = "MyChild"
-  },
+  -- bar22 = {
+  --   name = "Bar2",
+  --   type = "com.fibaro.multilevelSwitch",
+  --   className = "MyChild"
+  -- },
+  -- bar3 = {
+  --   name = "Bar3",
+  --   type = "com.fibaro.multilevelSwitch",
+  --   className = "MyChild"
+  -- },
 }
 function QuickApp:onInit()
   self:initChildren(children)
-  fibaro.call(self.children.bar3.id,"childFun",5,7)
+  --fibaro.call(self.children.bar3.id,"childFun",5,7)
 end
 

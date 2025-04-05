@@ -280,29 +280,33 @@ function E.EVENT.quickApp_updateView(ev)
   end
 end
 
+local function updateEmuPage()
+  local p = {} 
+  for _,e in pairs(pages) do p[#p+1]= e end
+  table.sort(p,function(a,b) return a.name < b.name end)
+  local po = {} 
+  for p,_ in pairs(E.stats.ports) do po[#po+1] = tostring(p) end
+  local emuInfo = {
+    stats = {
+      version = E.VERSION,
+      memory = fmt("%.2f KB", collectgarbage("count")),
+      numqas = E.stats.qas,
+      timers = E.stats.timers,
+      ports =  table.concat(po,","),
+    },
+    quickApps = p,
+    rsrcLink = ("/"..E.rsrcsDir.."/"):gsub("\\","/"),
+  }
+  local f = io.open(E.config.EMUSUB_DIR.."/info.json","w")
+  if f then f:write((json.encode(emuInfo))) f:close() end
+end
+    
 local started = false
 local function generateEmuPage()
   if started then return else started = true end
   E:addThread(E.systemRunner,function()
     while true do
-      local p = {} 
-      for _,e in pairs(pages) do p[#p+1]= e end
-      table.sort(p,function(a,b) return a.name < b.name end)
-      local po = {} 
-      for p,_ in pairs(E.stats.ports) do po[#po+1] = tostring(p) end
-      local emuInfo = {
-        stats = {
-          version = E.VERSION,
-          memory = fmt("%.2f KB", collectgarbage("count")),
-          numqas = E.stats.qas,
-          timers = E.stats.timers,
-          ports =  table.concat(po,","),
-        },
-        quickApps = p,
-        rsrcLink = ("/"..E.rsrcsDir.."/"):gsub("\\","/"),
-      }
-      local f = io.open(E.config.EMUSUB_DIR.."/info.json","w")
-      if f then f:write((json.encode(emuInfo))) f:close() end
+      updateEmuPage()
       copas.pause(2.0)
     end
   end)
@@ -311,6 +315,7 @@ end
 exports.startServer = startServer
 exports.generateUIpage = generateUIpage
 exports.generateEmuPage = generateEmuPage
+exports.updateEmuPage = updateEmuPage
 exports.updateView = updateView
 exports.init = init
 

@@ -205,7 +205,7 @@ local function dateTest(dateStr0)
       else res= type(id) == 'number' and id or days[id] or months[id] or tonumber(id) end
       _assert(res,"Bad date specifier '%s'",id) return res
     end
-    local step = 1
+    local step = tonumber(1)
     local w,m = w1[1],w1[2]
     local start,stop = w:match("(%w+)%p(%w+)")
     if (start == nil) then return resolve(w) end
@@ -214,7 +214,7 @@ local function dateTest(dateStr0)
     if w:find("/") then
       if not w:find("-") then -- 10/2
         step=stop; stop = m.max
-      else step=(w:match("/(%d+)")) end
+      else step=tonumber((w:match("/(%d+)"))) end
     end
     step = tonumber(step)
     _assert(start>=m.min and start<=m.max and stop>=m.min and stop<=m.max,"illegal date intervall")
@@ -229,6 +229,7 @@ local function dateTest(dateStr0)
 
   local function parseDateStr(dateStr) --,last)
     local seq = string.split(dateStr," ")   -- min,hour,day,month,wday
+    assert(seq,"Bad date string '%s'",dateStr)
     local lim = {{min=0,max=59},{min=0,max=23},{min=1,max=31},{min=1,max=12},{min=1,max=7},{min=2000,max=3000}}
     for i=1,6 do if seq[i]=='*' or seq[i]==nil then seq[i]=tostring(lim[i].min).."-"..lim[i].max end end
     seq = map(function(w) return string.split(w,",") end, seq)   -- split sequences "3,4"

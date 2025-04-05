@@ -123,6 +123,7 @@ function QuickApp:testBasic()
   end,0)
 end
 
+MyChild = MyChild
 class 'MyChild'(QuickAppChild)
 function MyChild:__init(dev) QuickAppChild.__init(self,dev) end
 

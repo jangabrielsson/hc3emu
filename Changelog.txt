@@ -9,4 +9,6 @@
 -- initial support for vscode "live pages" UI, should work on other platforms too...
 1.0.58
 -- More UI support. Custom emedded UIs
+1.0.75
+-- New config system, emu folder introduction
 

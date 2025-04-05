@@ -1,12 +1,21 @@
 {
 
-  "Lua.diagnostics.globals": [
+"Lua.diagnostics.disable": [
+    "duplicate-set-field",
+    "param-type-mismatch"
+],
+"Lua.editor.defaultFormatter": "JohnnyMorganz.stylua",
+"Lua.workspace.library": [
+    "/Users/jangabrielsson/.vscode/extensions/gsonsoft-development.hc3emu-heler-0.0.5/hc3emu-library"
+],
+"Lua.hint.enable": true,
+"Lua.workspace.checkThirdParty": "Disable",
+"Lua.diagnostics.globals": [
     "QuickApp",
     "fibaro",
     "api",
     "net",
     "json",
-    "___id",
     "setTimeout",
     "clearTimeout",
     "setInterval",
@@ -37,9 +46,6 @@
     "__setTimeout",
     "__clearTimeout",
     "__fibaroUseAsyncHandler",
-    "QuickerAppChild",
-    "MyChild",
-    "UDPServer",
     "QwikAppChild",
     "mqtt",
     "sourceTrigger",
@@ -51,19 +57,9 @@
     "_print",
     "args",
     "__emu_setTimeout",
+    "__emu_speed",
     "__emu_clearTimeout",
-    "__emu_setInterval",
     "__emu_clearInterval",
-    "__emu_speed"
-],
-"Lua.diagnostics.disable": [
-    "duplicate-set-field",
-    "param-type-mismatch"
-],
-"Lua.editor.defaultFormatter": "JohnnyMorganz.stylua",
-"Lua.workspace.library": [
-    ".vscode/emufiles/lspaddon/library"
-],
-"Lua.hint.enable": true,
-"Lua.workspace.checkThirdParty": "Disable"
+    "__emu_setInterval"
+]
 }

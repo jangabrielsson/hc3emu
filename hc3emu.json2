@@ -1,0 +1,248 @@
+[
+ {
+  "name":"user",  
+  "value":"<username>",  
+  "type":"string",  
+  "description":"Username for HC3 access"  
+ }, 
+ {
+  "name":"password",  
+  "value":"<password>",  
+  "type":"string",  
+  "description":"Password for HC3 access"  
+ }, 
+ {
+  "name":"IP",  
+  "value":"<http://192.168.1.55>",  
+  "type":"string",  
+  "description":"IP for HC3 access"  
+ }, 
+ {
+  "name":"pin",  
+  "value":"<0000>",  
+  "type":"string",  
+  "description":"pin for access controoled HC3 requests"  
+ }, 
+ {
+  "name":"name",  
+  "value":"MyQA",  
+  "type":"string",  
+  "description":"Name of the QuickApp"  
+ }, 
+ {
+  "name":"type",  
+  "value":"com.fibaro.binarySwitch",  
+  "type":"string",  
+  "description":"Device type of the QuickApp"  
+ }, 
+ {
+  "name":"id",  
+  "value":null,  
+  "type":"number",  
+  "description":"Device ID of the QuickApp, ex 5001"  
+ }, 
+ {
+  "name":"project",  
+  "value":null,  
+  "type":"number",  
+  "description":"Project ID, DeviceId of QA on HC3, ex 1002"  
+ }, 
+ {
+  "name":"var",  
+  "value":"<var>:<value>,<var>:<value>",  
+  "type":"string",  
+  "description":"Comma separated list of QuickApp variables, ex, foo:42,bar:true"  
+ }, 
+ {
+  "name":"conceal",  
+  "value":"<var>:<value>,<var>:<value>",  
+  "type":"string",  
+  "description":"QuickApp variables value substitutions when saving"  
+ }, 
+ {
+  "name":"file",  
+  "value":"<path>;<name>,<path>;<name>",  
+  "type":"string",  
+  "description":"Files associated with the QuickApp"  
+ }, 
+ {
+  "name":"debug",  
+  "value":"<var>:<value>,<var>:<value>",  
+  "type":"string",  
+  "description":"Debug variables definitions"  
+ }, 
+ {
+  "name":"interfaces",  
+  "value":"<interface1>,<interface2>",  
+  "type":"string",  
+  "description":"Interfaces used by the QuickApp"  
+ }, 
+ {
+  "name":"uid",  
+  "value":null,  
+  "type":"string",  
+  "description":"Unique identifier"  
+ }, 
+ {
+  "name":"manufacturer",  
+  "value":"acme@acme.org",  
+  "type":"string",  
+  "description":"Manufacturer email"  
+ }, 
+ {
+  "name":"model",  
+  "value":null,  
+  "type":"string",  
+  "description":"Model of the QuickApp"  
+ }, 
+ {
+  "name":"role",  
+  "value":null,  
+  "type":"string",  
+  "description":"Role of the QuickApp"  
+ }, 
+ {
+  "name":"description",  
+  "value":"<description>",  
+  "type":"string",  
+  "description":"Description of the QuickApp"  
+ }, 
+ {
+  "name":"save",  
+  "value":"<filename.fqa>",  
+  "type":"string",  
+  "description":"Save QA loccally as .fqa on each run"  
+ }, 
+ {
+  "name":"proxy",  
+  "value":"<QA name>",  
+  "type":"string",  
+  "description":"Enable proxy, name of proxy on HC3"  
+ }, 
+ {
+  "name":"dark",  
+  "value":true,  
+  "type":"boolean",  
+  "description":"Dark mode setting"  
+ }, 
+ {
+  "name":"logColor",  
+  "value":true,  
+  "type":"boolean",  
+  "description":"Log using colors"  
+ }, 
+ {
+  "name":"speed",  
+  "value":null,  
+  "type":"number",  
+  "description":"Speed setting, hours to speed up, ex 24"  
+ }, 
+ {
+  "name":"emuPort",  
+  "value":null,  
+  "type":"number",  
+  "description":"Emulator port, default 8264"  
+ }, 
+ {
+  "name":"logUI",  
+  "value":false,  
+  "type":"boolean",  
+  "description":"Log UI setting from proxy on each run"  
+ }, 
+ {
+  "name":"breakOnLoad",  
+  "value":false,  
+  "type":"boolean",  
+  "description":"Break on load of file"  
+ }, 
+ {
+  "name":"breakOnInit",  
+  "value":false,  
+  "type":"boolean",  
+  "description":"Break on QuickApp:onInit()"  
+ }, 
+ {
+  "name":"offline",  
+  "value":false,  
+  "type":"boolean",  
+  "description":"Offline mode setting"  
+ }, 
+ {
+  "name":"exit",  
+  "value":false,  
+  "type":"boolean",  
+  "description":"Exit setting"  
+ }, 
+ {
+  "name":"exit0",  
+  "value":false,  
+  "type":"boolean",  
+  "description":"Exit0 setting"  
+ }, 
+ {
+  "name":"state",  
+  "value":"<filename>",  
+  "type":"string",  
+  "description":"State file, saves state between runs"  
+ }, 
+ {
+  "name":"nodebug",  
+  "value":false,  
+  "type":"boolean",  
+  "description":"DIsable debugger"  
+ }, 
+ {
+  "name":"silent",  
+  "value":false,  
+  "type":"boolean",  
+  "description":"Silent mode"  
+ }, 
+ {
+  "name":"shellscript",  
+  "value":false,  
+  "type":"boolean",  
+  "description":"Shell script QA"  
+ }, 
+ {
+  "name":"tempDir",  
+  "value":"/tmp",  
+  "type":"string",  
+  "description":"Temporary directory"  
+ }, 
+ {
+  "name":"stateReadOnly",  
+  "value":false,  
+  "type":"boolean",  
+  "description":"State read-only setting"  
+ }, 
+ {
+  "name":"lock",  
+  "value":false,  
+  "type":"boolean",  
+  "description":"Lock setting"  
+ }, 
+ {
+  "name":"latitude",  
+  "value":null,  
+  "type":"number",  
+  "description":"Latitude setting, ex. 57.956345349"  
+ }, 
+ {
+  "name":"longitude",  
+  "value":null,  
+  "type":"number",  
+  "description":"Longitude setting, ex. 18.46764526"  
+ }, 
+ {
+  "name":"startTime",  
+  "value":"<2024/11/30 12:00:00>",  
+  "type":"string",  
+  "description":"Start time emulator run"  
+ }, 
+ {
+  "name":"html",  
+  "value":"<path>",  
+  "type":"string",  
+  "description":"Enable HTML page generation"  
+ } 
+]

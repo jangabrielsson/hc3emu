@@ -341,6 +341,7 @@ do
     local function parseDateStr(dateStr) --,last)
       local map = table.map
       local seq = string.split(dateStr," ")   -- min,hour,day,month,wday
+      assert(seq,"Bad date string: "..dateStr)
       local lim = {{min=0,max=59},{min=0,max=23},{min=1,max=31},{min=1,max=12},{min=1,max=7},{min=2000,max=3000}}
       for i=1,6 do if seq[i]=='*' or seq[i]==nil then seq[i]=tostring(lim[i].min).."-"..lim[i].max end end
       seq = map(function(w) return string.split(w,",") end, seq)   -- split sequences "3,4"

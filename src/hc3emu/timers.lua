@@ -98,11 +98,11 @@ local function callback(_,id)
   E:DEBUGF('timer_dev',"timer std expire:%s",id)
   setTimerRef(id,nil)
   local oldRunner = E:setRunner(ref.runner)
+  E.stats.timers = E.stats.timers - 1
   local stat,err = pcall(ref.fun)
   if ref.runner.lock then ref.runner:unlock() end
   E:setRunner(oldRunner)
   pcall(ref.runner.timerCallback,ref.runner,ref,"expire")
-  E.stats.timers = E.stats.timers - 1
   if not stat then
     ref.runner:_error(fmt("setTimeout:%s",tostring(err)))
   end

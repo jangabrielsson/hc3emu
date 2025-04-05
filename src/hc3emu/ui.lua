@@ -194,6 +194,60 @@ local function UI2uiCallbacks(UI)
   return cbs
 end
 
+local function uiView2UI(uiView,uiCallbacks)
+  local UI = {}
+  local cbMap = {}
+  for _,v in ipairs(uiCallbacks) do
+    cbMap[v.name] = cbMap[v.name] or {}
+    table.insert(cbMap[v.name],v)
+  end
+  for _,r in ipairs(uiView) do
+    local row = {}; UI[#UI+1] = row
+    for _,e in ipairs(r.components) do
+      local ce,elm = cbMap[e.name] and cbMap[e.name][1] or nil,nil
+      local cb = ce and ce.callback
+      if e.type == 'button' then
+        elm = {button=e.name,text=e.text}
+        for _,v in ipairs(cbMap[e.name]) do
+          local cb = v.callback ~= "" and v.callback or nil
+          elm[v.eventType] = cb
+        end
+      elseif e.type == 'label' then
+        elm = {label=e.name,text=e.text}
+      elseif e.type == 'slider' then
+        elm = {
+          slider=e.name,
+          text=e.text,
+          onChanged=cb,
+          min=e.min,
+          max=e.max,
+          step=e.step
+        }
+      elseif e.type == 'switch' then
+        elm = {switch=e.name,text=e.text,value=e.value,onReleased=cb}
+      elseif e.type == 'select' then
+        elm = {
+          select=e.name,
+          text=e.text,
+          options=e.options,
+          value=e.value,
+          onToggled=cb
+        }
+      elseif e.type == 'multi' then
+        elm = {
+          multi=e.name,
+          text=e.text,
+          options=e.options,
+          values=e.values,
+          onToggled=cb
+        }
+      end
+      row[#row+1] = elm
+    end
+  end
+  return UI
+end
+
 local function compileUI(UI)
   local callBacks = UI2uiCallbacks(UI)
   local uiView = UI2NewUiView(UI)
@@ -339,6 +393,7 @@ end
 
 exports.logUI = logUI
 exports.viewLayout2UI = viewLayout2UI
+exports.uiView2UI = uiView2UI
 exports.dumpUI = dumpUI
 exports.compileUI = compileUI
 

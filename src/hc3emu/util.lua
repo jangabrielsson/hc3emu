@@ -420,7 +420,7 @@ local function addThread(runner,call,...)
     runner:lock()
     local function ef(err,a)
         local res = tostring(err)
-        local source = debug.getinfo(3).source -- long source name
+        local source = debug.getinfo(2).source -- long source name
         res = res:gsub('%[.-%]:',function(s) return "["..source.."]:" end)
         if runner then runner:_error(res)
         else E:ERRORF("Task error: %s",res) end

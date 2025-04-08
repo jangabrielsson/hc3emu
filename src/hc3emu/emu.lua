@@ -128,7 +128,7 @@ function Emulator:__init(debug,info)
   self.mobdebug = { on = function() end, start = function(_,_) end }
   if not self.nodebug then
     self.mobdebug = require("mobdebug") or self.mobdebug
-    self.mobdebug.start('127.0.0.1', 8818)
+    self.mobdebug.start('localhost',self.DBG.dport or 8172) 
   end
 
   -- The QA/Scene we invoke the emulator with is the ""main" file
@@ -399,7 +399,7 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
     truncCode = truncCode.."\n"..extraStr.."\n"
   end
   
-  local ignore = {root=true,remote=true,include=true}
+  local ignore = {root=true,remote=true,include=true, port=true}
   truncCode:gsub("%-%-%%%%(%w-=.-)%s*\n",function(p)
     local f,v = p:match("(%w-)=(.*)")
     if ignore[f] then return end

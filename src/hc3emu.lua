@@ -41,6 +41,8 @@ if src:match("%-%-%%%%dark=true") then DBG.dark = true end
 if src:match("%-%-%%%%nodebug=true") then DBG.nodebug = true end
 if src:match("%-%-%%%%shellscript=true") then DBG.nodebug = true DBG.shellscript=true end
 if src:match("%-%-%%%%silent=true") then DBG.silent = true end
+local port = src:match("%-%-%%%%dport=(%d+)") 
+if port then DBG.dport = tonumber(port) end
 
 local Emulator = require("hc3emu.emu") -- This is the emulator that we load and that will emulate the main file for us.
 local info = {fname=mainfile,src=src}

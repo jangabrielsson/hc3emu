@@ -21,8 +21,8 @@ function QA:__init(info,noRun) -- create QA struct,
   Runner.__init(self,"QA")
   self.fname = info.fname
   self.src = info.src
-  self.files = info.files
   if info.directives == nil then E:parseDirectives(info) end
+  self.files = info.files
   self.directives = info.directives
   self.dbg = info.directives.debug or {}
   self.env = info.env

@@ -1,16 +1,15 @@
---_DEVELOP =true
+_DEVELOP =true
 if require and not QuickApp then require("hc3emu") end
 
 --%%name=Event test
 
---%%file=$hc3emu.eventlib:Events
 --%%file=$hc3emu.eventlib:Events
 
 ------ENDOFDIRECTIVES------
 ---@diagnostic disable-next-line: undefined-global
 Event_std = Event_std
 local Event = Event_std
-Event.id='start'
+Event.id='start2'
 Event{type='fromEventSender'}
 function Event:handler(event)
   print("Incoming remote event",event.data)

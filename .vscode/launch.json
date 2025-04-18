@@ -17,17 +17,17 @@
         "${workspaceFolder}"
       ]
     },
-    {
-      "name": "Lua MobDebug: Listen",
-      "type": "luaMobDebug",
-      "request": "attach",
-      "workingDirectory": "${workspaceFolder}",
-      "sourceBasePath": "${workspaceFolder}",
-      "listenPublicly": false,
-      "listenPort": 8818, //8172,
-      //"stopOnEntry": true,
-      "sourceEncoding": "UTF-8"
-    },
+    // {
+    //   "name": "Lua MobDebug: Listen",
+    //   "type": "luaMobDebug",
+    //   "request": "attach",
+    //   "workingDirectory": "${workspaceFolder}",
+    //   "sourceBasePath": "${workspaceFolder}",
+    //   "listenPublicly": false,
+    //   "listenPort": 8818, //8172,
+    //   //"stopOnEntry": true,
+    //   "sourceEncoding": "UTF-8"
+    // },
     {
       "name": "Lua MobDebug: Current File",
       "type": "luaMobDebug",

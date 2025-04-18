@@ -1,4 +1,4 @@
-_DEVELOP =true
+--_DEVELOP =true
 if require and not QuickApp then require("hc3emu") end
 
 --%%name=Event test

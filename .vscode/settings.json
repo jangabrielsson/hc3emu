@@ -61,5 +61,7 @@
     "__emu_clearTimeout",
     "__emu_clearInterval",
     "__emu_setInterval"
-]
+],
+"liveServer.settings.fullReload": false,
+"liveServer.settings.wait": 1000
 }

@@ -48,6 +48,9 @@ local filterkeys = {
   parentId=function(d,v) return tonumber(d.parentId) == tonumber(v) end,
   name=function(d,v) return d.name == v end,
   type=function(d,v) return d.type == v end,
+  enabled=function(d,v) return tostring(d.enabled) == tostring(v) end,
+  visible=function(d,v) return tostring(d.visible) == tostring(v) end,
+  roomID=function(d,v) return tonumber(d.roomID) == tonumber(v) end,
   interface=function(d,v)
     local ifs = d.interfaces
     for _,i in ipairs(ifs) do if i == v then return true end end

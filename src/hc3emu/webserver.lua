@@ -236,7 +236,9 @@ end
 
 local function generateUIpage(id,name,fname,UI)
   local format,t0 = string.format,os.clock()
-  local pr = prBuff(format(header,E.emuIP,E.emuPort+1,id))
+  local SIP = E.emuIP
+  --SIP="127.0.0.1"
+  local pr = prBuff(format(header,SIP,E.emuPort+1,id))
   --print("Generating UI page")
   pr:printf('<div class="label">Device: %s %s</div>',id,name)
   for _,row in ipairs(UI) do

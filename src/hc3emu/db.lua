@@ -44,6 +44,7 @@ local function init()
   if hasState then 
     local f = io.open(stateFileName,"r")
     if f then 
+      E:DEBUGF('db',"Reading state file",stateFileName)
       mainStore = json.decode(f:read("*a")) f:close()
       if type(mainStore)~='table' then mainStore = {} end
       local store2 = mainStore[E.mainFile] or {}
@@ -53,6 +54,8 @@ local function init()
       store2.globalVariables = keyMap(store2.globalVariables or {},'name')
       for k,v in pairs(store2) do store[k] = v end
       mainStore[E.mainFile] = store
+    else
+      E:DEBUGF('db',"State file not found",stateFileName)
     end
   end
   
@@ -102,7 +105,12 @@ local function flush(force)
   if E.DBG.stateReadOnly and not force then return end
   local f = io.open(stateFileName,"w")
   prepareDB()
-  if f then f:write(json.encode(mainStore)) f:close() end
+  if f then 
+    f:write(json.encode(mainStore)) f:close() 
+    E:DEBUGF('db',"State file written",stateFileName)
+  else
+    E:DEBUGF('db',"State file write failed",stateFileName)
+  end
 end
 
 local function getDevice(id,prop)

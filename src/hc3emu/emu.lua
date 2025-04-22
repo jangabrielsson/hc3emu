@@ -24,7 +24,7 @@ lua-websockets-bit32 >= 2.0.1-7
 argparse >= 0.7.1-1
 mobdebug >= 0.80-1
 --]]
-local VERSION = "1.0.79"
+local VERSION = "1.0.80"
 local class = require("hc3emu.class") -- use simple class implementation
 
 local fmt = string.format
@@ -138,7 +138,8 @@ function Emulator:__init(debug,info)
   for _,globalFlag in ipairs({'offline','state','logColor','stateReadOnly','dark','longitude','latitude','lock'}) do
     if flags[globalFlag]~=nil then self.DBG[globalFlag] = flags[globalFlag] end
   end
-
+  self.systemRunner.dbg = flags.debug
+  self.systemRunner.dbg = flags.debug or {}
   self.rsrcsDir = self.config.setupRsrscsDir()
   assert(self.rsrcsDir,"Failed to find rsrcs directory")
   self.config.setupDirectory(info.directives.webui)

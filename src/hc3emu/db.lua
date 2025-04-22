@@ -44,7 +44,7 @@ local function init()
   if hasState then 
     local f = io.open(stateFileName,"r")
     if f then 
-      E:DEBUGF('db',"Reading state file",stateFileName)
+      E:DEBUGF('db',"Reading state file %s",tostring(stateFileName))
       mainStore = json.decode(f:read("*a")) f:close()
       if type(mainStore)~='table' then mainStore = {} end
       local store2 = mainStore[E.mainFile] or {}
@@ -55,7 +55,7 @@ local function init()
       for k,v in pairs(store2) do store[k] = v end
       mainStore[E.mainFile] = store
     else
-      E:DEBUGF('db',"State file not found",stateFileName)
+      E:DEBUGF('db',"State file not found %s",tostring(stateFileName))
     end
   end
   
@@ -107,9 +107,9 @@ local function flush(force)
   prepareDB()
   if f then 
     f:write(json.encode(mainStore)) f:close() 
-    E:DEBUGF('db',"State file written",stateFileName)
+    E:DEBUGF('db',"State file written %s",tostring(stateFileName))
   else
-    E:DEBUGF('db',"State file write failed",stateFileName)
+    E:DEBUGF('db',"State file write failed %s",tostring(stateFileName))
   end
 end
 

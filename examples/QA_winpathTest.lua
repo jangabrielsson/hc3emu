@@ -1,8 +1,12 @@
+_DEVELOP=true
 if require and not QuickApp then require('hc3emu') end
 
 --%%name=MyQA_LL
+--%%proxy=Foo
 --%%type=com.fibaro.binarySwitch  
 --%%state=LL.db
+--%%debug=db:true
+
 
 function QuickApp:onInit()
   self.store = setmetatable({},{

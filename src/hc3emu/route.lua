@@ -1,13 +1,15 @@
-  -- A router can operate in 2 modes. router.local=true or router.local=false
-  -- If false it route to local handler if it exists, otherwise it routes (pass through) to HC3
-  -- If true it routes to local handler if it exists, otherwise it returns 501
-
 --[[
-       EmuRoute -> OfflineRoute -> NotImplementedRoute
-       EmuRoute -> ProxyRoute -> HC3Route
-       -- EmuRoute -> HC3Route
-       HC3Route
+  There are 3 "route chains" for requests built up from 4 route components.
+  - EmuRoute handles api requests to devices run in the emulator. If the device is not running in the emulator, it will pass the request to the next route.
+  - OfflineRoute handles api requests to devices that are not running in the emulator when we are not allowed to access the HC3. It uses db.lua to keep a database of resources. If it can't handle it it will pass to next route in chain.
+  - ProxyRoute handles api requests to devices that are running in the emulator but also have a proxy on the HC3. Its job is to synchronize the state of the emulated device with the proxy device on the HC3. If it can't handle it, it will pass to next route in chain.
+
+  The route chains setup is as follows:
+       1. EmuRoute -> OfflineRoute -> NotImplementedRoute -- When running in offline mode
+       2. EmuRoute -> ProxyRoute -> HC3Route              -- When running in proxy mode (and online without proxy)
+       3. HC3Route                                        -- Used by system to talk to the HC3
 --]]
+
 local exports = {}
 Emulator = Emulator
 local E = Emulator.emulator

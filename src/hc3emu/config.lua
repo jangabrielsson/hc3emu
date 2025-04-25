@@ -222,6 +222,11 @@ end
 local function getSettings()
   local homecfg = readFile(GLOBFILE,true,true) or {}
   local projcfg = readFile(PROJFILE,true,true) or {}
+  if next(homecfg) == nil and next(projcfg) == nil then
+    homecfg = createGlobal()
+    homecfg = readFile(GLOBFILE,true,true) or {}
+    E:DEBUG("Created config file .hc3emu.json in %s",E.homeDir)
+  end
   local index = {}
   for _,e in ipairs(projcfg) do index[e.name] = e end
   for i,e in ipairs(homecfg) do

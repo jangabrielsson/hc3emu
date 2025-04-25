@@ -419,12 +419,12 @@ local function addThread(runner,call,...)
     copas.seterrorhandler(errfun)
     runner:lock()
     local function ef(err,a)
-        local res = tostring(err)
-        local source = debug.getinfo(2).source -- long source name
-        res = res:gsub('%[.-%]:',function(s) return "["..source.."]:" end)
-        if runner then runner:_error(res)
-        else E:ERRORF("Task error: %s",res) end
-        print(copas.gettraceback("",coroutine.running(),nil))
+      local res = tostring(err)
+      local source = debug.getinfo(2).source -- long source name
+      res = res:gsub('%[.-%]:',function(s) return "["..source.."]:" end)
+      if runner then runner:_error(res)
+      else E:ERRORF("Task error: %s",res) end
+      print(copas.gettraceback("",coroutine.running(),nil))
     end
     local stat,res = xpcall(call,ef,...) 
     runner:unlock()
@@ -451,6 +451,47 @@ local function cancelThreads(runner)
   end
 end
 
+local socket = require("socket")
+
+local function socketServer(ip,port)
+  local self = { started = false }
+  local lock = copas.semaphore.new(1,0,math.huge)
+  local request,response
+  function self:start()
+    self.started = true
+    E:DEBUGF('info',"Starting socket server at %s:%s",ip,port)
+    E.stats.ports[E.emuPort] = true
+
+    local function handle(skt)
+      E.mobdebug.on()
+      E:setRunner(E.systemRunner)
+      local name = skt:getpeername() or "N/A"
+      --E._client = skt
+      E:DEBUGF("server","New connection: %s",name)
+      while true do
+        lock:take(1)
+        copas.send(skt,request)
+        local reqdata = copas.receive(skt)
+        response = reqdata
+        lock:give(1)
+        if not reqdata then break end
+      end
+      E:DEBUGF("server","Connection closed: %s",name)
+    end
+    local server,err = socket.bind('*', port)
+    if not server then error(fmt("Failed open socket %s: %s",port,tostring(err))) end
+    copas.addserver(server, handle)
+  end
+  function self:send(msg)
+    request = msg
+    lock:give(1)
+    copas.pause(0.01)
+    lock:take(1)
+    return response
+  end
+  return self
+end
+
 exports._print = _print
 exports.pcall2 = pcall2
 exports.json = json
@@ -464,5 +505,6 @@ exports.post = post
 exports.addThread = addThread
 exports.cancelThreads = cancelThreads
 exports.dateTest = dateTest
+exports.socketServer = socketServer
 
 return exports

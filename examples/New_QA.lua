@@ -1,7 +1,8 @@
 -- Generated with Cursor...
 _DEVELOP=true
 if require and not QuickApp then require("hc3emu") end
-
+--%%offline=true
+--fibaro.hc3emu.config.createGlobal() 
 -- A basic QuickApp example
 -- This QuickApp demonstrates basic structure and functionality
 --%%speed=72

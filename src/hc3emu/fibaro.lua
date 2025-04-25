@@ -23,16 +23,12 @@ end
 function __fibaroUseAsyncHandler(_) return true end
 
 api  = {} -- Different api connections depending if we are offline or not
-local route = E.route
-local connection = route.offlineConnection
-function api.get(...) return connection:call("GET",...) end
-function api.post(...) return connection:call("POST",...) end
-function api.put(...) return connection:call("PUT",...) end
-function api.delete(...) return connection:call("DELETE",...) end
-function fibaro.setOffline(off)
-  if off then connection = route.offlineConnection
-  else connection = route.proxyConnection end
-end
+local _api = E.api
+function api.get(...) return _api:get(...) end
+function api.post(...) return _api:post(...) end
+function api.put(...) return _api:put(...) end
+function api.delete(...) return _api:delete(...) end
+function fibaro.setOffline(off) _api:setOffline(off) end
 fibaro.setOffline(E:getRunner().flags.offline)
 
 local function __assert_type2(val, typ, msg)

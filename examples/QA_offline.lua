@@ -8,7 +8,6 @@ if require and not QuickApp then require("hc3emu") end
 --%%type=com.fibaro.multilevelSwitch
 --%% proxy=MyProxy
 --%%dark=true
---%%install=true
 --%%color=true
 --%%time=12/31 10:00:12
 --%%state=state.db
@@ -58,6 +57,9 @@ function QuickApp:onInit()
   
   local d = api.get("/devices/"..d.id)
   print(d.id)
+
+  plugin.deleteDevice(d.id)
+
   function self:initChildDevices() end
 end
 

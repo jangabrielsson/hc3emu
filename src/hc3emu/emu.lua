@@ -156,12 +156,9 @@ function Emulator:__init(debug,info)
   self.timers = loadModule("hc3emu.timers") 
   logTime = self.timers.userTime
   userDate = self.timers.userDate
-  self.store = loadModule("hc3emu.db")                   -- Database for storing data
-  self.route = loadModule("hc3emu.route")                -- Route object
-  self.emuroute = loadModule("hc3emu.emuroute")          -- Emulator API routes
-  self.proxy = loadModule("hc3emu.proxy")                -- Proxy creation and Proxy API routes
-  self.refreshState = loadModule("hc3emu.refreshstate") 
-  self.offline = loadModule("hc3emu.offline")            -- Offline API routes
+  self.API = loadModule("hc3emu.api")
+  self.proxy = loadModule("hc3emu.proxy")        -- Proxy creation and Proxy API routes
+  self.refreshState = loadModule("hc3emu.refreshstate")
   self.ui = loadModule("hc3emu.ui") 
   self.tools = loadModule("hc3emu.tools")
   self.qa = loadModule("hc3emu.qa") 
@@ -169,9 +166,6 @@ function Emulator:__init(debug,info)
   loadModule("hc3emu.simdevices") 
   self.webserver = loadModule("hc3emu.webserver")
   self.webserver.startServer()
-  
-  self.route.createConnections() -- Setup connections for API calls, emulator/offline/proxy
-  self.connection = self.route.hc3Connection
 end
 
 function Emulator:newLock()
@@ -182,13 +176,31 @@ end
 function Emulator:getNextDeviceId() self.DEVICEID = self.DEVICEID + 1 return self.DEVICEID end
 function Emulator:getNextSceneId() self.SCENEID = self.SCENEID + 1 return self.SCENEID end
 
+function Emulator:setupApi()
+  self.api = self.API.API({offline=self.DBG.offline})
+  local EM = self
+  function self.api:loadResources(resources)
+    local res = EM.config.loadResource("stdStructs.json",true)
+    local resources = EM.api.resources
+    resources.resources.home.items = res.home
+    resources.resources.settings_info.items = res.info
+    resources.resources.settings_location.items = res.location
+    resources.resources.devices.items[1] = res.device1
+  end
+  function self.api.qa.isEmulated(id) return self.QA_DIR[id]~= nil end
+  function self.api.scene.isEmulated(id) return self.SCENE_DIR[id]~= nil end
+  self.qa.addApiHooks(self.api)
+  self.scene.addApiHooks(self.api)
+  self.api:start()
+end
+
 function Emulator:registerQA(qa) 
   assert(qa.id,"Can't register QA without id")
   if not self.QA_DIR[qa.id] then
     self.stats.qas = self.stats.qas + 1
   end
   self.QA_DIR[qa.id] = qa 
-  self.store.DB.devices[qa.id] = qa.device
+  self.api.resources:create("devices",qa.device)
 end
 
 function Emulator:unregisterQA(id) 
@@ -449,7 +461,7 @@ function Emulator:checkConnection(flags)
   end
 end
 
-function Emulator:httpRequest(method,url,headers,data,timeout,user,pwd)
+function Emulator:httpRequest(method,url,headers,data,timeout,user,pwd,silent)
   local resp, req = {}, {}
   req.url = url
   req.method = method or "GET"
@@ -472,7 +484,7 @@ function Emulator:httpRequest(method,url,headers,data,timeout,user,pwd)
   if url:starts("https") then r,status,h = copas.https.request(req)
   else r,status,h = copas.http.request(req) end
   local t1 = socket.gettime()
-  self:DEBUGF('http',"HTTP %s %s %s (%.3fs)",method,url,status,t1-t0)
+  if not silent then self:DEBUGF('http',"HTTP %s %s %s (%.3fs)",method,url,status,t1-t0) end
   if tonumber(status) and status < 300 then
     return resp[1] and table.concat(resp) or nil, status, h
   else
@@ -493,7 +505,7 @@ function Emulator:HC3Call(method,path,data,silent)
     ["X-Fibaro-Version"] = 2,
     ["Fibaro-User-PIN"] = self.PIN,
   },
-  data,35000,self.USER,self.PASSWORD)
+  data,35000,self.USER,self.PASSWORD,silent)
   if stat == 401 then self:ERRORF("HC3 authentication failed, Emu access cancelled") BLOCKED = true end
   if stat == 'closed' then self:ERRORF("HC3 connection closed %s",path) end
   if stat == 500 then self:ERRORF("HC3 error 500 %s",path) end
@@ -503,10 +515,10 @@ function Emulator:HC3Call(method,path,data,silent)
   return (jf and data or res),stat
 end
 
-function Emulator:apiget(...) return self.connection:call("GET",...) end
-function Emulator:apipost(...) return self.connection:call("POST",...) end
-function Emulator:apiput(...) return self.connection:call("PUT",...) end
-function Emulator:apidelete(...) return self.connection:call("DELETE",...) end
+function Emulator:apiget(...) return self.api:get(...) end
+function Emulator:apipost(...) return self.api:post(...) end
+function Emulator:apiput(...) return self.api:put(...) end
+function Emulator:apidelete(...) return self.api:delete(...) end
 
 local coroMetaData = setmetatable({},{__mode = "k"}) -- Use to associate QA/Scene environment with coroutines
 function Emulator:getCoroData(co,key,silent) 
@@ -545,8 +557,9 @@ function Emulator:run(info) -- { fname = "file.lua", src = "source code" }
 
   copas(function() -- This is the first task we create
     self.mobdebug.on()
-    self:setRunner(self.systemRunner) -- Set environment for this coroutine 
+    self:setRunner(self.systemRunner) -- Set environment for this coroutine
     self:checkConnection(flags) -- If online, check connection to HC3 or bail-out
+    self:setupApi()
     self.timers.midnightLoop() -- Setup loop for midnight events, used to ex. update sunrise/sunset hour
     local runner = fileType == 'Scene' and self.scene.Scene(info) or self.qa.QA(info,nil)
     self:post({type='emulator_started'})

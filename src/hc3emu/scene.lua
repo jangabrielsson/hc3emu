@@ -34,6 +34,8 @@ function Scene:__init(info)
   self.minuteLoop = MinuteLoop()
 end
 
+local function addApiHooks(api) end
+
 function Scene:lock() self._lock:get() end
 function Scene:unlock() self._lock:release() end
 
@@ -418,6 +420,7 @@ end
 
 exports.Scene = Scene
 exports.trigger = sceneTrigger -- (trigger,id)
+exports.addApiHooks = addApiHooks
 exports.init = init
 
 return exports

@@ -1,0 +1,508 @@
+--[[ Emulator api routes
+--]]
+local exports = {}
+Emulator = Emulator
+local E = Emulator.emulator
+local fmt = string.format
+local json = require("hc3emu.json")
+local copas = E.copas
+
+local function hc3(api)
+  local self = { sync={}}
+  local function call(method,path,data,headers)
+    return E:HC3Call(method,path,data)
+  end
+  function self:get(path) return call("GET",path) end
+  function self:post(path,data) return call("POST",path,data) end
+  function self:put(path,data) return call("PUT",path,data) end
+  function self:delete(path) return call("DELETE",path) end
+  local function syncCall(method,path,data)
+    if not api.helper then return nil,505 end
+    local req = json.encode({method=method,path=path,data=data}).."\n"
+    local resp = api.helper:send(req)
+    if resp then
+      local res = json.decode(resp)
+      return table.unpack(res)
+    end
+    return nil,404
+  end
+  function self.sync:get(path) return syncCall("GET",path) end
+  function self.sync:post(path,data) return syncCall("POST",path,data) end
+  function self.sync:put(path,data) return syncCall("PUT",path,data) end
+  function self.sync:delete(path) return syncCall("DELETE",path) end
+  return self
+end
+
+class 'API'
+local API = _G['API']; _G['API'] = nil
+
+local Resources = require("hc3emu.resource")
+
+function API:__init(args)
+  self.E = E
+  self.DIR = { GET={}, POST={}, PUT={}, DELETE={} }
+  self.hc3 = hc3(self)
+  self.offline = args.offline
+  self.resources = Resources(self)
+  self.qa = {}
+  local function notImpl() error("QA func not implemented") end
+  function self.qa.call(id,action,data) notImpl() end
+  function self.qa.update(id,data) notImpl() end
+  function self.qa.prop(id,prop,value) notImpl() end
+  function self.qa.getFile(id,name) notImpl() end
+  function self.qa.writeFile(id,name,data) notImpl() end
+  function self.qa.createFile(id,data) notImpl() end
+  function self.qa.deleteFile(id,name) notImpl() end
+  function self.qa.createFQA(id) notImpl() end
+  function self.qa.updateView(id,data) notImpl() end
+  function self.qa.restart(id) notImpl() end
+  function self.qa.createChildDevice(id,data) notImpl() end
+  function self.qa.removeChildDevice(id) notImpl() end
+  function self.qa.debugMessages(id,data) notImpl() end
+  function self.qa.isEmulated(id) return false end
+  self.scene = {}
+  function self.scene.isEmulated(id) return false end
+  function self.scene.execute(id,name) error("Scene func not implemented") end
+  self:setup()
+end
+
+function API:setOffline(off) self.offline = off end
+
+function API:start()
+  if not self.offline then
+    local ip = E.emuIP
+    local port = 9543
+    local helper = self.hc3:get("/devices?name=hc3emuHelper")
+    if helper and #helper > 0 then
+      self.helper = E.util.socketServer(ip,port)
+      self.helper:start()
+      self.hc3:post("/devices/"..helper[1].id.."/action/connect",{args={ip,port}})
+    end
+
+    E.util.addThread(E.systemRunner,function()
+      while true do
+        local resp = self.helper:send("Ping\n")
+      end
+      copas.pause(10)
+    end)
+  end
+  self.resources:run()
+end
+
+function API:add(method, path, handler) 
+  if type(path) == 'function' then -- shift args
+    handler = path 
+    method,path = method:match("(.-)(/.+)") -- split method and path
+  end
+  local path = string.split(path,'/')
+  local d = self.DIR[method:upper()]
+  for _,p in ipairs(path) do
+    p = ({['<id>']=true,['<name>']=true})[p] and '_match' or p
+    local d0 = d[p]
+    if d0 == nil then d[p] = {} end
+    d = d[p]
+  end
+  assert(d._handler == nil,fmt("Duplicate path: %s/%s",method,path))
+  d._handler = handler
+end
+
+local urldecode = function(url)
+  return (url:gsub("%%(%x%x)", function(x) return string.char(tonumber(x, 16)) end))
+end
+
+local function parseQuery(queryStr)
+  local params = {}
+  local query = urldecode(queryStr)
+  local p = query:split("&")
+  for _,v in ipairs(p) do
+    local k,v = v:match("(.-)=(.*)")
+    params[k] = tonumber(v) or v
+  end
+  return params
+end
+
+function API:getRoute(method,path)
+  local pathStr,queryStr = path:match("(.-)%?(.*)") 
+  path = pathStr or path
+  local query = queryStr and parseQuery(queryStr) or {}
+  local path = string.split(path,'/')
+  local d,vars = self.DIR[method:upper()],{}
+  for _,p in ipairs(path) do
+    if d._match and not d[p] then vars[#vars+1] = p p = '_match' end
+    local d0 = d[p]
+    if d0 == nil then return nil,vars end
+    d = d0
+  end
+  return d._handler,vars,query
+end
+
+function API:call(method, path, data) 
+  local handler, vars, query = self:getRoute(method, path)
+  if not handler then return nil, 501 end
+  return handler({method=method, path=path, data=data, vars=vars, query=query})
+end
+
+function API:get(path) return self:call("GET",path) end
+function API:post(path,data) return self:call("POST",path,data) end
+function API:delete(path) return self:call("DELETE",path) end
+function API:put(path,data) return self:call("PUT",path,data) end
+
+local filterkeys = {
+  parentId=function(d,v) return tonumber(d.parentId) == tonumber(v) end,
+  name=function(d,v) return d.name == v end,
+  type=function(d,v) return d.type == v end,
+  enabled=function(d,v) return tostring(d.enabled) == tostring(v) end,
+  visible=function(d,v) return tostring(d.visible) == tostring(v) end,
+  roomID=function(d,v) return tonumber(d.roomID) == tonumber(v) end,
+  interface=function(d,v)
+    local ifs = d.interfaces
+    for _,i in ipairs(ifs) do if i == v then return true end end
+  end,
+  property=function(d,v)
+    local prop,val = v:match("%[([^,]+),(.+)%]")
+    if not prop then return false end
+    return tostring(d.properties[prop]) == tostring(val)
+  end,
+}
+
+-- local var = api.get("/devices?property=[lastLoggedUser,"..val.."]") 
+local function filter1(q,d)
+  for k,v in pairs(q) do 
+    if not(filterkeys[k] and filterkeys[k](d,v)) then return false end 
+  end
+  return true
+end
+
+local function filter(q,ds)
+  local r = {}
+  for _,d in pairs(ds) do if filter1(q,d) then r[#r+1] = d end end
+  return r
+end
+
+function API:setup()
+  local rsrc = self.resources
+
+  local function num(x) return tonumber(x) or x end
+  local function get(ctx,typ) return rsrc:get(typ,num(ctx.vars[1])) end
+  local function create(ctx,typ) return rsrc:create(typ,ctx.data) end
+  local function mod(ctx,typ) return rsrc:modify(typ,num(ctx.vars[1]),ctx.data) end
+  local function del(ctx,typ) return rsrc:delete(typ,num(ctx.vars[1])) end
+
+  self:add("GET/devices",function(ctx)
+    local devices,code = rsrc:get('devices')
+    if not devices then return nil,code end
+    devices = filter(ctx.query,devices)
+    return devices,200
+  end)
+  self:add("GET/devices/<id>",function(ctx) return get(ctx,'devices') end)
+  self:add("GET/devices/<id>/properties/<name>",function(ctx)
+    local device,code = get(ctx,'devices')
+    if not device then return nil, code end
+    return {value=device.properties[ctx.vars[2]],modified=device.modified or os.time()}, 200
+  end)
+  self:add("POST/devices/<id>/action/<name>",function(ctx) 
+    local id = tonumber(ctx.vars[1])
+    if self.qa.isEmulated(id) then
+      self.qa.call(id,ctx.vars[2],ctx.data)
+    elseif not self.offline then
+      return self.hc3:post(ctx.path,ctx.data)
+    else
+      return nil,501
+    end
+  end)
+  self:add("PUT/devices/<id>",function(ctx) 
+    local res,code = mod(ctx,'devices')
+    if self.isEmulated(tonumber(ctx.vars[1])) then
+      self.qa.update(tonumber(ctx.vars[1]),ctx.data)
+    end
+    return res,code
+  end)
+  self:add("DELETE/devices/<id>",function(ctx) 
+    return del(ctx,'devices')
+  end)
+
+  self:add("GET/globalVariables",function(ctx) return get(ctx,'globalVariables') end)
+  self:add("GET/globalVariables/<name>",function(ctx)return get(ctx,'globalVariables') end)
+  self:add("POST/globalVariables",function(ctx)return create(ctx,'globalVariables') end)
+  self:add("PUT/globalVariables/<name>",function(ctx)return mod(ctx,'globalVariables') end)
+  self:add("DELETE/globalVariables/<name>",function(ctx)return del(ctx,'globalVariables') end)
+  
+  self:add("GET/rooms",function(ctx) return get(ctx,"rooms") end)
+  self:add("GET/rooms/<id>",function(ctx) return get(ctx,'rooms') end)
+  self:add("POST/rooms",function(ctx) return create(ctx,'rooms') end)
+  self:add("POST/rooms/<id>/action/setAsDefault",function(ctx) 
+    local id = tonumber(ctx.vars[1])
+    self.resources.defaultRoom = id
+    if not self.offline then
+      return self.hc3:post("/rooms/"..id.."/action/setAsDefault")
+    else return id,200 end
+  end)
+  self:add("POST/rooms/<id>/groupAssignment",function(ctx)
+    if not self.offline then
+      return self.hc3:post(ctx.path,ctx.data)
+    else 
+      local id = tonumber(ctx.vars[1])
+      for _,id in ipairs(ctx.data.deviceIds or {}) do
+        mod({vars={id},data={roomID=id}},'devices')
+      end
+      return id,200
+    end
+  end)
+  self:add("PUT/rooms/<id>",function(ctx) return mod(ctx,'rooms') end)
+  self:add("DELETE/rooms/<id>",function(ctx) return del(ctx,'rooms') end)
+  
+  self:add("GET/sections",function(ctx) return get(ctx,'sections') end)
+  self:add("GET/sections/<id>",function(ctx) return get(ctx,'sections') end)
+  self:add("POST/sections",function(ctx) return create(ctx,'sections') end)
+  self:add("PUT/sections/<id>",function(ctx) return mod(ctx,'sections') end)
+  self:add("DELETE/sections/<id>",function(ctx) return del(ctx,'sections') end)
+  
+  self:add("GET/customEvents",function(ctx) get(ctx,"customEvents") end)
+  self:add("GET/customEvents/<name>",function(ctx) return get(ctx,'customEvents') end)
+  self:add("POST/customEvents",function(ctx) return create(ctx,'customEvents') end)
+  self:add("POST/customEvents/<name>",function(ctx) 
+    if not self.offline then
+      self.hc3:post(ctx.path)
+    else
+      self.resources:refresh('ops','customEvents',ctx.vars[1],{name=ctx.vars[1]})
+    end
+  end)
+  self:add("PUT/customEvents/<name>",function(ctx) return mod(ctx,'customEvents') end)
+  self:add("DELETE/customEvents/<name>",function(ctx) return del(ctx,'customEvents') end)
+  
+  self:add("GET/scenes",function(ctx) return get(ctx,'scenes') end)
+  self:add("GET/scenes/<id>",function(ctx) return get(ctx,'scenes') end)
+  self:add("POST/scenes/<id>/<name>" , function(ctx)
+    local id = tonumber(ctx.vars[1])
+    local name = ctx.vars[2]
+    if self.scene.isEmulated(id) then
+      return self.scene.execute(id,name),200
+    elseif not self.offline then
+      return self.hc3:post(ctx.path)
+    else return nil,501 end
+  end) 
+  
+  self:add("POST/plugins/updateProperty",function(ctx)
+    local data = ctx.data
+    local id = data.deviceId
+    if self.qa.isEmulated(id) then
+      self.qa.prop(id,data.propertyName,data.value)
+    end
+    return rsrc:modProp(id,data.propertyName,data.value)
+  end)
+  self:add("POST/plugins/updateView",function(ctx) 
+    local data = ctx.data
+    local id = data.deviceId
+    if self.qa.isEmulated(id) then
+      return self.qa.updateView(id,data),200
+    elseif not self.offline then
+      return self.hc3:post(ctx.path,ctx.data)
+    else return nil,501 end
+  end)
+  self:add("POST/plugins/restart",function(ctx)
+    local id = ctx.data.deviceId
+    if self.qa.isEmulated(id) then
+      return self.qa.restart(id),200
+    elseif not self.offline then
+      return self.hc3:post(ctx.path)
+    else return nil,501 end
+  end)
+  self:add("POST/plugins/createChildDevice",function(ctx) 
+    local id = ctx.data.parentId
+    if self.qa.isEmulated(id) then
+      return self.qa.createChildDevice(id,ctx.data),200
+    elseif not self.offline then
+      return self.hc3:post(ctx.path,ctx.data)
+    else return nil,501 end
+  end)
+  self:add("DELETE/plugins/removeChildDevice/<id>",function(ctx)
+    local id = tonumber(ctx.vars[1])
+    if self.qa.isEmulated(id) then
+      return self.qa.removeChildDevice(id),200
+    elseif not self.offline then
+      return self.hc3:delete(ctx.path)
+    else return nil,501 end
+  end)
+  
+  self:add("POST/debugMessages",function(ctx) 
+    local data = ctx.data
+    local id = data.deviceId
+    if self.qa.isEmulated(id) then
+      return self.qa.debugMessages(id,data),200
+    elseif not self.offline then
+      return self.hc3:post(ctx.path,ctx.data)
+    else return nil,501 end
+  end)
+  
+  self:add("POST/plugins/publishEvent",function(ctx) 
+    if self.offline then 
+      return nil,501
+    else return self.hc3.sync:post(ctx.path,ctx.data) end
+  end)
+  
+  self:add("GET/panels/location",function(ctx) return get(ctx,'panels_location') end)
+  self:add("GET/panels/location/<id>",function(ctx) return get(ctx,'panels_location') end)
+  self:add("POST/panels/location",function(ctx) return create(ctx,'panels_location') end)
+  self:add("PUT/panels/location/<id>",function(ctx) return mod(ctx,'panels_location') end)
+  self:add("DELETE/panels/location/<id>",function(ctx) return del(ctx,'panels_location') end)
+
+  self:add("GET/settings/location",function(ctx) return get(ctx,'settings_location') end)
+  self:add("GET/settings/info",function(ctx) return get(ctx,'settings_info') end)
+  
+  self:add("GET/users",function(ctx) return get(ctx,'users') end)
+  self:add("GET/users/<id>",function(ctx) return get(ctx,'users') end)
+  self:add("POST/users",function(ctx) return create(ctx,'user') end)
+  self:add("PUT/users/<id>",function(ctx) return mod(ctx,'user') end)
+  self:add("DELETE/users/<id>",function(ctx) return del(ctx,'users') end)
+
+  self:add("GET/quickApp/<id>/files",function(ctx) 
+    local id = tonumber(ctx.vars[1])
+    if not self.offline and not self.qa.isEmulated(id) then
+      return self.hc3.sync:get(ctx.path)
+    end
+    if self.qa.isEmulated(id) then
+      local res = self.qa.getFile(id)
+      if res then return res, 200 end
+    end
+    return nil, 404
+  end)
+  self:add("POST/quickApp/<id>/files",function(ctx) 
+    local id = tonumber(ctx.vars[1])
+    if not self.offline and not self.qa.isEmulated(id) then
+      return self.hc3.sync:post(ctx.path,ctx.data)
+    end
+    if self.qa.isEmulated(id) then
+      local res = self.qa.createFiles(id,ctx.data)
+      if res then return res, 200 end
+    end
+    return nil, 404
+  end)
+  self:add("GET/quickApp/<id>/files/<name>",function(ctx) 
+    local id = tonumber(ctx.vars[1])
+    if not self.offline and not self.qa.isEmulated(id) then
+      return self.hc3.sync:get(ctx.path)
+    end
+    if self.qa.isEmulated(id) then
+      local name = ctx.vars[2]
+      local res = self.qa.getFile(id,name)
+      if res then return res, 200 end
+    end
+    return nil, 404
+  end)
+  self:add("PUT/quickApp/<id>/files/<name>",function(ctx)
+    local id = tonumber(ctx.vars[1])
+    if not self.offline and not self.qa.isEmulated(id) then
+      return self.hc3.sync:put(ctx.path,ctx.data)
+    end
+    if self.qa.isEmulated(id) then
+      local name = ctx.vars[2]
+      local res = self.qa.writeFile(id,name,ctx.data)
+      if res then return res, 200 end
+    end
+    return nil, 404
+  end)
+  self:add("PUT/quickApp/<id>/files",function(ctx) 
+    local id = tonumber(ctx.vars[1])
+    if not self.offline and not self.qa.isEmulated(id) then
+      return self.hc3.sync:put(ctx.path,ctx.data)
+    end
+    if self.qa.isEmulated(id) then
+      local res = self.qa.writeFile(id,nil,ctx.data)
+      if res then return res, 200 end
+    end
+    return nil, 404
+  end)
+  self:add("DELETE/quickApp/<id>/files/<name>",function(ctx) 
+    local id = tonumber(ctx.vars[1])
+    if not self.offline and not self.qa.isEmulated(id) then
+      return self.hc3.sync:delete(ctx.path)
+    end
+    if self.qa.isEmulated(id) then
+      local name = ctx.vars[2]
+      local res = self.qa.deleteFile(id,name)
+      if res then return res, 200 end
+    end
+    return nil, 404
+  end)
+  
+  self:add("GET/quickApp/export/<id>",function(ctx)
+    local id = tonumber(ctx.vars[1])
+    if self.qa.isEmulated(id) then
+      return self.qa.createFQA(id),200
+    end
+    if not self.offline then
+      return self.hc3.sync:get(ctx.path)
+    end
+    return nil, 501
+  end)
+  self:add("POST/quickApp/",function(ctx) 
+
+  end)
+  
+  self:add("GET/plugins/<id>/variables",function(ctx) 
+    local id = tonumber(ctx.vars[1])
+    if not self.offline and not self.qa.isEmulated(id) then
+      return self.hc3.sync:get(ctx.path)
+    end
+    local vars,code = get(ctx,'qa_variables')
+    if not vars then return nil, code end
+    local res = {}
+    for k,v in pairs(vars) do res[#res+1]= {name=k, value=v} end
+    return res,200
+  end)
+  self:add("GET/plugins/<id>/variables/<name>",function(ctx) 
+    local id = tonumber(ctx.vars[1])
+    if not self.offline and not self.qa.isEmulated(id) then
+      return self.hc3.sync:get(ctx.path)
+    end
+    local vars,code = get(ctx,'qa_variables')
+    if not vars then return nil, code end
+    return vars[ctx.vars[2]],200
+  end)
+  self:add("POST/plugins/<id>/variables",function(ctx) 
+    local id = tonumber(ctx.vars[1])
+    if not self.offline and not self.qa.isEmulated(id) then
+      return self.hc3.sync:post(ctx.path,ctx.data)
+    end
+    local data = ctx.data
+    local vars,code = get(ctx,'qa_variables')
+    if not vars then return nil, code end
+    if vars[data.name] then return nil, 409 end
+    vars[data.name] = data.value
+    return data.value,200
+  end)
+  self:add("PUT/plugins/<id>/variables/<name>",function(ctx)
+    local id = tonumber(ctx.vars[1])
+    if not self.offline and not self.qa.isEmulated(id) then
+      return self.hc3.sync:put(ctx.path)
+    end
+    local data = ctx.data
+    local vars,code = get(ctx,'qa_variables')
+    if not vars then return nil, code end
+    if vars[data.name]==nil then return nil, 404 end
+    vars[data.name] = data.value
+    return data.value,200
+  end)
+  self:add("DELETE/plugins/<id>/variables/<name>",function(ctx)
+    local id = tonumber(ctx.vars[1])
+    if not self.offline and not self.qa.isEmulated(id) then
+      return self.hc3.sync:delete(ctx.path)
+    end
+    local vars,code = get(ctx,'qa_variables')
+    local name = ctx.vars[2]
+    if not vars then return nil, code end
+    if vars[name]==nil then return nil, 404 end
+    vars[name] = nil
+    return nil,200
+  end)
+  self:add("DELETE/plugins/<id>/variables",function(ctx)
+    local id = tonumber(ctx.vars[1])
+    if not self.offline and not self.qa.isEmulated(id) then
+      return self.hc3.sync:delete(ctx.path)
+    end
+    return del(ctx,'qa_variables')
+  end)
+end
+
+exports.API = API
+return exports

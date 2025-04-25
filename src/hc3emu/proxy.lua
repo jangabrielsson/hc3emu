@@ -9,7 +9,6 @@ local fmt = string.format
 
 local function init()
   urlencode = E.util.urlencode
-  E.route.ProxyRoute = exports.ProxyRoute
 end
 
 local function createProxy(name,devTempl)

@@ -437,6 +437,8 @@ local function addThread(runner,call,...)
   return task
 end
 
+local function systemTask(call,...) return addThread(E.systemRunner,call,...) end
+
 local function cancelThreads(runner) 
   if runner == nil then 
     for t,_ in pairs(tasks) do copas.removethread(t) end 
@@ -504,6 +506,7 @@ exports.EVENT = EVENT
 exports.post = post
 exports.addThread = addThread
 exports.cancelThreads = cancelThreads
+exports.systemTask = systemTask
 exports.dateTest = dateTest
 exports.socketServer = socketServer
 

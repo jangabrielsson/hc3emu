@@ -5,10 +5,10 @@ _DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
 --%%name=APItest
---%%proxy=TestProxy
+--%% proxy=TestProxy
 --%%debug=info:false,api:true,http:true
 --%%dark=true
---% %offline=true
+--%%offline=true
 --%%webui="install"
 
 local function printf(...) print(string.format(...)) end
@@ -34,11 +34,8 @@ local function equal(e1,e2)
 end
 
 local function test(testf,str,method,path,...)
-  setLocal(true)
   local r1,c1 = api[method](path,...)
-  setLocal(false)
-  local r2,c2 = api[method](path,...)
-  setLocal(true)
+  local r2,c2 = fibaro.hc3emu.api.hc3[method](fibaro.hc3emu.api.hc3,path,...)
   if c1==c2 and testf(r1,r2) then 
     printf("OK %s %s",method,str) 
   else 
@@ -60,9 +57,10 @@ end
 
 function QuickApp:onInit()
   print(self.name,self.id)
+  local a,b = fibaro.hc3emu.api.hc3:delete("/globalVariables/hc3emuvar")
   testRes2("GlobalVariable undef","get","/globalVariables/shjdgfhgs")
   testRes2("GlobalVariable undef","put","/globalVariables/shjdgfhgs",{value='a'})
-  testRes2("GlobalVariable","post","/globalVariables",{name="hc3emuvar",value='a'})
+  testRes2("GlobalVariable","post","/globalVariables",{name="hc3emuvar",value='a'}) 
   testRes2("GlobalVariable","put","/globalVariables/hc3emuvar",{name="hc3emuvar",value='b'})
   testRes2("GlobalVariable","delete","/globalVariables/hc3emuvar",{})
   

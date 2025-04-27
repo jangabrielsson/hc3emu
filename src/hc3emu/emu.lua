@@ -200,12 +200,80 @@ function Emulator:registerQA(qa)
     self.stats.qas = self.stats.qas + 1
   end
   self.QA_DIR[qa.id] = qa 
-  self.api.resources:create("devices",qa.device)
+  self.api.resources.resources.devices.items[qa.id] = qa.device
+end
+
+function Emulator:setupResources()
+  local userTime,userDate = self.timers.userTime,self.timers.userDate
+  
+  local function updateSunTime()
+    local location = self.api.resources:get("settings_location")
+    local dev1 =  self.api.resources:get("devices",1)
+    local longitude,latitude = location.longitude,location.latitude
+    local sunrise,sunset = self.util.sunCalc(userTime(),latitude,longitude)
+    self.sunriseHour = sunrise
+    self.sunsetHour = sunset
+    self.sunsetDate = userDate("%c")
+    self:DEBUGF('time',"Suntime updated sunrise:%s, sunset:%s",sunrise,sunset)
+    dev1.properties.sunriseHour = sunrise
+    dev1.properties.sunsetHour = sunset
+  end
+    
+  function self.EVENT._emulator_started() -- Update lat,long,suntime at startup
+    local location = self.api.resources:get("settings_location")
+    if self.DBG.latitude and self.DBG.longitude then
+      location.latitude = self.DBG.latitude
+      location.longitude = self.DBG.longitude
+    end
+    updateSunTime()
+  end
+    
+  function self.EVENT._midnight() updateSunTime() end -- Update suntime at midnight
+  function self.EVENT._time_changed() updateSunTime() end -- Update suntime at time changed
+end
+
+function Emulator:readInState()
+  local hasState, stateFileName = false, nil
+  stateFileName = self.DBG.state
+  self.hasState = type(stateFileName)=='string'
+  if self.hasState then 
+    self.stateFileName = stateFileName
+    local f = io.open(stateFileName,"r")
+    if f then 
+      self:DEBUGF('db',"Reading state file %s",tostring(stateFileName))
+      local stat,states = pcall(function() return json.decode(f:read("*a")) end)
+      if not stat then states = {} end
+      f:close()
+      if type(states)~='table' then states = {} end
+      self.stateData = states
+      local states2 = states[self.mainFile] or {} -- Key on main file
+      local qintern = self.api.resources.resources.internalStorage.items
+      for id,vars in pairs(states2.internalStorage or {}) do
+        qintern[id] = vars
+      end
+    else
+      self:DEBUGF('db',"State file not found %s",tostring(stateFileName))
+    end
+  end
+end
+
+function Emulator:flushState()
+  if self.hasState then
+    local f = io.open(self.stateFileName,"w")
+    if f then
+      local states = {internalStorage = self.api.resources.resources.internalStorage.items }
+      self.stateData[self.mainFile] = states
+      f:write(json.encode(self.stateData)) f:close() 
+      self:DEBUGF('db',"State file written %s",self.stateFileName)
+    else
+      self:DEBUGF('db',"State file write failed %s",self.stateFileName)
+    end
+  end
 end
 
 function Emulator:unregisterQA(id) 
   self.QA_DIR[id] = nil 
-  self.store.DB.devices[id] = nil
+  self.api.resources:delete("devices",id)
   self.stats.qas = self.stats.qas - 1
 end
 
@@ -213,7 +281,7 @@ function Emulator:registerScene(scene)
   assert(scene.id,"Can't register Scene without id")
   self.SCENE_DIR[scene.id] = scene
   self.stats.scenes = self.stats.scenes + 1
-  --self.store.DB.scenes[scene.id] = scene.device
+  self.api.resources:create("devices",scene.device)
 end
 
 function Emulator:getQA(id) return self.QA_DIR[id] end
@@ -560,6 +628,8 @@ function Emulator:run(info) -- { fname = "file.lua", src = "source code" }
     self:setRunner(self.systemRunner) -- Set environment for this coroutine
     self:checkConnection(flags) -- If online, check connection to HC3 or bail-out
     self:setupApi()
+    self:setupResources() -- Setup resources for the API
+    self:readInState()    -- Read in state from file
     self.timers.midnightLoop() -- Setup loop for midnight events, used to ex. update sunrise/sunset hour
     local runner = fileType == 'Scene' and self.scene.Scene(info) or self.qa.QA(info,nil)
     self:post({type='emulator_started'})

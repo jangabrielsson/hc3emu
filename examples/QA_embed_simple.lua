@@ -7,6 +7,8 @@ if require and not QuickApp then require('hc3emu') end
 
 -------ENDOFDIRECTIVES---------
 
+print(plugin.mainDeviceId)
+
 fibaro.hc3emu.tools.loadQAString([[
 --%%name=QA2
 function QuickApp:onInit()
@@ -20,6 +22,7 @@ function fibaro.hc3emu.EVENT.quickApp_finished(ev)
 end
 
 function QuickApp:onInit()
-  self:debug("Started",self.id)
+  print(plugin.mainDeviceId)
+  self:debug("Started.",self.id)
   setTimeout(function() print("Hello from",self.id) end,2000)
 end

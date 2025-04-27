@@ -26,15 +26,16 @@ function QA:__init(info,noRun) -- create QA struct,
   self.directives = info.directives
   self.dbg = info.directives.debug or {}
   self.env = info.env
-
+  
   self.propWatches = {}
   self.timerCount = 0
   self._lock = E:newLock()
-
+  
   local flags = info.directives
-
+  local q5001 = E:getQA(5001)
+  local ds = E.api.resources.resources.devices.items[5001]
   local uiCallbacks,viewLayout,uiView = self:setupUI(flags)
-
+  
   local deviceStruct =self:setupStruct(flags,uiCallbacks,viewLayout,uiView)
   
   if flags.offline and flags.proxy then
@@ -68,7 +69,7 @@ function QA:setupStruct(flags,uiCallbacks,viewLayout,uiView)
   ---@diagnostic disable-next-line: undefined-field
   if not table.member(ifs,"quickApp") then ifs[#ifs+1] = "quickApp" end
   flags.type = flags.type or "com.fibaro.binarySwitch"
-  local deviceStruct = deviceTypes[flags.type]
+  local deviceStruct = table.copy(deviceTypes[flags.type])
   assert(deviceStruct,"Device type "..flags.type.." not found")
   deviceStruct.id=tonumber(flags.id)
   deviceStruct.type=flags.type
@@ -121,7 +122,7 @@ function QA:setupProxy(flags,info,deviceStruct)
       value=deviceStruct.properties.quickAppVariables
     })
     if flags.logUI then E.ui.logUI(id) end
-    E.proxy.startServer(id)
+    --E.proxy.startServer(id)
     E:apipost("/devices/"..id.."/action/CONNECT",{args={{ip=E.emuIP,port=E.emuPort}}})
     info.isProxy = true
   end
@@ -338,7 +339,7 @@ end
 
 function E.EVENT._quickApp_initialized(ev)
   local qa = E:getQA(ev.id)
-  if qa.flags.webui then
+  if qa.directives.webui then
     qa.webui = true
     if qa.isChild then
       local name = (qa.device.name or "Child"):gsub("[^%w]","")
@@ -462,13 +463,13 @@ local function addApiHooks(api)
   function api.qa.createChildDevice(parentId,data)
     local id = E:getNextDeviceId()
     local dev = {
-        id=id,
-        name=data.name,
-        type=data.type,
-        parentId=parentId,
-        interfaces=data.initialInterfaces or {},
-        properties=data.initialProperties or {},
-      }
+      id=id,
+      name=data.name,
+      type=data.type,
+      parentId=parentId,
+      interfaces=data.initialInterfaces or {},
+      properties=data.initialProperties or {},
+    }
     E.api.resources:create("devices",dev)
     return dev,200
   end
@@ -520,6 +521,135 @@ end
 function QAChild:run() error("Child can not be installed in emulator - create child from main QA") end
 function QAChild:createFQA() error("Child can not be converted to .fqa") end
 function QAChild:save() error("Child can not be saved") end
+
+----------------------
+local function findFile(name,files)
+  for i,f in ipairs(files) do if f.name == name then return i end end
+end
+
+local function addApiHooks(api)
+  local function notImpl() error("QA func not implemented",2) end
+  
+  function api.qa.call(id,action,data)  
+    local qa = E:getQA(id)
+    if qa.device.parentId and qa.device.parentId > 0 then
+      qa = E:getQA(qa.device.parentId)
+      assert(qa,"Parent QA not found")
+    end
+    qa:onAction(id,{actionName=action,deviceId=id, args=data.args})
+    return 'OK',200
+  end
+  
+  local props = {"name","visible","enabled","roomID"}
+  function api.qa.update(id,data) -- Change toplevel props like name....
+    local qa = E:getQA(id)
+    local QA = qa.qa  
+    for _,k in ipairs(props) do if data[k]~=nil then QA[k] = data[k] end end
+    qa.env.plugin.restart(0)
+    return true,200
+  end 
+  
+  function api.qa.prop(id,prop,value) 
+    local qa = E:getQA(id)
+    qa.device.properties[prop] = value
+    qa:watchesProperty(prop,value)
+    return 'OK',200
+  end
+
+  function api.qa.getFile(id,name)
+    local qa = E:getQA(tonumber(id))
+    if not qa then return nil,301 end
+    if name == nil then
+      local fs = {}
+      for _,f in ipairs(qa.files) do
+        fs[#fs+1] = {name=f.name, type='lua', isOpen=false, isMain=false}
+      end
+      fs[#fs+1] = {name='main', type='lua', isOpen=false, isMain=true}
+      return fs,200
+    else
+      local i = findFile(name,qa.files)
+      if i then return qa.files[i],200
+      else return nil,404 end
+    end
+  end
+  
+  function api.qa.writeFile(id,name,data) 
+    local qa = E:getQA(tonumber(id))
+    if not qa then return nil,301 end
+    local files = data
+    if name then files = {data} end
+    for _,f in ipairs(files) do
+      local i = f.name=='main' or findFile(f.name,qa.files)
+      if not i then return nil,404 end
+    end
+    for _,f in ipairs(files) do
+      if f.name == 'main' then
+        qa.src = f.content
+      else
+        local i = findFile(f.name,qa.files)
+        qa.files[i] = f
+      end
+    end
+    qa.env.plugin.restart(0) -- Restart the QA immediately
+    return true,200
+  end
+  
+  function api.qa.createFile(id,data) 
+    local qa = E:getQA(id)
+    if not qa then return nil,301 end
+    if findFile(data.name,qa.files) then return nil,409 end
+    data.fname="new" -- What fname to give it?
+    table.insert(qa.files,data)
+    qa.env.plugin.restart(0) -- Restart the QA
+  end
+  
+  function api.qa.deleteFile(id,name) 
+    local qa = E:getQA(id)
+    if not qa then return nil,301 end
+    local i = findFile(name,qa.files)
+    if i then 
+      table.remove(qa.files,i) 
+      qa.env.plugin.restart(0)
+    else return nil,404 end
+  end
+  
+  function api.qa.createFQA(id)
+    local qa = E:getQA(id)
+    return qa:createFQA(id),200 
+   end
+  
+  function api.qa.updateView(id,data)
+    local qa = E:getQA(tonumber(data.deviceId))
+    qa:updateView(data)
+    return nil,200
+  end
+  
+  function api.qa.restart(id) 
+    local qa = E:getQA(id)
+    qa.env.plugin.restart(0) -- Restart the QA
+  end
+  
+  function api.qa.createChildDevice(parentId,data)
+    local id = E:getNextDeviceId()
+    local dev = {
+      id=id,
+      name=data.name,
+      type=data.type,
+      parentId=parentId,
+      interfaces=data.initialInterfaces or {},
+      properties=data.initialProperties or {},
+    }
+    E.api.resources:create("devices",dev)
+    return dev,200
+  end
+  
+  function api.qa.removeChildDevice(id)
+    E.api.resources:delete("devices",id)
+    return nil,200
+  end
+  
+  function api.qa.debugMessages(id,data) notImpl() end
+end
 
 exports.QA = QA
 exports.QAChild = QAChild

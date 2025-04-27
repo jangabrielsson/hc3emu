@@ -1,11 +1,104 @@
 --[[ Emulator api routes
+--
+-- API Routes Summary:
+--
+-- Devices:
+--   GET/devices                           - Get all devices (with filtering)
+--   GET/devices/<id>                      - Get device by ID
+--   GET/devices/<id>/properties/<name>    - Get device property
+--   POST/devices/<id>/action/<name>       - Call device action
+--   PUT/devices/<id>                      - Update device
+--   DELETE/devices/<id>                   - Delete device
+--
+-- Global Variables:
+--   GET/globalVariables                   - Get all global variables
+--   GET/globalVariables/<name>            - Get global variable by name
+--   POST/globalVariables                  - Create global variable
+--   PUT/globalVariables/<name>            - Update global variable
+--   DELETE/globalVariables/<name>         - Delete global variable
+--
+-- Rooms:
+--   GET/rooms                             - Get all rooms
+--   GET/rooms/<id>                        - Get room by ID
+--   POST/rooms                            - Create room
+--   POST/rooms/<id>/action/setAsDefault   - Set room as default
+--   POST/rooms/<id>/groupAssignment       - Assign devices to room, ToDo
+--   PUT/rooms/<id>                        - Update room
+--   DELETE/rooms/<id>                     - Delete room
+--
+-- Sections:
+--   GET/sections                          - Get all sections
+--   GET/sections/<id>                     - Get section by ID
+--   POST/sections                         - Create section
+--   PUT/sections/<id>                     - Update section
+--   DELETE/sections/<id>                  - Delete section
+--
+-- Custom Events:
+--   GET/customEvents                      - Get all custom events
+--   GET/customEvents/<name>               - Get custom event by name
+--   POST/customEvents                     - Create custom event
+--   POST/customEvents/<name>              - Trigger custom event
+--   PUT/customEvents/<name>               - Update custom event
+--   DELETE/customEvents/<name>            - Delete custom event
+--
+-- Scenes:
+--   GET/scenes                            - Get all scenes
+--   GET/scenes/<id>                       - Get scene by ID
+--   POST/scenes/<id>/<name>               - Execute scene action
+--
+-- Plugins:
+--   POST/plugins/updateProperty           - Update plugin property
+--   POST/plugins/updateView               - Update plugin view
+--   POST/plugins/restart                  - Restart plugin
+--   POST/plugins/createChildDevice        - Create child device
+--   DELETE/plugins/removeChildDevice/<id> - Remove child device
+--   POST/plugins/publishEvent             - Publish event
+--   GET/plugins/<id>/variables            - Get plugin variables
+--   GET/plugins/<id>/variables/<name>     - Get plugin variable by name
+--   POST/plugins/<id>/variables           - Create plugin variable
+--   PUT/plugins/<id>/variables/<name>     - Update plugin variable
+--   DELETE/plugins/<id>/variables/<name>  - Delete plugin variable
+--   DELETE/plugins/<id>/variables         - Delete all plugin variables
+--
+-- QuickApp:
+--   GET/quickApp/<id>/files              - Get all QuickApp files
+--   POST/quickApp/<id>/files             - Create QuickApp file
+--   GET/quickApp/<id>/files/<name>       - Get QuickApp file by name
+--   PUT/quickApp/<id>/files/<name>       - Update QuickApp file
+--   PUT/quickApp/<id>/files              - Update all QuickApp files
+--   DELETE/quickApp/<id>/files/<name>    - Delete QuickApp file
+--   GET/quickApp/export/<id>             - Export QuickApp
+--   POST/quickApp/                       - Create QuickApp
+--
+-- Debug:
+--   POST/debugMessages                    - Send debug messages
+--
+-- Users:
+--   GET/users                             - Get all users
+--   GET/users/<id>                        - Get user by ID
+--   POST/users                            - Create user
+--   PUT/users/<id>                        - Update user
+--   DELETE/users/<id>                     - Delete user
+--
+-- Other:
+--   GET/panels/location                   - Get location panels
+--   GET/panels/location/<id>              - Get location panel by ID
+--   POST/panels/location                  - Create location panel
+--   PUT/panels/location/<id>              - Update location panel
+--   DELETE/panels/location/<id>           - Delete location panel
+--   GET/settings/location                 - Get location settings
+--   GET/settings/info                     - Get system info
+--   GET/weather                           - Get weather information
+--   PUT/weather                           - Set weather information (for debugging)
+
 --]]
+
 local exports = {}
 Emulator = Emulator
 local E = Emulator.emulator
 local fmt = string.format
 local json = require("hc3emu.json")
-local copas = E.copas
+local copas = require("copas")
 
 local function hc3(api)
   local self = { sync={}}
@@ -79,11 +172,11 @@ function API:start()
       self.hc3:post("/devices/"..helper[1].id.."/action/connect",{args={ip,port}})
     end
 
-    E.util.addThread(E.systemRunner,function()
+    E.util.systemTask(function()
       while true do
         local resp = self.helper:send("Ping\n")
+        copas.pause(10)
       end
-      copas.pause(10)
     end)
   end
   self.resources:run()
@@ -212,7 +305,7 @@ function API:setup()
   end)
   self:add("PUT/devices/<id>",function(ctx) 
     local res,code = mod(ctx,'devices')
-    if self.isEmulated(tonumber(ctx.vars[1])) then
+    if self.qa.isEmulated(tonumber(ctx.vars[1])) then
       self.qa.update(tonumber(ctx.vars[1]),ctx.data)
     end
     return res,code
@@ -282,6 +375,9 @@ function API:setup()
     else return nil,501 end
   end) 
   
+  self:add("GET/weather",function(ctx) return get(ctx,'weather') end)
+  self:add("PUT/weather",function(ctx) return mod(ctx,'weather') end)
+
   self:add("POST/plugins/updateProperty",function(ctx)
     local data = ctx.data
     local id = data.deviceId
@@ -372,7 +468,7 @@ function API:setup()
       return self.hc3.sync:post(ctx.path,ctx.data)
     end
     if self.qa.isEmulated(id) then
-      local res = self.qa.createFiles(id,ctx.data)
+      local res = self.qa.createFile(id,ctx.data)
       if res then return res, 200 end
     end
     return nil, 404
@@ -440,67 +536,74 @@ function API:setup()
   end)
   
   self:add("GET/plugins/<id>/variables",function(ctx) 
-    local id = tonumber(ctx.vars[1])
-    if not self.offline and not self.qa.isEmulated(id) then
+    local id = ctx.vars[1]
+    if not self.offline and not self.qa.isEmulated(tonumber(id)) then
       return self.hc3.sync:get(ctx.path)
     end
-    local vars,code = get(ctx,'qa_variables')
-    if not vars then return nil, code end
+    local vars = rsrc.resources.internalStorage.items[id]
+    if not vars then return nil, 404 end
     local res = {}
     for k,v in pairs(vars) do res[#res+1]= {name=k, value=v} end
     return res,200
   end)
   self:add("GET/plugins/<id>/variables/<name>",function(ctx) 
-    local id = tonumber(ctx.vars[1])
-    if not self.offline and not self.qa.isEmulated(id) then
+    local id = ctx.vars[1]
+    if not self.offline and not self.qa.isEmulated(tonumber(id)) then
       return self.hc3.sync:get(ctx.path)
     end
-    local vars,code = get(ctx,'qa_variables')
-    if not vars then return nil, code end
-    return vars[ctx.vars[2]],200
+    local vars = rsrc.resources.internalStorage.items[id]
+    local name = ctx.vars[2]
+    if not (vars and vars[name] ~= nil) then return nil, 404 end
+    return {value=vars[name],name=name},200
   end)
   self:add("POST/plugins/<id>/variables",function(ctx) 
-    local id = tonumber(ctx.vars[1])
-    if not self.offline and not self.qa.isEmulated(id) then
+    local id = ctx.vars[1]
+    if not self.offline and not self.qa.isEmulated(tonumber(id)) then
       return self.hc3.sync:post(ctx.path,ctx.data)
     end
     local data = ctx.data
-    local vars,code = get(ctx,'qa_variables')
-    if not vars then return nil, code end
-    if vars[data.name] then return nil, 409 end
+    local vars = rsrc.resources.internalStorage
+    if vars.items[id] == nil then vars.items[id] = {} end
+    vars = vars.items[id]
+    if vars[data.name] ~= nil then return nil, 409 end
     vars[data.name] = data.value
+    E:flushState()
     return data.value,200
   end)
   self:add("PUT/plugins/<id>/variables/<name>",function(ctx)
-    local id = tonumber(ctx.vars[1])
-    if not self.offline and not self.qa.isEmulated(id) then
+    local id = ctx.vars[1]
+    if not self.offline and not self.qa.isEmulated(tonumber(id)) then
       return self.hc3.sync:put(ctx.path)
     end
     local data = ctx.data
-    local vars,code = get(ctx,'qa_variables')
-    if not vars then return nil, code end
-    if vars[data.name]==nil then return nil, 404 end
+    local vars = rsrc.resources.internalStorage.items[id]
+    if not (vars and vars[data.name]~=nil) then return nil, 404 end
     vars[data.name] = data.value
-    return data.value,200
+    E:flushState()
+    return data.value, 200
   end)
   self:add("DELETE/plugins/<id>/variables/<name>",function(ctx)
-    local id = tonumber(ctx.vars[1])
-    if not self.offline and not self.qa.isEmulated(id) then
+    local id = ctx.vars[1]
+    if not self.offline and not self.qa.isEmulated(tonumber(id)) then
       return self.hc3.sync:delete(ctx.path)
     end
-    local vars,code = get(ctx,'qa_variables')
+    local vars = rsrc.resources.internalStorage.items[id]
     local name = ctx.vars[2]
-    if not vars then return nil, code end
-    if vars[name]==nil then return nil, 404 end
+    if not (vars and vars[name]~=nil) then return nil, 404 end
     vars[name] = nil
-    return nil,200
+    E:flushState()
+    return nil, 200
   end)
   self:add("DELETE/plugins/<id>/variables",function(ctx)
-    local id = tonumber(ctx.vars[1])
-    if not self.offline and not self.qa.isEmulated(id) then
+    local id = ctx.vars[1]
+    if not self.offline and not self.qa.isEmulated(tonumber(id)) then
       return self.hc3.sync:delete(ctx.path)
     end
-    return del(ctx,'qa_variables')
+    local vars = rsrc.resources.internalStorage
+    if vars.items[id] == nil then return nil, 404 end
+    vars.items[id] = {}
+    E:flushState()
+    return nil, 200
   end)
 end
 

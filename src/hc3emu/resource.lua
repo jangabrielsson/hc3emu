@@ -19,6 +19,7 @@ function Resources:__init(api)
     users = { items = {}, cached = false, index='id', path="/users" },
     home = { items = {}, cached = false, index=nil, path="/home" },
     weather = { items = {}, cached = false, index=nil, path="/weather" },
+    internalStorage = { items = {}, cached = false, index=nil, path="/qa/variables" },
   }
   self.api = api
   self.hc3 = api.hc3
@@ -48,7 +49,7 @@ function Resources:_init(typ)
   r.inited = true
   if self.offline then return end
   local res = self.hc3:get(r.path)
-  local idx,items = r.index,{}
+  local idx,items = r.index,r.items
   if idx==nil then items = res or {}
   else 
     for _,v in ipairs(res or {}) do items[v[idx]] = v end
@@ -98,18 +99,30 @@ function Resources:create(typ,data,hc3)
   return data,201
 end
 
+local blockedMod = { weather=true }
 function Resources:modify(typ,id,data,hc3)
   local r = self.resources[typ] assert(r)
   if not r.inited then self:_init(typ) end
-  if not r.items[id] then return nil, 404 end
-  local res = r.items[id]
+  local res,force = r.items,false
+  if id then
+    if not r.items[id] then return nil, 404 end
+    res = r.items[id]
+  end
   merge(res,data)
   if not (self.offline or hc3) then
-    local res,code = self.hc3:put(r.path.."/"..id,data)
-    if code > 204 then return nil, code end
+    if blockedMod[typ] then -- Special hack for weather, but could be used for other?
+      force = true
+      res = data
+    elseif not id then
+      local res,code = self.hc3:put(r.path,data)
+      if code > 204 then return nil, code end
+    else
+      local res,code = self.hc3:put(r.path.."/"..id,data)
+      if code > 204 then return nil, code end
+    end
     data = res
   end
-  if self.offline then self:refresh('modified',typ,id,data) end
+  if self.offline or force then self:refresh('modified',typ,id,data) end
   return res,200
 end
 
@@ -130,14 +143,14 @@ function Resources:modProp(id,prop,value,hc3)
   local r = self.resources['devices'] assert(r)
   if not r.inited then self:_init('devices') end
   if not r.items[id] then return nil, 404 end
+  local oldProp = r.items[id].properties[prop]
   if not (self.offline or hc3) then
-    local res,code = self.hc3:put(r.path)
+    local res,code = self.hc3:post("/plugins/updateProperty",{deviceId=id,propertyName=prop,value=value})
     if code > 204 then return nil, code end
   end
-  local oldProp = r.items[id].properties[prop]
-  if table.equal(oldProp,value) then return value, 200 end
+  if table.equal(oldProp,value) then return nil, 200 end
   r.items[id].properties[prop] = value
-  if self.offline then self:refresh('modified','property',id,{propertyName=prop,newValue=value,oldValue=oldProp}) end
+  if self.offline then self:refresh('modified','property',id,{id=id,property=prop,newValue=value,oldValue=oldProp}) end
   return nil,200
 end
 
@@ -346,7 +359,7 @@ function Resources:run()
   end
   eventMgr:addHandler({type='DevicePropertyUpdatedEvent'},function(event)
     local d = event.data
-    rsrc:modProp(d.id,d.propertyName,d.newValue,true)  -- id,prop,value,hc3)
+    rsrc:modProp(d.id,d.property,d.newValue,true)  -- id,prop,value,hc3)
     rsrc:refreshOrg(event)
   end)
 

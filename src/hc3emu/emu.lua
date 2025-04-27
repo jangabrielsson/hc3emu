@@ -194,15 +194,6 @@ function Emulator:setupApi()
   self.api:start()
 end
 
-function Emulator:registerQA(qa) 
-  assert(qa.id,"Can't register QA without id")
-  if not self.QA_DIR[qa.id] then
-    self.stats.qas = self.stats.qas + 1
-  end
-  self.QA_DIR[qa.id] = qa 
-  self.api.resources.resources.devices.items[qa.id] = qa.device
-end
-
 function Emulator:setupResources()
   local userTime,userDate = self.timers.userTime,self.timers.userDate
   
@@ -271,9 +262,18 @@ function Emulator:flushState()
   end
 end
 
+function Emulator:registerQA(qa) 
+  assert(qa.id,"Can't register QA without id")
+  if not self.QA_DIR[qa.id] then
+    self.stats.qas = self.stats.qas + 1
+  end
+  self.QA_DIR[qa.id] = qa 
+  self.api.resources.resources.devices.items[qa.id] = qa.device
+end
+
 function Emulator:unregisterQA(id) 
   self.QA_DIR[id] = nil 
-  self.api.resources:delete("devices",id)
+  self.api.resources:delete("devices",id,true,true)
   self.stats.qas = self.stats.qas - 1
 end
 
@@ -281,7 +281,7 @@ function Emulator:registerScene(scene)
   assert(scene.id,"Can't register Scene without id")
   self.SCENE_DIR[scene.id] = scene
   self.stats.scenes = self.stats.scenes + 1
-  self.api.resources:create("devices",scene.device)
+  self.api.resources.resources.scenes.items[scene.id] = scene.device
 end
 
 function Emulator:getQA(id) return self.QA_DIR[id] end

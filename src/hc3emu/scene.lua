@@ -29,12 +29,18 @@ function Scene:__init(info)
   self.src = info.src
   self.env = info.env
   self._lock = E:newLock()
+  self.minuteLoop = MinuteLoop()
   self:createSceneStruct()
   self.timerCount = 0
-  self.minuteLoop = MinuteLoop()
 end
 
-local function addApiHooks(api) end
+local function addApiHooks(api)
+  function api.scene.execute(id,name) 
+    local scene = E:getScene(tonumber(id))
+    assert(name=='execute',"Invalid scene action")
+    scene:trigger({type='user', property='execute',id=2})
+  end
+end
 
 function Scene:lock() self._lock:get() end
 function Scene:unlock() self._lock:release() end
@@ -45,6 +51,7 @@ function Scene:nextId() return E:getNextSceneId() end
 
 function Scene:createSceneStruct()
   local env = self.env
+  self.dbg = {}
   if self.info.directives == nil then E:parseDirectives(self.info) end
   self.flags = self.info.directives
   self.dbg = self.flags.debug or {}

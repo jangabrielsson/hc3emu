@@ -304,14 +304,22 @@ function API:setup()
     end
   end)
   self:add("PUT/devices/<id>",function(ctx) 
-    local res,code = mod(ctx,'devices')
-    if self.qa.isEmulated(tonumber(ctx.vars[1])) then
-      self.qa.update(tonumber(ctx.vars[1]),ctx.data)
+    local id = tonumber(ctx.vars[1])
+    if self.qa.isEmulated(id) then
+      local res,code = rsrc:modify('devices',id,ctx.data,true,true)
+      self.qa.update(id,ctx.data)
+      return res,code
     end
-    return res,code
+    return mod(ctx,'devices')
   end)
   self:add("DELETE/devices/<id>",function(ctx) 
-    return del(ctx,'devices')
+    local id = tonumber(ctx.vars[1])
+    if self.qa.isEmulated(id) then
+      rsrc:delete('devices',id,true,true)
+      local qa = E:getQA(id)
+      qa:remove()
+      return nil,200
+    else return del(ctx,'devices') end
   end)
 
   self:add("GET/globalVariables",function(ctx) return get(ctx,'globalVariables') end)
@@ -380,11 +388,12 @@ function API:setup()
 
   self:add("POST/plugins/updateProperty",function(ctx)
     local data = ctx.data
-    local id = data.deviceId
+    local id,em = data.deviceId,false
     if self.qa.isEmulated(id) then
+      em = true
       self.qa.prop(id,data.propertyName,data.value)
     end
-    return rsrc:modProp(id,data.propertyName,data.value)
+    return rsrc:modProp(id,data.propertyName,data.value,em,em)
   end)
   self:add("POST/plugins/updateView",function(ctx) 
     local data = ctx.data
@@ -532,7 +541,8 @@ function API:setup()
     return nil, 501
   end)
   self:add("POST/quickApp/",function(ctx) 
-
+    local info = E.tools.installFQAstruct(ctx.data)
+    if info then return info.device,200 else return nil,401 end
   end)
   
   self:add("GET/plugins/<id>/variables",function(ctx) 

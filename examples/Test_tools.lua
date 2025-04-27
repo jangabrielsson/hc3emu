@@ -2,6 +2,7 @@ _DEVELOP =true
 if require and not QuickApp then require("hc3emu") end
 
 --%%name=Tool test
+--%%debug=refresh:true
 
 local loadQAString = fibaro.hc3emu.tools.loadQAString   -- Load QA from string and run it (saves as temp file)
 local downloadFQA = fibaro.hc3emu.tools.downloadFQA     -- Download QA from HC3, unpack and save it to disk

@@ -68,7 +68,7 @@ function Resources:get(typ,id)
 end
 
 local RSRCINDEX = { rooms = 300, sections = 400 }
-function Resources:create(typ,data,hc3)
+function Resources:create(typ,data,hc3,refresh)
   local r = self.resources[typ] 
   assert(r)
   if not r.inited then self:_init(typ) end
@@ -95,12 +95,12 @@ function Resources:create(typ,data,hc3)
     end
   end
   r.items[id] = data
-  if self.offline then self:refresh('created',typ,id,data) end
+  if self.offline or refresh then self:refresh('created',typ,id,data) end
   return data,201
 end
 
 local blockedMod = { weather=true }
-function Resources:modify(typ,id,data,hc3)
+function Resources:modify(typ,id,data,hc3,refresh)
   local r = self.resources[typ] assert(r)
   if not r.inited then self:_init(typ) end
   local res,force = r.items,false
@@ -122,11 +122,11 @@ function Resources:modify(typ,id,data,hc3)
     end
     data = res
   end
-  if self.offline or force then self:refresh('modified',typ,id,data) end
+  if self.offline or force or refresh then self:refresh('modified',typ,id,data) end
   return res,200
 end
 
-function Resources:delete(typ,id,hc3)
+function Resources:delete(typ,id,hc3,refresh)
   local r = self.resources[typ] assert(r)
   if not r.inited then self:_init(typ) end
   if not r.items[id] then return nil, 404 end
@@ -135,11 +135,11 @@ function Resources:delete(typ,id,hc3)
     local res,code = self.hc3:delete(r.path.."/"..id)
     if code > 204 then return nil, code end
   end
-  if self.offline then self:refresh('deleted',typ,id) end
+  if self.offline or refresh then self:refresh('deleted',typ,id) end
   return nil,200
 end
 
-function Resources:modProp(id,prop,value,hc3)
+function Resources:modProp(id,prop,value,hc3,refresh)
   local r = self.resources['devices'] assert(r)
   if not r.inited then self:_init('devices') end
   if not r.items[id] then return nil, 404 end
@@ -150,14 +150,15 @@ function Resources:modProp(id,prop,value,hc3)
   end
   if table.equal(oldProp,value) then return nil, 200 end
   r.items[id].properties[prop] = value
-  if self.offline then self:refresh('modified','property',id,{id=id,property=prop,newValue=value,oldValue=oldProp}) end
+  if self.offline or refresh then self:refresh('modified','property',id,{id=id,property=prop,newValue=value,oldValue=oldProp}) end
   return nil,200
 end
 
 local refreshes = { created={}, modified={}, deleted={}, ops={} }
 
 function Resources:refreshOrg(event)
-  print("Refresh:",event.type,json.encode(event.data))
+  self.addEvent(event)
+  --print("Refresh:",event.type,json.encode(event.data))
 end
 
 function Resources:refresh(op,typ,id,data)
@@ -181,9 +182,11 @@ end
 function EventMgr:__init(emulator)
   self.events = {}
   self.emulator = emulator
+  local handler = function(event) self:post(event) end
   if not self.offline then
-    emulator.refreshState.addRefreshStateListener(function(event) self:post(event) end)
+    emulator.refreshState.addRefreshStateListener(handler)
   end
+  function self.addEvent(event) emulator.refreshState.addRefreshStateEvent(event,handler) end
 end
 
 function EventMgr:addHandler(pattern,handler) 
@@ -210,6 +213,7 @@ end
 function Resources:run()
   if self.offline then self.api:loadResources(self) end
   local eventMgr = EventMgr(self.api.E)
+  self.addEvent = eventMgr.addEvent
   local rsrc = self
   
   local function regEvent(typ) 

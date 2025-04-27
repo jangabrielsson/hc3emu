@@ -339,6 +339,7 @@ end
 
 function E.EVENT._quickApp_initialized(ev)
   local qa = E:getQA(ev.id)
+  E.refreshState.post.DeviceCreatedEvent(ev.id)
   if qa.directives.webui then
     qa.webui = true
     if qa.isChild then

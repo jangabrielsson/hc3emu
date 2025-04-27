@@ -48,7 +48,7 @@ function Resources:_init(typ)
   local r = self.resources[typ]
   r.inited = true
   if self.offline then return end
-  local res = self.hc3:get(r.path)
+  local res = self.hc3.get(r.path)
   local idx,items = r.index,r.items
   if idx==nil then items = res or {}
   else 
@@ -78,14 +78,14 @@ function Resources:create(typ,data,hc3,refresh)
       if not RSRCINDEX[typ] then error("Resource "..typ.." does not have an index") end
       id = RSRCINDEX[typ] + 1; RSRCINDEX[typ] = id+1
       data[r.index] = id
-    else return  self.hc3:post(r.path,data) end
+    else return  self.hc3.post(r.path,data) end
   end
   if r.items[id] then 
     if hc3 then merge(r.items[id], data) end -- assume better data from HC3...
     return nil, 409
   end
   if not (self.offline or hc3) then
-    local res,code = self.hc3:post(r.path,data)
+    local res,code = self.hc3.post(r.path,data)
     if code > 204 then return nil, code end
     data = res
   end
@@ -114,10 +114,10 @@ function Resources:modify(typ,id,data,hc3,refresh)
       force = true
       res = data
     elseif not id then
-      local res,code = self.hc3:put(r.path,data)
+      local res,code = self.hc3.put(r.path,data)
       if code > 204 then return nil, code end
     else
-      local res,code = self.hc3:put(r.path.."/"..id,data)
+      local res,code = self.hc3.put(r.path.."/"..id,data)
       if code > 204 then return nil, code end
     end
     data = res
@@ -132,7 +132,7 @@ function Resources:delete(typ,id,hc3,refresh)
   if not r.items[id] then return nil, 404 end
   r.items[id] = nil
   if not (self.offline or hc3) then
-    local res,code = self.hc3:delete(r.path.."/"..id)
+    local res,code = self.hc3.delete(r.path.."/"..id)
     if code > 204 then return nil, code end
   end
   if self.offline or refresh then self:refresh('deleted',typ,id) end
@@ -145,7 +145,7 @@ function Resources:modProp(id,prop,value,hc3,refresh)
   if not r.items[id] then return nil, 404 end
   local oldProp = r.items[id].properties[prop]
   if not (self.offline or hc3) then
-    local res,code = self.hc3:post("/plugins/updateProperty",{deviceId=id,propertyName=prop,value=value})
+    local res,code = self.hc3.post("/plugins/updateProperty",{deviceId=id,propertyName=prop,value=value})
     if code > 204 then return nil, code end
   end
   if table.equal(oldProp,value) then return nil, 200 end
@@ -337,7 +337,7 @@ function Resources:run()
   end
   local props = {'name','roomID','viewXml','hasUIView','visible','enabled'}
   eventMgr:addHandler({type='DeviceModifiedEvent'},function(event)
-    local src = self.api.hc3:get("/devices/"..event.data.id)
+    local src = self.api.hc3.get("/devices/"..event.data.id)
     local dest = self:get("devices",event.data.id)
     for _,p in ipairs(props) do dest[p] = src[p] end
     rsrc:refreshOrg(event)

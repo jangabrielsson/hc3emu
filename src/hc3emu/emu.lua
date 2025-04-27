@@ -583,11 +583,6 @@ function Emulator:HC3Call(method,path,data,silent)
   return (jf and data or res),stat
 end
 
-function Emulator:apiget(...) return self.api:get(...) end
-function Emulator:apipost(...) return self.api:post(...) end
-function Emulator:apiput(...) return self.api:put(...) end
-function Emulator:apidelete(...) return self.api:delete(...) end
-
 local coroMetaData = setmetatable({},{__mode = "k"}) -- Use to associate QA/Scene environment with coroutines
 function Emulator:getCoroData(co,key,silent) 
   local coro = co or coroutine.running()

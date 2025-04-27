@@ -161,7 +161,7 @@ end
 local function uploadQA(id)
   assert(E:getQA(id),"QuickApp not installed, ID"..tostring(id))
   local fqa = getFQA(id)
-  local res,code = E:apipost("/quickApp/",fqa)
+  local res,code = E.api.hc3.post("/quickApp/",fqa)
   if not code or code > 201 then
     E:ERRORF("Failed to upload QuickApp: %s", res)
   else
@@ -175,7 +175,7 @@ local function updateQA(emuId,hc3Id,components)
   components = components or {name=true,interfaces=true,quickVars=true,UI=true,files=true}
   assert(type(emuId) == "number", "emuId must be a number")
   assert(type(hc3Id) == "number", "hc3Id must be a number")
-  local hc3qa = E:apiget("/devices/"..hc3Id)
+  local hc3qa = E.api..get("/devices/"..hc3Id)
   assert(hc3qa,"Failed to get HC3 QuickApp, ID",tostring(hc3Id))
   local emuqa = getFQA(emuId)
   assert(emuqa,"Failed to get emulated QuickApp, ID",tostring(emuId))
@@ -207,17 +207,17 @@ local function updateQA(emuId,hc3Id,components)
     end
     
     for _,f in ipairs(newFiles) do
-      local res,code = E:apipost("/quickApp/"..hc3Id.."/files",f)
+      local res,code = E.api.hc3.post("/quickApp/"..hc3Id.."/files",f)
       if code > 201 then E:ERRORF("Failed to create file %s",f.name) end
     end
     
-    local res,code = E:apiput("/quickApp/"..hc3Id.."/files",existingFiles)
+    local res,code = E.api.hc3.put("/quickApp/"..hc3Id.."/files",existingFiles)
     if code > 202 then 
       E:ERRORF("Failed to update files for QuickApp %d",hc3Id)
     end
     
     for _,f in ipairs(deletedFiles) do
-      local res,code = E:apidelete("/quickApp/"..hc3Id.."/files/"..f.name)
+      local res,code = E.api.hc3.delete("/quickApp/"..hc3Id.."/files/"..f.name)
       if code > 202 then E:ERRORF("Failed to delete file %s",f.name) end
     end
   end
@@ -234,7 +234,7 @@ end
 local function unpackFQAAux(id,fqa,path) -- Unpack fqa and save it to disk
   assert(type(path) == "string", "path must be a string")
   local fname = ""
-  fqa = fqa or E:apiget("/quickApp/export/"..id)
+  fqa = fqa or E.api.hc3.get("/quickApp/export/"..id) 
   assert(fqa, "Failed to download fqa")
   local name = fqa.name
   local typ = fqa.type

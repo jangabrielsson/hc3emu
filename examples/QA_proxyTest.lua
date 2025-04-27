@@ -33,7 +33,7 @@ end
 function QuickApp:onInit()
   self:updateProperty("value",true)
   local a1,b1 = api.get("/devices/"..self.id.."/properties/value")
-  local a2,b2 = hc3:get("/devices/"..self.id.."/properties/value")
+  local a2,b2 = hc3.get("/devices/"..self.id.."/properties/value")
   compare(a1,a2,b1,b2)
   print("OK")
 end

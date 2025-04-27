@@ -118,12 +118,12 @@ end
     files = {{name="main", isMain=true, isOpen=false, type='lua', content=code}},
   }
   --print(json.encode(fqa))
-  local res,code2 = E:apipost("/quickApp/", fqa)
+  local res,code2 = E.api.hc3.post("/quickApp/", fqa)
   return res
 end
 
 local function getProxy(name,devTempl)
-  local devStruct = E:apiget("/devices?name="..urlencode(name))
+  local devStruct = E.api.hc3.get("/devices?name="..urlencode(name))
   assert(type(devStruct)=='table',"API error")
   if next(devStruct)==nil then
     devStruct = createProxy(name,devTempl)

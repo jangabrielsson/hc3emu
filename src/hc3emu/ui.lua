@@ -386,7 +386,7 @@ local function viewLayout2UI(view,callbacks)
 end
 
 local function logUI(id,pr)
-  local qa = E:apiget("/devices/"..id)
+  local qa = E.api.hc3.get("/devices/"..id)
   local UI = viewLayout2UI(qa.properties.viewLayout,qa.properties.uiCallbacks or {})
   dumpUI(UI,pr)
 end

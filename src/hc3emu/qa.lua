@@ -103,10 +103,10 @@ function QA:setupProxy(flags,info,deviceStruct)
   if pop == '-' or pop == '+' then -- delete proxy if name is preceeded with "-" or "+"
     pname = pname:sub(2)
     flags.proxy = pname
-    local qa = E:apiget("/devices?name="..urlencode(pname))
+    local qa = E.api.hc3.get("/devices?name="..urlencode(pname))
     assert(type(qa)=='table')
     for _,d in ipairs(qa) do
-      E:apidelete("/devices/"..d.id)
+      E.api.hc3.delete("/devices/"..d.id)
       E:DEBUGF('info',"Proxy device %s deleted",d.id)
     end
     if pop== '-' then flags.proxy = false end -- If '+' go on and generate a new Proxy
@@ -116,14 +116,14 @@ function QA:setupProxy(flags,info,deviceStruct)
     assert(deviceStruct, "Can't get proxy device")
     local id,name = deviceStruct.id,deviceStruct.name
     info.env.__TAG = (name..(id or "")):upper()
-    E:apipost("/plugins/updateProperty",{
+    E.api.hc3.post("/plugins/updateProperty",{
       deviceId=id,
       propertyName='quickAppVariables',
       value=deviceStruct.properties.quickAppVariables
     })
     if flags.logUI then E.ui.logUI(id) end
     --E.proxy.startServer(id)
-    E:apipost("/devices/"..id.."/action/CONNECT",{args={{ip=E.emuIP,port=E.emuPort}}})
+    E.api.hc3.post("/devices/"..id.."/action/CONNECT",{args={{ip=E.emuIP,port=E.emuPort}}})
     info.isProxy = true
   end
   return deviceStruct

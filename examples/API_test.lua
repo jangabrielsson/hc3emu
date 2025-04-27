@@ -40,35 +40,35 @@ local function compare(a1,a2,b1,b2)
 end
 
 function QuickApp:part1()
-  local a,b = hc3:delete("/globalVariables/hc3emuvar")
+  local a,b = hc3.delete("/globalVariables/hc3emuvar")
 
   local a1,b1 = api.get("/globalVariables/hc3emuvar")
-  local a2,b2 = hc3:get("/globalVariables/hc3emuvar")
+  local a2,b2 = hc3.get("/globalVariables/hc3emuvar")
   compare(a1,a2,b1,b2)
 
   a1,b1 = api.put("/globalVariables/hc3emuvar",{value='a'})
-  a2,b2 = hc3:put("/globalVariables/hc3emuvar",{value='a'})
+  a2,b2 = hc3.put("/globalVariables/hc3emuvar",{value='a'})
   compare(a1,a2,b1,b2)
 
   a1,b1 = api.post("/globalVariables",{name='hc3emuvar',value='a'})
-  a2,b2 = hc3:post("/globalVariables/hc3emuvar",{name='hc3emuvar',value='a'})
+  a2,b2 = hc3.post("/globalVariables/hc3emuvar",{name='hc3emuvar',value='a'})
   compare(a1,a2,b1,b2)
 
 
   a1,b1 = api.delete("/globalVariables/hc3emuvar",{})
-  a2,b2 = hc3:delete("/globalVariables/hc3emuvar")
+  a2,b2 = hc3.delete("/globalVariables/hc3emuvar")
   compare(a1,a2,b1,b2)
   
   a1,b2 = api.get("/devices/"..self.id)
-  a2,b2 = hc3:get("/devices/"..3636)
+  a2,b2 = hc3.get("/devices/"..3636)
   compare(nil,nil,b1,b2)
 
   a1,b2 = api.get("/devices?interface=quickApp")
-  a2,b2 = hc3:get("/devices?interface=quickApp")
+  a2,b2 = hc3.get("/devices?interface=quickApp")
   compare(type(a1),type(a2),b1,b2)
 
   a1,b1 = api.post("/plugins/updateProperty",{deviceId=self.id,propertyName='value',value=false})
-  a2,b2 = hc3:post("/plugins/updateProperty",{deviceId=3636,propertyName='value',value=false})
+  a2,b2 = hc3.post("/plugins/updateProperty",{deviceId=3636,propertyName='value',value=false})
   compare(a1,a2,b1,b2)
 
   self:internalStorageSet("TestVar","42")

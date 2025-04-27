@@ -105,10 +105,10 @@ local function hc3(api)
   local function call(method,path,data,headers)
     return E:HC3Call(method,path,data)
   end
-  function self:get(path) return call("GET",path) end
-  function self:post(path,data) return call("POST",path,data) end
-  function self:put(path,data) return call("PUT",path,data) end
-  function self:delete(path) return call("DELETE",path) end
+  function self.get(path) return call("GET",path) end
+  function self.post(path,data) return call("POST",path,data) end
+  function self.put(path,data) return call("PUT",path,data) end
+  function self.delete(path) return call("DELETE",path) end
   local function syncCall(method,path,data)
     if not api.helper then return nil,505 end
     local req = json.encode({method=method,path=path,data=data}).."\n"
@@ -119,10 +119,10 @@ local function hc3(api)
     end
     return nil,404
   end
-  function self.sync:get(path) return syncCall("GET",path) end
-  function self.sync:post(path,data) return syncCall("POST",path,data) end
-  function self.sync:put(path,data) return syncCall("PUT",path,data) end
-  function self.sync:delete(path) return syncCall("DELETE",path) end
+  function self.sync.get(path) return syncCall("GET",path) end
+  function self.sync.post(path,data) return syncCall("POST",path,data) end
+  function self.sync.put(path,data) return syncCall("PUT",path,data) end
+  function self.sync.delete(path) return syncCall("DELETE",path) end
   return self
 end
 
@@ -156,6 +156,12 @@ function API:__init(args)
   self.scene = {}
   function self.scene.isEmulated(id) return false end
   function self.scene.execute(id,name) error("Scene func not implemented") end
+  
+  function self.get(path) return self:call("GET",path) end
+  function self.post(path,data) return self:call("POST",path,data) end
+  function self.delete(path) return self:call("DELETE",path) end
+  function self.put(path,data) return self:call("PUT",path,data) end
+  
   self:setup()
 end
 
@@ -165,11 +171,11 @@ function API:start()
   if not self.offline then
     local ip = E.emuIP
     local port = 9543
-    local helper = self.hc3:get("/devices?name=hc3emuHelper")
+    local helper = self.hc3.get("/devices?name=hc3emuHelper")
     if helper and #helper > 0 then
       self.helper = E.util.socketServer(ip,port)
       self.helper:start()
-      self.hc3:post("/devices/"..helper[1].id.."/action/connect",{args={ip,port}})
+      self.hc3.post("/devices/"..helper[1].id.."/action/connect",{args={ip,port}})
     end
 
     E.util.systemTask(function()
@@ -235,11 +241,6 @@ function API:call(method, path, data)
   return handler({method=method, path=path, data=data, vars=vars, query=query})
 end
 
-function API:get(path) return self:call("GET",path) end
-function API:post(path,data) return self:call("POST",path,data) end
-function API:delete(path) return self:call("DELETE",path) end
-function API:put(path,data) return self:call("PUT",path,data) end
-
 local filterkeys = {
   parentId=function(d,v) return tonumber(d.parentId) == tonumber(v) end,
   name=function(d,v) return d.name == v end,
@@ -298,7 +299,7 @@ function API:setup()
     if self.qa.isEmulated(id) then
       self.qa.call(id,ctx.vars[2],ctx.data)
     elseif not self.offline then
-      return self.hc3:post(ctx.path,ctx.data)
+      return self.hc3.post(ctx.path,ctx.data)
     else
       return nil,501
     end
@@ -335,12 +336,12 @@ function API:setup()
     local id = tonumber(ctx.vars[1])
     self.resources.defaultRoom = id
     if not self.offline then
-      return self.hc3:post("/rooms/"..id.."/action/setAsDefault")
+      return self.hc3.post("/rooms/"..id.."/action/setAsDefault")
     else return id,200 end
   end)
   self:add("POST/rooms/<id>/groupAssignment",function(ctx)
     if not self.offline then
-      return self.hc3:post(ctx.path,ctx.data)
+      return self.hc3.post(ctx.path,ctx.data)
     else 
       local id = tonumber(ctx.vars[1])
       for _,id in ipairs(ctx.data.deviceIds or {}) do
@@ -363,7 +364,7 @@ function API:setup()
   self:add("POST/customEvents",function(ctx) return create(ctx,'customEvents') end)
   self:add("POST/customEvents/<name>",function(ctx) 
     if not self.offline then
-      self.hc3:post(ctx.path)
+      self.hc3.post(ctx.path)
     else
       self.resources:refresh('ops','customEvents',ctx.vars[1],{name=ctx.vars[1]})
     end
@@ -379,7 +380,7 @@ function API:setup()
     if self.scene.isEmulated(id) then
       return self.scene.execute(id,name),200
     elseif not self.offline then
-      return self.hc3:post(ctx.path)
+      return self.hc3.post(ctx.path)
     else return nil,501 end
   end) 
   
@@ -401,7 +402,7 @@ function API:setup()
     if self.qa.isEmulated(id) then
       return self.qa.updateView(id,data),200
     elseif not self.offline then
-      return self.hc3:post(ctx.path,ctx.data)
+      return self.hc3.post(ctx.path,ctx.data)
     else return nil,501 end
   end)
   self:add("POST/plugins/restart",function(ctx)
@@ -409,7 +410,7 @@ function API:setup()
     if self.qa.isEmulated(id) then
       return self.qa.restart(id),200
     elseif not self.offline then
-      return self.hc3:post(ctx.path)
+      return self.hc3.post(ctx.path)
     else return nil,501 end
   end)
   self:add("POST/plugins/createChildDevice",function(ctx) 
@@ -417,7 +418,7 @@ function API:setup()
     if self.qa.isEmulated(id) then
       return self.qa.createChildDevice(id,ctx.data),200
     elseif not self.offline then
-      return self.hc3:post(ctx.path,ctx.data)
+      return self.hc3.post(ctx.path,ctx.data)
     else return nil,501 end
   end)
   self:add("DELETE/plugins/removeChildDevice/<id>",function(ctx)
@@ -425,7 +426,7 @@ function API:setup()
     if self.qa.isEmulated(id) then
       return self.qa.removeChildDevice(id),200
     elseif not self.offline then
-      return self.hc3:delete(ctx.path)
+      return self.hc3.delete(ctx.path)
     else return nil,501 end
   end)
   
@@ -435,14 +436,14 @@ function API:setup()
     if self.qa.isEmulated(id) then
       return self.qa.debugMessages(id,data),200
     elseif not self.offline then
-      return self.hc3:post(ctx.path,ctx.data)
+      return self.hc3.post(ctx.path,ctx.data)
     else return nil,501 end
   end)
   
   self:add("POST/plugins/publishEvent",function(ctx) 
     if self.offline then 
       return nil,501
-    else return self.hc3.sync:post(ctx.path,ctx.data) end
+    else return self.hc3.sync.post(ctx.path,ctx.data) end
   end)
   
   self:add("GET/panels/location",function(ctx) return get(ctx,'panels_location') end)
@@ -463,7 +464,7 @@ function API:setup()
   self:add("GET/quickApp/<id>/files",function(ctx) 
     local id = tonumber(ctx.vars[1])
     if not self.offline and not self.qa.isEmulated(id) then
-      return self.hc3.sync:get(ctx.path)
+      return self.hc3.sync.get(ctx.path)
     end
     if self.qa.isEmulated(id) then
       local res = self.qa.getFile(id)
@@ -474,7 +475,7 @@ function API:setup()
   self:add("POST/quickApp/<id>/files",function(ctx) 
     local id = tonumber(ctx.vars[1])
     if not self.offline and not self.qa.isEmulated(id) then
-      return self.hc3.sync:post(ctx.path,ctx.data)
+      return self.hc3.sync.post(ctx.path,ctx.data)
     end
     if self.qa.isEmulated(id) then
       local res = self.qa.createFile(id,ctx.data)
@@ -485,7 +486,7 @@ function API:setup()
   self:add("GET/quickApp/<id>/files/<name>",function(ctx) 
     local id = tonumber(ctx.vars[1])
     if not self.offline and not self.qa.isEmulated(id) then
-      return self.hc3.sync:get(ctx.path)
+      return self.hc3.sync.get(ctx.path)
     end
     if self.qa.isEmulated(id) then
       local name = ctx.vars[2]
@@ -497,7 +498,7 @@ function API:setup()
   self:add("PUT/quickApp/<id>/files/<name>",function(ctx)
     local id = tonumber(ctx.vars[1])
     if not self.offline and not self.qa.isEmulated(id) then
-      return self.hc3.sync:put(ctx.path,ctx.data)
+      return self.hc3.sync.put(ctx.path,ctx.data)
     end
     if self.qa.isEmulated(id) then
       local name = ctx.vars[2]
@@ -509,7 +510,7 @@ function API:setup()
   self:add("PUT/quickApp/<id>/files",function(ctx) 
     local id = tonumber(ctx.vars[1])
     if not self.offline and not self.qa.isEmulated(id) then
-      return self.hc3.sync:put(ctx.path,ctx.data)
+      return self.hc3.sync.put(ctx.path,ctx.data)
     end
     if self.qa.isEmulated(id) then
       local res = self.qa.writeFile(id,nil,ctx.data)
@@ -520,7 +521,7 @@ function API:setup()
   self:add("DELETE/quickApp/<id>/files/<name>",function(ctx) 
     local id = tonumber(ctx.vars[1])
     if not self.offline and not self.qa.isEmulated(id) then
-      return self.hc3.sync:delete(ctx.path)
+      return self.hc3.sync.delete(ctx.path)
     end
     if self.qa.isEmulated(id) then
       local name = ctx.vars[2]
@@ -536,7 +537,7 @@ function API:setup()
       return self.qa.createFQA(id),200
     end
     if not self.offline then
-      return self.hc3.sync:get(ctx.path)
+      return self.hc3.sync.get(ctx.path)
     end
     return nil, 501
   end)
@@ -548,7 +549,7 @@ function API:setup()
   self:add("GET/plugins/<id>/variables",function(ctx) 
     local id = ctx.vars[1]
     if not self.offline and not self.qa.isEmulated(tonumber(id)) then
-      return self.hc3.sync:get(ctx.path)
+      return self.hc3.sync.get(ctx.path)
     end
     local vars = rsrc.resources.internalStorage.items[id]
     if not vars then return nil, 404 end
@@ -559,7 +560,7 @@ function API:setup()
   self:add("GET/plugins/<id>/variables/<name>",function(ctx) 
     local id = ctx.vars[1]
     if not self.offline and not self.qa.isEmulated(tonumber(id)) then
-      return self.hc3.sync:get(ctx.path)
+      return self.hc3.sync.get(ctx.path)
     end
     local vars = rsrc.resources.internalStorage.items[id]
     local name = ctx.vars[2]
@@ -569,7 +570,7 @@ function API:setup()
   self:add("POST/plugins/<id>/variables",function(ctx) 
     local id = ctx.vars[1]
     if not self.offline and not self.qa.isEmulated(tonumber(id)) then
-      return self.hc3.sync:post(ctx.path,ctx.data)
+      return self.hc3.sync.post(ctx.path,ctx.data)
     end
     local data = ctx.data
     local vars = rsrc.resources.internalStorage
@@ -583,7 +584,7 @@ function API:setup()
   self:add("PUT/plugins/<id>/variables/<name>",function(ctx)
     local id = ctx.vars[1]
     if not self.offline and not self.qa.isEmulated(tonumber(id)) then
-      return self.hc3.sync:put(ctx.path)
+      return self.hc3.sync.put(ctx.path)
     end
     local data = ctx.data
     local vars = rsrc.resources.internalStorage.items[id]
@@ -595,7 +596,7 @@ function API:setup()
   self:add("DELETE/plugins/<id>/variables/<name>",function(ctx)
     local id = ctx.vars[1]
     if not self.offline and not self.qa.isEmulated(tonumber(id)) then
-      return self.hc3.sync:delete(ctx.path)
+      return self.hc3.sync.delete(ctx.path)
     end
     local vars = rsrc.resources.internalStorage.items[id]
     local name = ctx.vars[2]
@@ -607,7 +608,7 @@ function API:setup()
   self:add("DELETE/plugins/<id>/variables",function(ctx)
     local id = ctx.vars[1]
     if not self.offline and not self.qa.isEmulated(tonumber(id)) then
-      return self.hc3.sync:delete(ctx.path)
+      return self.hc3.sync.delete(ctx.path)
     end
     local vars = rsrc.resources.internalStorage
     if vars.items[id] == nil then return nil, 404 end

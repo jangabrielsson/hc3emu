@@ -68,7 +68,7 @@ function QA:setupStruct(flags,uiCallbacks,viewLayout,uiView)
   ---@diagnostic disable-next-line: undefined-field
   if not table.member(ifs,"quickApp") then ifs[#ifs+1] = "quickApp" end
   flags.type = flags.type or "com.fibaro.binarySwitch"
-  local deviceStruct = deviceTypes[flags.type]
+  local deviceStruct = table.cop(deviceTypes[flags.type])
   assert(deviceStruct,"Device type "..flags.type.." not found")
   deviceStruct.id=tonumber(flags.id)
   deviceStruct.type=flags.type

@@ -88,7 +88,7 @@ end
 function QuickApp:setPart(part) self:internalStorageSet("Part",part) end
 function QuickApp:onInit()
   print(self.name,self.id)
-  local part = self:internalStorageGet("Part")
+  local part = tonumber(self:internalStorageGet("Part"))
   if part == nil then part = 1 self:setPart(part)  end
   if part > 2 then self:setPart(nil) return end
   local fun = "part"..part

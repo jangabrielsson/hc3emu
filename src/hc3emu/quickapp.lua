@@ -242,6 +242,7 @@ function QuickApp:initChildDevices(map)
       self:error(fmt("Class for the child device: %s, with type: %s not found. Using base class: QuickAppChild", c.id, c.type))
       childDevices[c.id] = QuickAppChild(c)
     end
+---@diagnostic disable-next-line: inject-field
     childDevices[c.id].parent = self
   end
   self._childsInited = true
@@ -262,6 +263,7 @@ end
 function onAction(id,event)
   local quickApp = plugin._quickApp
   if E:DBGFLAG('onAction') then print("onAction: ", json.encode(event)) end
+---@diagnostic disable-next-line: undefined-field
   if quickApp.actionHandler then return quickApp:actionHandler(event) end
   if event.deviceId == quickApp.id then
     return quickApp:callAction(event.actionName, table.unpack(event.args))
@@ -274,6 +276,7 @@ end
 function onUIEvent(id, event)
   local quickApp = plugin._quickApp
   if E:DBGFLAG('onUIEvent') then print("UIEvent: ", json.encode(event)) end
+---@diagnostic disable-next-line: undefined-field
   if quickApp.UIHandler then quickApp:UIHandler(event) return end
   if quickApp.uiCallbacks[event.elementName] and quickApp.uiCallbacks[event.elementName][event.eventType] then
     quickApp:callAction(quickApp.uiCallbacks[event.elementName][event.eventType], event)

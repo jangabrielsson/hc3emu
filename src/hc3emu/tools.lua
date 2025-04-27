@@ -175,7 +175,7 @@ local function updateQA(emuId,hc3Id,components)
   components = components or {name=true,interfaces=true,quickVars=true,UI=true,files=true}
   assert(type(emuId) == "number", "emuId must be a number")
   assert(type(hc3Id) == "number", "hc3Id must be a number")
-  local hc3qa = E.api..get("/devices/"..hc3Id)
+  local hc3qa = E.api.hc3.get("/devices/"..hc3Id)
   assert(hc3qa,"Failed to get HC3 QuickApp, ID",tostring(hc3Id))
   local emuqa = getFQA(emuId)
   assert(emuqa,"Failed to get emulated QuickApp, ID",tostring(emuId))

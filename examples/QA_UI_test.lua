@@ -4,6 +4,7 @@
 _DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
+fibaro.hc3emu.config.setupDirectory('install')
 --%%name=UItest
 --%%type=com.fibaro.multilevelSwitch
 --%%proxy=UItestProxy

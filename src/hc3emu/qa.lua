@@ -122,7 +122,7 @@ function QA:setupProxy(flags,info,deviceStruct)
       value=deviceStruct.properties.quickAppVariables
     })
     if flags.logUI then E.ui.logUI(id) end
-    --E.proxy.startServer(id)
+    E.proxy.start()
     E.api.hc3.post("/devices/"..id.."/action/CONNECT",{args={{ip=E.emuIP,port=E.emuPort}}})
     info.isProxy = true
   end

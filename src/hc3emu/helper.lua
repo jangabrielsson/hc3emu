@@ -22,13 +22,14 @@ local function installHelper()
   E.api.hc3.put("/devices/"..helper.id,{visible=false}) -- Hide helper
 end
 
-RequestServer = RequestServer
-class 'RequestServer'(E.util.SocketServer)
-function RequestServer:__init(ip,port) SocketServer.__init(self,ip,port,"helper connection") end
+local SocketServer = E.util.SocketServer
+class 'RequestServer'(SocketServer)
+local RequestServer = _G['RequestServer'] _G['RequestServer'] = nil
+function RequestServer:__init(ip,port) SocketServer.__init(self,ip,port,"helper") end
 function RequestServer:handler(skt)
-  local queue = copas.queue.new()
+  self.queue = self.queue or copas.queue.new()
   while true do
-    local req = queue:pop(math.huge)
+    local req = self.queue:pop(math.huge)
     copas.send(skt,req.request)
     local reqdata = copas.receive(skt)
     req.response = reqdata
@@ -37,6 +38,7 @@ function RequestServer:handler(skt)
   end
 end
 function RequestServer:send(msg)
+  self.queue = self.queue or copas.queue.new()
   local req = {request=msg,response=nil,sem = copas.semaphore.new(1,0,math.huge)}
   self.queue:push(req)
   req.sem:take()
@@ -46,7 +48,7 @@ end
 local function startHelper()
   if helperStarted then return end
   local ip = E.emuIP
-  local port = E.emuPort+1
+  local port = E.emuPort+2
   local helper = (E.api.hc3.get("/devices?property=[quickAppUuid,"..HELPER_UUID.."]") or {})[1]
   if not helper or helper.properties.quickAppUuid ~= HELPER_UUID then helper = installHelper() end
   if not helper then

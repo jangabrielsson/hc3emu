@@ -137,8 +137,32 @@ local function getProxy(name,devTempl)
   return devStruct
 end
 
+local SocketServer = E.util.SocketServer
+class 'RecieveServer'(SocketServer)
+local RecieveServer = _G['RecieveServer'] _G['RecieveServer'] = nil
+function RecieveServer:__init(ip,port) SocketServer.__init(self,ip,port,"proxy") end
+function RecieveServer:handler(skt)
+  while true do
+    local reqdata = copas.receive(skt)
+    if not reqdata then break end
+    local stat,msg = pcall(json.decode,reqdata)
+    if stat then
+      local deviceId = msg.deviceId
+      local QA = E:getQA(deviceId)
+      if QA and msg.type == 'action' then QA:onAction(msg.value.deviceId,msg.value)
+      elseif QA and msg.type == 'ui' then QA:onUIEvent(msg.value.deviceId,msg.value) end
+    end
+  end
+end
+
+local function start() 
+  local r = RecieveServer(E.emuIP,E.emuPort) 
+  r:start()
+end
+
 exports.createProxy = createProxy
 exports.getProxy = getProxy
+exports.start = start
 exports.init = init
 
 return exports

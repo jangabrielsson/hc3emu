@@ -116,49 +116,38 @@ local function handleOPTIONS(path,headers,skt)
   return true
 end
 
-local started = false
-local function startServer(id)
-  if started then return end
-  started = true
-  local ip = "0.0.0.0"
-  local port = tonumber(E.emuPort) + 1
-  E:DEBUGF('info',"Starting webserver at %s:%s",ip,port)
-  E.stats.ports[port] = true
-  
-  local function handle(skt)
-    E.mobdebug.on()
-    E:setRunner(E.systemRunner)
-    local name = skt:getpeername() or "N/A"
-    --E._client = skt
-    E:DEBUGF("server","New connection: %s",name)
-    local request = copas.receive(skt)
-    local headers = {}
-    while true do
-      local header = copas.receive(skt)
-      headers[#headers+1] = header
-      if header == "" then
-        local method,path = request:match("([^%s]+) ([^%s]+)")
-        if method == 'GET' and handleGET(path,headers,skt) then 
-          break
-        end
-        if method == "OPTIONS" then 
-          handleOPTIONS(path,headers,skt) break 
-        end
-        if method == "POST" then 
-          handlePOST(path,headers,skt) break
-        end
-        copas.send(skt, "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
+local SocketServer = E.util.SocketServer
+class 'WebServer'(SocketServer)
+local WebServer = _G['WebServer'] _G['WebServer'] = nil
+function WebServer:__init(ip,port) SocketServer.__init(self,ip,port,"web") end
+function WebServer:handler(skt)
+  local request = copas.receive(skt)
+  local headers = {}
+  while true do
+    local header = copas.receive(skt)
+    headers[#headers+1] = header
+    if header == "" then
+      local method,path = request:match("([^%s]+) ([^%s]+)")
+      if method == 'GET' and handleGET(path,headers,skt) then 
         break
       end
-      E:DEBUGF("server","Connection closed: %s",name)
+      if method == "OPTIONS" then 
+        handleOPTIONS(path,headers,skt) break 
+      end
+      if method == "POST" then 
+        handlePOST(path,headers,skt) break
+      end
+      copas.send(skt, "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
+      break
     end
   end
-  
-  local server,err = socket.bind('*', port)
-  if not server then 
-    error(fmt("Failed open socket %s: %s",port,tostring(err)))
-  end
-  copas.addserver(server, handle)
+end
+
+local function startServer()
+  local ip = E.emuIP
+  local port = E.emuPort+1
+  local server = WebServer(ip,port)
+  server:start()
 end
 
 local header = [[

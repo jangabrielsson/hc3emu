@@ -457,8 +457,9 @@ local socket = require("socket")
 
 class 'SocketServer'
 local SocketServer = _G['SocketServer'] _G['SocketServer'] = nil
-function SocketServer:__init(ip,port,name)
+function SocketServer:__init(ip,port,name,debug)
   self.name = name or "socket server"
+  self.btag = debug or "server"
   self.ip = ip
   self.port = port
   function self:start()
@@ -469,9 +470,9 @@ function SocketServer:__init(ip,port,name)
       E.mobdebug.on()
       E:setRunner(E.systemRunner)
       local name = skt:getpeername() or "N/A"
-      E:DEBUGF("server","%s connection from: %s",self.name,name)
+      E:DEBUGF(self.btag,"%s connection from: %s",self.name,name)
       self:handler(skt)
-      E:DEBUGF("server","Connection closed: %s",name)
+      E:DEBUGF(self.btag,"Connection closed: %s",name)
     end
     local server,err = socket.bind('*', port)
     if not server then error(fmt("%s failed open socket %s: %s",self.name,self.port,tostring(err))) end

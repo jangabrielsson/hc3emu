@@ -361,6 +361,7 @@ local function collectViewLayoutRow(u,map)
 end
 
 local function viewLayout2UIAux(u,map)
+  if not u or next(u)==nil then return {} end
   local function conv(u)
     local rows = {}
     for _,j in pairs(u.items) do

@@ -97,18 +97,15 @@ function QuickApp:onInit()
   
 end
 ]]
-  local emptyArr = json.util.InitArray({})
   local props = {
     apiVersion = "1.3",
-    quickAppVariables = devTempl.properties.quickAppVariables or emptyArr,
+    quickAppVariables = devTempl.properties.quickAppVariables or {},
     viewLayout = devTempl.properties.viewLayout,
     uiView = devTempl.properties.uiView,
     uiCallbacks = devTempl.properties.uiCallbacks,
     useUiView=false,
     typeTemplateInitialized = true,
   }
-  if props.quickAppVariables then json.util.InitArray(props.quickAppVariables) end
-  if props.uiCallbacks then json.util.InitArray(props.uiCallbacks) end
   local fqa = {
     apiVersion = "1.3",
     name = name,
@@ -118,7 +115,7 @@ end
     files = {{name="main", isMain=true, isOpen=false, type='lua', content=code}},
   }
   --print(json.encode(fqa))
-  local res,code2 = E.api.hc3.post("/quickApp/", fqa)
+  local res,code2 = E.tools.uploadFQA(fqa)
   return res
 end
 

@@ -110,12 +110,14 @@ local function hc3(api)
   function self.put(path,data) return call("PUT",path,data) end
   function self.delete(path) return call("DELETE",path) end
   local function syncCall(method,path,data)
-    if not api.helper then return nil,505 end
+    if not api.helper then return nil,501 end
     local req = json.encode({method=method,path=path,data=data}).."\n"
-    local resp = api.helper:send(req)
+    local resp = api.helper.connection:send(req)
     if resp then
-      local res = json.decode(resp)
-      return table.unpack(res)
+      local data = json.decode(resp)
+      local res,code = table.unpack(data)
+      if res == json.null then res = nil end
+      return res,code
     end
     return nil,404
   end
@@ -133,6 +135,7 @@ local Resources = require("hc3emu.resource")
 
 function API:__init(args)
   self.E = E
+  self.helper = E.helper
   self.DIR = { GET={}, POST={}, PUT={}, DELETE={} }
   self.hc3 = hc3(self)
   self.offline = args.offline
@@ -168,23 +171,7 @@ end
 function API:setOffline(off) self.offline = off end
 
 function API:start()
-  if not self.offline then
-    local ip = E.emuIP
-    local port = 9543
-    local helper = self.hc3.get("/devices?name=hc3emuHelper")
-    if helper and #helper > 0 then
-      self.helper = E.util.socketServer(ip,port)
-      self.helper:start()
-      self.hc3.post("/devices/"..helper[1].id.."/action/connect",{args={ip,port}})
-    end
-
-    E.util.systemTask(function()
-      while true do
-        local resp = self.helper:send("Ping\n")
-        copas.pause(10)
-      end
-    end)
-  end
+  if not self.offline then E.helper.start() end
   self.resources:run()
 end
 
@@ -464,7 +451,7 @@ function API:setup()
   self:add("GET/quickApp/<id>/files",function(ctx) 
     local id = tonumber(ctx.vars[1])
     if not self.offline and not self.qa.isEmulated(id) then
-      return self.hc3.sync.get(ctx.path)
+      return self.hc3.get(ctx.path)
     end
     if self.qa.isEmulated(id) then
       local res = self.qa.getFile(id)
@@ -475,7 +462,7 @@ function API:setup()
   self:add("POST/quickApp/<id>/files",function(ctx) 
     local id = tonumber(ctx.vars[1])
     if not self.offline and not self.qa.isEmulated(id) then
-      return self.hc3.sync.post(ctx.path,ctx.data)
+      return self.hc3.post(ctx.path,ctx.data)
     end
     if self.qa.isEmulated(id) then
       local res = self.qa.createFile(id,ctx.data)
@@ -486,7 +473,7 @@ function API:setup()
   self:add("GET/quickApp/<id>/files/<name>",function(ctx) 
     local id = tonumber(ctx.vars[1])
     if not self.offline and not self.qa.isEmulated(id) then
-      return self.hc3.sync.get(ctx.path)
+      return self.hc3.get(ctx.path)
     end
     if self.qa.isEmulated(id) then
       local name = ctx.vars[2]
@@ -498,7 +485,7 @@ function API:setup()
   self:add("PUT/quickApp/<id>/files/<name>",function(ctx)
     local id = tonumber(ctx.vars[1])
     if not self.offline and not self.qa.isEmulated(id) then
-      return self.hc3.sync.put(ctx.path,ctx.data)
+      return self.hc3.put(ctx.path,ctx.data)
     end
     if self.qa.isEmulated(id) then
       local name = ctx.vars[2]
@@ -510,7 +497,7 @@ function API:setup()
   self:add("PUT/quickApp/<id>/files",function(ctx) 
     local id = tonumber(ctx.vars[1])
     if not self.offline and not self.qa.isEmulated(id) then
-      return self.hc3.sync.put(ctx.path,ctx.data)
+      return self.hc3.put(ctx.path,ctx.data)
     end
     if self.qa.isEmulated(id) then
       local res = self.qa.writeFile(id,nil,ctx.data)
@@ -521,7 +508,7 @@ function API:setup()
   self:add("DELETE/quickApp/<id>/files/<name>",function(ctx) 
     local id = tonumber(ctx.vars[1])
     if not self.offline and not self.qa.isEmulated(id) then
-      return self.hc3.sync.delete(ctx.path)
+      return self.hc3.delete(ctx.path)
     end
     if self.qa.isEmulated(id) then
       local name = ctx.vars[2]
@@ -537,15 +524,16 @@ function API:setup()
       return self.qa.createFQA(id),200
     end
     if not self.offline then
-      return self.hc3.sync.get(ctx.path)
+      return self.hc3.get(ctx.path)
     end
     return nil, 501
   end)
   self:add("POST/quickApp/",function(ctx) 
     local info = E.tools.installFQAstruct(ctx.data)
-    if info then return info.device,200 else return nil,401 end
+    if info then return info.device,201 else return nil,401 end
   end)
   
+  -- These we run via emuHelper with hc3.sync.* because they are not allowed remotely
   self:add("GET/plugins/<id>/variables",function(ctx) 
     local id = ctx.vars[1]
     if not self.offline and not self.qa.isEmulated(tonumber(id)) then
@@ -554,7 +542,7 @@ function API:setup()
     local vars = rsrc.resources.internalStorage.items[id]
     if not vars then return nil, 404 end
     local res = {}
-    for k,v in pairs(vars) do res[#res+1]= {name=k, value=v} end
+    for k,v in pairs(vars) do res[#res+1]= {name=k, value=v, isHidden=false} end
     return res,200
   end)
   self:add("GET/plugins/<id>/variables/<name>",function(ctx) 
@@ -565,7 +553,7 @@ function API:setup()
     local vars = rsrc.resources.internalStorage.items[id]
     local name = ctx.vars[2]
     if not (vars and vars[name] ~= nil) then return nil, 404 end
-    return {value=vars[name],name=name},200
+    return {value=vars[name],name=name, isHidden=false},200
   end)
   self:add("POST/plugins/<id>/variables",function(ctx) 
     local id = ctx.vars[1]
@@ -579,7 +567,7 @@ function API:setup()
     if vars[data.name] ~= nil then return nil, 409 end
     vars[data.name] = data.value
     E:flushState()
-    return data.value,200
+    return nil,200
   end)
   self:add("PUT/plugins/<id>/variables/<name>",function(ctx)
     local id = ctx.vars[1]

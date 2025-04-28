@@ -911,6 +911,9 @@ local EventTypes = {
       post({type='system',value='action',data=d})
     end
   end,
+  DeviceNotificationState = function(d,_,post)
+    post({type='device', id=d.id, property=d.notificationType, value=d.value})
+  end,
 }
 
 local refresh = RefreshStateSubscriber()

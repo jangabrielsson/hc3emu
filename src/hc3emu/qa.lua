@@ -362,7 +362,7 @@ function E.EVENT._quickApp_initialized(ev)
 end
 
 local compMap = {
-  text = function(v) return v end,
+  text = function(v) return v end, 
   value = function(v) if type(v)=='table' then return v[1] else return v end end,
   options = function(v) return v end,
   selectedItem = function(v) return v end,

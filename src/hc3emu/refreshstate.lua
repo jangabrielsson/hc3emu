@@ -69,6 +69,7 @@ local function refreshStatePoller()
         addEvent(event)
       end
     end
+    --if next(data.changes) then print("CHANGE:",json.encode(data.changes)) end
     copas.pause(E._refreshInterval or 0.01)
   end
 end

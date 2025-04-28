@@ -171,6 +171,25 @@ local function uploadQA(id)
 end
 
 --@F
+local function uploadFQA(fqa)
+  assert(type(fqa) == "table", "fqa must be a table")
+  assert(fqa.name, "fqa must have a name")
+  assert(fqa.type, "fqa must have a type")
+  assert(fqa.files, "fqa must have files")
+  assert(fqa.files[1], "fqa must have a main file")
+  if fqa.initialInterfaces then json.util.InitArray(fqa.initialInterfaces) end
+  local props = {'uiCallbacks','uiView','quickAppVariables','supportedDeviceRoles'}
+  for _,p in ipairs(props) do if fqa.initialProperties[p] then json.util.InitArray(fqa.initialProperties[p]) end end
+  local res,code = E.api.hc3.post("/quickApp/",fqa)
+  if not code or code > 201 then
+    E:ERRORF("Failed to upload FQA: %s", res)
+  else
+    E:DEBUG("Successfully uploaded FQA with ID: %s", res.id)
+  end
+  return res,code
+end
+
+--@F
 local function updateQA(emuId,hc3Id,components)
   components = components or {name=true,interfaces=true,quickVars=true,UI=true,files=true}
   assert(type(emuId) == "number", "emuId must be a number")
@@ -277,7 +296,7 @@ local function unpackFQAAux(id,fqa,path) -- Unpack fqa and save it to disk
   if props.manufacturer then pr:printf('--%%%%manufacturer=%s',props.manufacturer) end
   if props.deviceRole then pr:printf('--%%%%role=%s',props.deviceRole) end
   if props.userDescription then pr:printf('--%%%%description=%s',props.userDescription) end
-
+  
   for _,f in ipairs(files) do
     local fn = path..fname.."_"..f.name..".lua"
     saveFile(fn,f.content)
@@ -288,7 +307,7 @@ local function unpackFQAAux(id,fqa,path) -- Unpack fqa and save it to disk
   if id then
     E.ui.logUI(id,function(str) UI = str end)
   else
-    local UIstruct = E.ui.viewLayout2UI(props.viewLayout,props.uiCallbacks or {})
+    local UIstruct = E.ui.viewLayout2UI(props.viewLayout or {},props.uiCallbacks or {})
     E.ui.dumpUI(UIstruct,function(str) UI = str end)
   end
   UI = UI:match(".-\n(.*)") or ""
@@ -316,7 +335,12 @@ end
 
 --@F 
 local function installFQAstruct(fqa,optionalDirectives)        -- Load FQA from file and run it (saves as temp files)
-local path = E.tempDir..createTempName(".fqa")
+  assert(type(fqa) == "table", "fqa must be a table")
+  assert(fqa.name, "fqa must have a name")
+  assert(fqa.type, "fqa must have a type")
+  assert(fqa.files, "fqa must have files")
+  assert(fqa.files[1], "fqa must have a main file")
+  local path = E.tempDir..createTempName(".fqa")
   local f = io.open(path,"w")
   assert(f,"Can't open file "..path)
   f:write(json.encode(fqa))
@@ -344,6 +368,7 @@ exports.loadScene = loadScene
 exports.loadQAString = loadQAString
 exports.saveQA = saveQA
 exports.uploadQA = uploadQA
+exports.uploadFQA = uploadFQA
 exports.updateQA = updateQA
 exports.installFQA = installFQA
 exports.unpackFQA = unpackFQA

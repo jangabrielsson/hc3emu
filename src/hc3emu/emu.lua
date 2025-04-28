@@ -156,6 +156,7 @@ function Emulator:__init(debug,info)
   self.timers = loadModule("hc3emu.timers") 
   logTime = self.timers.userTime
   userDate = self.timers.userDate
+  self.helper = loadModule("hc3emu.helper") -- Helper functions
   self.API = loadModule("hc3emu.api")
   self.proxy = loadModule("hc3emu.proxy")        -- Proxy creation and Proxy API routes
   self.refreshState = loadModule("hc3emu.refreshstate")

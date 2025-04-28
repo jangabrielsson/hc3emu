@@ -457,8 +457,7 @@ local socket = require("socket")
 
 local function socketServer(ip,port)
   local self = { started = false }
-  local lock = copas.semaphore.new(1,0,math.huge)
-  local request,response
+  local queue = copas.queue.new()
   function self:start()
     self.started = true
     E:DEBUGF('info',"Starting socket server at %s:%s",ip,port)
@@ -468,14 +467,13 @@ local function socketServer(ip,port)
       E.mobdebug.on()
       E:setRunner(E.systemRunner)
       local name = skt:getpeername() or "N/A"
-      --E._client = skt
       E:DEBUGF("server","New connection: %s",name)
       while true do
-        lock:take(1)
-        copas.send(skt,request)
+        local req = queue:pop(math.huge)
+        copas.send(skt,req.request)
         local reqdata = copas.receive(skt)
-        response = reqdata
-        lock:give(1)
+        req.response = reqdata
+        req.sem:destroy()
         if not reqdata then break end
       end
       E:DEBUGF("server","Connection closed: %s",name)
@@ -485,11 +483,10 @@ local function socketServer(ip,port)
     copas.addserver(server, handle)
   end
   function self:send(msg)
-    request = msg
-    lock:give(1)
-    copas.pause(0.01)
-    lock:take(1)
-    return response
+    local req = {request=msg,response=nil,sem = copas.semaphore.new(1,0,math.huge)}
+    queue:push(req)
+    req.sem:take()
+    return req.response
   end
   return self
 end

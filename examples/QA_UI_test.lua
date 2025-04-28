@@ -6,7 +6,7 @@ if require and not QuickApp then require("hc3emu") end
 
 --%%name=UItest
 --%%type=com.fibaro.multilevelSwitch
---%% proxy=UItestProxy
+--%%proxy=UItestProxy
 --%%webui=true
 --%%dark=true
 --%%debug=info:true,server:true,onAction:true,onUIEvent:true

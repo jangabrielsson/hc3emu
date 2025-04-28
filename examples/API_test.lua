@@ -97,11 +97,35 @@ function QuickApp:part3()
   local a1,b1 = api.delete("/devices/"..a1.id)
   local a2,b2 = hc3.delete("/devices/"..a2.id)
   compare(a1,a2,b1,b2)
+
+  local child = {
+    name="Child",
+    type="com.fibaro.binarySwitch",
+    -- initialProperties = json.util.InitArray({}),
+    -- initialInterfaces = {'quickAppChild'},
+  }
+  child.parentId = self.id
+  local a1,b1 = api.post("/plugins/createChildDevice", child)
+  child.parentId = hc3id
+  local a2,b2 = hc3.post("/plugins/createChildDevice", child)
+  compare(type(a1),type(a2),b1,b2)
+
+  local a1,b1 = api.delete("/plugins/removeChildDevice/"..a1.id)
+  local a2,b2 = hc3.delete("/plugins/removeChildDevice/"..a2.id)
+  compare(a1,a2,b1,b2)
+  local children = hc3.get("/devices?parentId="..hc3id)
+  for _, child in ipairs(children) do -- Clean up
+    hc3.delete("/plugins/removeChildDevice/"..child.id)
+  end
+
+  
+
 end
 
 function QuickApp:setPart(part) self:internalStorageSet("Part",part) end
 function QuickApp:onInit()
   print(self.name,self.id)
+  function self:initChildDevices() end
   local part = tonumber(self:internalStorageGet("Part"))
   if part == nil then part = 1 self:setPart(part)  end
   local fun = "part"..part

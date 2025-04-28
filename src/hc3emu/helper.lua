@@ -22,10 +22,31 @@ local function installHelper()
   E.api.hc3.put("/devices/"..helper.id,{visible=false}) -- Hide helper
 end
 
+RequestServer = RequestServer
+class 'RequestServer'(E.util.SocketServer)
+function RequestServer:__init(ip,port) SocketServer.__init(self,ip,port,"helper connection") end
+function RequestServer:handler(skt)
+  local queue = copas.queue.new()
+  while true do
+    local req = queue:pop(math.huge)
+    copas.send(skt,req.request)
+    local reqdata = copas.receive(skt)
+    req.response = reqdata
+    req.sem:destroy()
+    if not reqdata then break end
+  end
+end
+function RequestServer:send(msg)
+  local req = {request=msg,response=nil,sem = copas.semaphore.new(1,0,math.huge)}
+  self.queue:push(req)
+  req.sem:take()
+  return req.response
+end
+
 local function startHelper()
   if helperStarted then return end
   local ip = E.emuIP
-  local port = 9543
+  local port = E.emuPort+1
   local helper = (E.api.hc3.get("/devices?property=[quickAppUuid,"..HELPER_UUID.."]") or {})[1]
   if not helper or helper.properties.quickAppUuid ~= HELPER_UUID then helper = installHelper() end
   if not helper then
@@ -35,7 +56,7 @@ local function startHelper()
   if helperId then
     E.api.hc3.post("/devices/"..helperId.."/action/close",{ args={ip,port}} )
     --copas.pause(2)
-    exports.connection = E.util.socketServer(ip,port)
+    exports.connection = RequestServer(ip,port)
     exports.connection:start()
     E.api.hc3.post("/devices/"..helperId.."/action/connect",{args={ip,port}})
   end

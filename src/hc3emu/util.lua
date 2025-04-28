@@ -455,40 +455,28 @@ end
 
 local socket = require("socket")
 
-local function socketServer(ip,port)
-  local self = { started = false }
-  local queue = copas.queue.new()
+class 'SocketServer'
+local SocketServer = _G['SocketServer'] _G['SocketServer'] = nil
+function SocketServer:__init(ip,port,name)
+  self.name = name or "socket server"
+  self.ip = ip
+  self.port = port
   function self:start()
     self.started = true
-    E:DEBUGF('info',"Starting socket server at %s:%s",ip,port)
-    E.stats.ports[E.emuPort] = true
-
+    E:DEBUGF('info',"Starting %s at %s:%s",self.name,self.ip,self.port)
+    E.stats.ports[self.port] = true
     local function handle(skt)
       E.mobdebug.on()
       E:setRunner(E.systemRunner)
       local name = skt:getpeername() or "N/A"
-      E:DEBUGF("server","New connection: %s",name)
-      while true do
-        local req = queue:pop(math.huge)
-        copas.send(skt,req.request)
-        local reqdata = copas.receive(skt)
-        req.response = reqdata
-        req.sem:destroy()
-        if not reqdata then break end
-      end
+      E:DEBUGF("server","%s connection from: %s",self.name,name)
+      self:handler(skt)
       E:DEBUGF("server","Connection closed: %s",name)
     end
     local server,err = socket.bind('*', port)
-    if not server then error(fmt("Failed open socket %s: %s",port,tostring(err))) end
+    if not server then error(fmt("%s failed open socket %s: %s",self.name,self.port,tostring(err))) end
     copas.addserver(server, handle)
   end
-  function self:send(msg)
-    local req = {request=msg,response=nil,sem = copas.semaphore.new(1,0,math.huge)}
-    queue:push(req)
-    req.sem:take()
-    return req.response
-  end
-  return self
 end
 
 exports._print = _print
@@ -505,6 +493,6 @@ exports.addThread = addThread
 exports.cancelThreads = cancelThreads
 exports.systemTask = systemTask
 exports.dateTest = dateTest
-exports.socketServer = socketServer
+exports.SocketServer = SocketServer
 
 return exports

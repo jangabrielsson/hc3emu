@@ -380,6 +380,10 @@ function QA:updateView(data)
     elm[propertyName] = value 
     E:post({type='quickApp_updateView',id=self.id})
   end
+  if self.isProxy then 
+    local a,b = E.api.hc3.post("/plugins/updateView",data)
+    a=b
+  end
 end
 
 function QA:remove()

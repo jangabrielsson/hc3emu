@@ -133,6 +133,7 @@ function Emulator:__init(debug,info)
   -- The QA/Scene we invoke the emulator with is the ""main" file
   -- and will set the flags fo some overal settings self.DBG (offline, etc)
   self:parseDirectives(info)
+
   local flags = info.directives
   for _,globalFlag in ipairs({'offline','state','logColor','stateReadOnly','dark','longitude','latitude','lock'}) do
     if flags[globalFlag]~=nil then self.DBG[globalFlag] = flags[globalFlag] end
@@ -166,6 +167,8 @@ function Emulator:__init(debug,info)
   loadModule("hc3emu.simdevices") 
   self.webserver = loadModule("hc3emu.webserver")
   self.webserver.startServer()
+
+  if info.directives.installation then self.config.installation(info.directives.installation) end
 end
 
 function Emulator:newLock()
@@ -390,6 +393,11 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
       if not table.member(i,flags.interfaces) then table.insert(flags.interfaces,i) end
     end
   end
+  --@D install=<hc3 user>,<hc3 password><uc3 url>
+  function directive.install(d,val)
+    local user,pass,url = val:match("([^,]+),([^,]+),(.+)")
+    flags.installation = {user=user,pass=pass,url=url}
+  end
   --@D uid=<UID> - Set quickAppUuid property, ex. --%%uid=345345235324
   function directive.uid(d,val) flags.uid = val end
   --@D manufacturer=name - Set manufacturer property, ex. --%%manufacturer=Acme Inc
@@ -481,6 +489,7 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
   end
   
   local ignore = {root=true,remote=true,include=true, port=true}
+  if truncCode:sub(-1)~="\n" then truncCode = truncCode.."\n" end
   truncCode:gsub("%-%-%%%%(%w-=.-)%s*\n",function(p)
     local f,v = p:match("(%w-)=(.*)")
     if ignore[f] then return end

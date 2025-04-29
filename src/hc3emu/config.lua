@@ -37,6 +37,20 @@ local function setupRsrscsDir()
   local file = "stdStructs.json"
   local path = "rsrcs/"..file
   local len = -(#file+2)
+  if type(_DEVELOP) == 'string' then
+    local lfs = require("lfs") 
+    path = _DEVELOP.."/rsrcs"
+    local currentDir = lfs.currentdir()
+    local prefs = _DEVELOP:match("([/\\%.]+)")
+    prefs:gsub("(%.%.)",function() 
+      path = path:match("^.-[/\\](.*)")
+      currentDir = currentDir:match("(.-)[/\\][%w+%-_ ]+$") 
+    end)
+    path = currentDir.."/"..path
+    local attr = lfs.attributes(path)
+    if attr and attr.mode == "directory" then return path end
+    assert(attr, "Failed to get _DEVELOP path tp /rsrsc "..path)
+  end
   local datafile = require("datafile")
   local f,p = datafile.open(path)
   if f then f:close() return p:sub(1,len) end
@@ -193,6 +207,30 @@ local function createGlobal()
   return createconfig(GLOBFILE,"settings.json")
 end
 
+local function installation(creds)
+  setupDirectory("install")
+  createGlobal()
+  createProj()
+  local homecfg = readFile(GLOBFILE,true,true) or {}
+  local function findOption(name)
+    for _,e in ipairs(homecfg) do
+      if e.name == name then return e or {} end
+    end
+  end
+  local user = findOption("user")
+  user.value = creds.user
+  local password = findOption("password")
+  password.value = creds.password
+  local IP = findOption("IP")
+  local url = creds.url
+  if not url:match("https?://") then
+    url = "http://"..url
+  end
+  IP.value = url
+  exports.saveSettings("global",json.encode(homecfg))
+  E:DEBUG("Set user,password,url in %s",GLOBFILE)
+end
+
 local function saveSettings(typ,jsondata)
   local stat,data = pcall(json.decode,jsondata)
   if not stat then
@@ -283,5 +321,6 @@ exports.saveSettings = saveSettings
 exports.setupRsrscsDir = setupRsrscsDir
 exports.rsrcPath = rsrcPath
 exports.loadResource = loadResource
+exports.installation = installation
 
 return exports

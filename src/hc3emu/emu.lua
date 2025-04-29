@@ -229,6 +229,7 @@ end
 function Emulator:readInState()
   local hasState, stateFileName = false, nil
   stateFileName = self.DBG.state
+  self.stateData = {[self.mainFile] = {}}
   self.hasState = type(stateFileName)=='string'
   if self.hasState then 
     self.stateFileName = stateFileName
@@ -558,7 +559,9 @@ function Emulator:httpRequest(method,url,headers,data,timeout,user,pwd,silent)
   end
   local r,status,h
   local t0 = socket.gettime()
-  if url:starts("https") then r,status,h = copas.https.request(req)
+  if url:starts("https") then
+    req.ssl_verify = false
+    r,status,h = copas.https.request(req)
   else r,status,h = copas.http.request(req) end
   local t1 = socket.gettime()
   if not silent then self:DEBUGF('http',"HTTP %s %s %s (%.3fs)",method,url,status,t1-t0) end

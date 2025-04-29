@@ -41,12 +41,12 @@ function QuickApp:onInit()
   self:debug(self.name,self.id,self.type)
   local fqa = api.get("/quickApp/export/"..self.id) -- Get my own fqa struct
   printf("Size of '%s' fqa: %s bytes",self.name,#json.encode(fqa))
-  self:testRefreshStates()
-  self:testBasic()
-  self:testChildren() -- Only works with proxy
+  -- self:testRefreshStates()
+  -- self:testBasic()
+  -- self:testChildren() -- Only works with proxy
   self:testTCP()
-  self:testMQTT()
-  self:testWebSocket() -- have problem with work with wss
+  -- self:testMQTT()
+  -- self:testWebSocket() -- have problem with work with wss
   --self:listFuns()
   print("Done!")
 end
@@ -183,35 +183,52 @@ function QuickApp:testMQTT()
 end
 
 function QuickApp:testTCP()
-  net.HTTPClient():request("https://timeapi.io/api/time/current/zone?timeZone=Europe/Amsterdam",{
+  local loc = api.get("/settings/location")
+  local lat = loc.latitude
+  local lon = loc.longitude
+  local url = string.format("https://api.open-meteo.com/v1/forecast?latitude=%s&longitude=%s&current_weather=true",lat,lon)
+  net.HTTPClient():request(url,{
     options = {
       method = "GET",
-      headers = { ["Accept"] = "application/json" }
+      headers = { ["Accept"] = "application/json" },
     },
-    success = function(response) self:debug("Response",response.data) end,
+    success = function(response) 
+      local weather = json.decode(response.data)
+      self:debug("Response",json.encode(weather.current_weather))
+      self:debug("Temperature: " .. weather.current_weather.temperature .. "°C")
+      end,
     error = function(err) self:error(err) end
   })
+--   net.HTTPClient():request("https://timeapi.io/api/time/current/zone?timeZone=Europe/Amsterdam",{
+--     options = {
+--       method = "GET",
+--       verify = false,
+--       headers = { ["Accept"] = "application/json" }
+--     },
+--     success = function(response) self:debug("Response",response.data) end,
+--     error = function(err) self:error(err) end
+--   })
   print("HTTP call to https://timeapi.io (can take a while zzzz...)") -- async, so we get answer later
   
-  local tcp = net.TCPSocket()
-  tcp:connect("www.google.com",80,{
-    success = function() 
-      self:debug("TCP connected")
-      tcp:write("GET / HTTP/1.1\r\nHost: www.google.com\r\n\r\n",{
-        success = function() 
-          self:debug("TCP sent") 
-          tcp:readUntil("*l",{
-            success = function(data) 
-              self:debug("TCP received from www.google.com: "..(data:match("(.-)\n") or data))
-            end,
-            error = function(err) self:error("TCP receive error: "..err) end
-          })
-        end,
-        error = function(err) self:error("TCP send error: "..err) end
-      })
-    end,
-    error = function(err) self:error("TCP error: "..err) end,
-  })
+  -- local tcp = net.TCPSocket()
+  -- tcp:connect("www.google.com",80,{
+  --   success = function() 
+  --     self:debug("TCP connected")
+  --     tcp:write("GET / HTTP/1.1\r\nHost: www.google.com\r\n\r\n",{
+  --       success = function() 
+  --         self:debug("TCP sent") 
+  --         tcp:readUntil("*l",{
+  --           success = function(data) 
+  --             self:debug("TCP received from www.google.com: "..(data:match("(.-)\n") or data))
+  --           end,
+  --           error = function(err) self:error("TCP receive error: "..err) end
+  --         })
+  --       end,
+  --       error = function(err) self:error("TCP send error: "..err) end
+  --     })
+  --   end,
+  --   error = function(err) self:error("TCP error: "..err) end,
+  -- })
 end
 
 function QuickApp:testWebSocket()

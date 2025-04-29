@@ -16,7 +16,7 @@ end
 local function removeRefreshStateListener(listener) listeners[listener] = nil end
 
 local function addEvent(event,exclListener)
-  E:DEBUGF("refresh","Refresh %s",json.encode(event))
+  E:DEBUGF("refresh","Refresh %s:%s",event.type,json.encode(event.data))
   if not event.created then event.created = os.time() end
   first = first + 1
   queue[first] = event
@@ -66,6 +66,7 @@ local function refreshStatePoller()
     events = data.events
     if events ~= nil then
       for _, event in pairs(events) do
+        --E:DEBUGF("refresh","Refresh %s:%s",event.type,json.encode(event.data))
         addEvent(event)
       end
     end

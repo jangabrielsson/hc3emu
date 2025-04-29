@@ -3,7 +3,7 @@ Emulator = Emulator
 local E = Emulator.emulator
 local json = require("hc3emu.json")
 local copas = require("copas")
-local class = require("hc3emu.class") -- use simple class implementation
+local lclass = require("hc3emu.class") -- use simple class implementation
 local userTime,userDate
 
 local function init()
@@ -18,8 +18,7 @@ class 'MinuteLoop'
 
 ---------------------- Scene class ---------------------------------------
 Runner = Runner
-class 'Scene'(Runner)
-local Scene = _G['Scene']; _G['Scene'] = nil
+local Scene = lclass('Scene',Runner)
 function Scene:__init(info)
   E.mobdebug.on()
   Runner.__init(self,"Scene")

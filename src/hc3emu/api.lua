@@ -98,6 +98,7 @@ Emulator = Emulator
 local E = Emulator.emulator
 local fmt = string.format
 local json = require("hc3emu.json")
+local lclass = require("hc3emu.class")
 local copas = require("copas")
 
 local function hc3(api)
@@ -128,8 +129,7 @@ local function hc3(api)
   return self
 end
 
-class 'API'
-local API = _G['API']; _G['API'] = nil
+local API  = lclass('API')
 
 local Resources = require("hc3emu.resource")
 

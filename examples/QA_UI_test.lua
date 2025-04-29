@@ -4,14 +4,13 @@
 _DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
-fibaro.hc3emu.config.setupDirectory('install')
 --%%name=UItest
 --%%type=com.fibaro.multilevelSwitch
 --%%proxy=UItestProxy
 --%%webui=true
 --%%dark=true
---%%debug=info:true,server:true,onAction:true,onUIEvent:true
---%%debug=barf:true
+-- %% debug=info:true,server:true,onAction:true,onUIEvent:true
+-- %% debug=barf:true,refresh:true
 
 --%%u={label='lbl1',text="LABEL"}
 --%%u={button='btn1',text="Btn1", onReleased="myButton", onLongPressDown="myButton2"}

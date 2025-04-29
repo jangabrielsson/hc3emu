@@ -1,7 +1,8 @@
 
 local E = fibaro.hc3emu
 if fibaro then fibaro.FILE = fibaro.FILE or {} end
-local json = json or E.json
+local json = json or require("hc3emu.json")
+
 ---@diagnostic disable-next-line: undefined-global
 local __TAG = tag or __TAG
 local format,copy = string.format,table.copy

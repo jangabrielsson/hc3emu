@@ -55,7 +55,7 @@ function class(name)
   end
 end
 
-local function class3(name)
+local function sclass(name)
   local cls = setmetatable({__USERDATA=true}, {
     __call = function(t,...)
       assert(rawget(t,'__init'),"No constructor")
@@ -70,4 +70,11 @@ local function class3(name)
   return function(p) getmetatable(cls).__index = p end
 end
 
-return class3
+local function lclass(name,super)
+  local c = sclass(name)
+  if super then c(super) end
+  local cls = _G[name]
+  return cls
+end
+
+return lclass -- local class

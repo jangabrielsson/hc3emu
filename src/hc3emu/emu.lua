@@ -25,7 +25,7 @@ argparse >= 0.7.1-1
 mobdebug >= 0.80-1
 --]]
 local VERSION = "1.0.80"
-local class = require("hc3emu.class") -- use simple class implementation
+local lclass = require("hc3emu.class") -- use simple class implementation
 
 local fmt = string.format
 
@@ -37,10 +37,11 @@ require("copas.timer")
 require("copas.http")
 
 local _print = print
-local json,urlencode
+local json = require("hc3emu.json")
 
-class 'Emulator' -- Main class 'Emulator'
-class 'Runner'   -- Base class for stuff that runs in the emulator, QuickApps, Scenes, System tasks
+Emulator = lclass('Emulator') -- Main class 'Emulator'
+Runner = lclass('Runner')   -- Base class for stuff that runs in the emulator, QuickApps, Scenes, System tasks
+local SystemRunner
 
 local logTime = os.time
 local userDate = os.date
@@ -59,8 +60,8 @@ local dateMark = function(str) return os.date("[%d.%m.%Y][%H:%M:%S][",logTime())
 --]]
 Emulator = Emulator -- fool linting...
 function Emulator:__init(debug,info)
-  self.VERSION = VERSION
   Emulator.emulator = self
+  self.VERSION = VERSION
   self.cfgFileName = "hc3emu.json"   -- Config file in current directory
   self.homeCfgFileName = ".hc3emu.json"  -- Config file in home directory
   
@@ -68,7 +69,6 @@ function Emulator:__init(debug,info)
   self.fileSeparator = win and '\\' or '/'
   self.tempDir = os.getenv("TMPDIR") or os.getenv("TEMP") or os.getenv("TMP") or "/tmp/" -- temp directory
   self.homeDir = os.getenv("HOME") or os.getenv("homepath") or ""
-  self.emuPort = 8264
   -- Try to guess in what environment we are running (used for loading extra console colors)
   self.isVscode = package.path:lower():match("vscode") ~= nil
   self.isZerobrane = package.path:lower():match("zerobrane") ~= nil
@@ -80,28 +80,29 @@ function Emulator:__init(debug,info)
   self.addThread = function(_,...) return self.util.addThread(...) end
   
   self.stats = { qas = 0, scenes = 0, timers = 0, ports = {} }
+
+  self.DEVICEID = 5000 -- Start id for QA devices
+  self.SCENEID = 7000 -- Start id for Scene devices
   self.QA_DIR={} -- Directory for all QAs - devicesId -> QA object
   self.SCENE_DIR={} -- Directory for all Scenes - sceneId -> Scene object
-  self.EMUVAR = "TQEMU" -- HC3 GV with connection data for HC3 proxy
+
   self.emuPort = 8264   -- Port for HC3 proxy to connect to
   self.emuIP = nil      -- IP of host running the emulator
-  self.api = {}         -- API functions
   self.DBG = {} -- Default flags and debug settings
   self.exports = {} -- functions to export to QA
   self.RunnerClass = Runner
+  self.json = json -- Used by some lua libraries...
   
   -- Determine the IP address of the emulator
-  local someRandomIP = "192.168.1.122" --This address you make up
-  local someRandomPort = "3102" --This port you make up
-  local mySocket = socket.udp() --Create a UDP socket like normal
-  mySocket:setpeername(someRandomIP,someRandomPort)
-  local myDevicesIpAddress,_ = mySocket:getsockname()-- returns IP and Port
-  self.emuIP = myDevicesIpAddress == "0.0.0.0" and "127.0.0.1" or myDevicesIpAddress
+  do
+    local someRandomIP = "192.168.1.122" --This address you make up
+    local someRandomPort = "3102" --This port you make up
+    local mySocket = socket.udp() --Create a UDP socket like normal
+    mySocket:setpeername(someRandomIP,someRandomPort)
+    local myDevicesIpAddress,_ = mySocket:getsockname()-- returns IP and Port
+    self.emuIP = myDevicesIpAddress == "0.0.0.0" and "127.0.0.1" or myDevicesIpAddress
+  end
   
-  self.DEVICEID = 5000 -- Start id for QA devices
-  self.SCENEID = 7000 -- Start id for Scene devices
-  
-  self.json = require("hc3emu.json")
   function print(...) if self.silent then return else _print(...) end end
   
   -- Attempt to hide type function for debuggers...
@@ -111,8 +112,6 @@ function Emulator:__init(debug,info)
   self.luaType = luaType
   
   self.lua = {require = require, dofile = dofile, loadfile = loadfile, type = type, io = io, print = _print, package = package } -- used from fibaro.hc3emu.lua.x 
-  
-  json,urlencode = self.json,self.util.urlencode
 
   self.silent = debug.silent
   self.nodebug = debug.nodebug
@@ -138,8 +137,8 @@ function Emulator:__init(debug,info)
   for _,globalFlag in ipairs({'offline','state','logColor','stateReadOnly','dark','longitude','latitude','lock'}) do
     if flags[globalFlag]~=nil then self.DBG[globalFlag] = flags[globalFlag] end
   end
-  self.systemRunner.dbg = flags.debug
   self.systemRunner.dbg = flags.debug or {}
+
   self.rsrcsDir = self.config.setupRsrscsDir()
   assert(self.rsrcsDir,"Failed to find rsrcs directory")
   self.config.setupDirectory(info.directives.webui)
@@ -288,7 +287,7 @@ end
 function Emulator:getQA(id) return self.QA_DIR[id] end
 function Emulator:getScene(id) return self.SCENE_DIR[id] end
 
-function Emulator:DEBUG(f,...) print(dateMark('SYS'),fmt(f,...)) end
+function Emulator:DEBUG(f,...) print(dateMark('SYS').." "..fmt(f,...)) end
 function Emulator:DEBUGF(flag,f,...) if self:DBGFLAG(flag) then self:DEBUG(f,...) end end
 function Emulator:DBGFLAG(flag) 
   local runner = self:getRunner()
@@ -664,8 +663,7 @@ function Runner:timerCallback(ref,what)
   end
 end
 
-SystemRunner = SystemRunner
-class 'SystemRunner'(Runner)
+SystemRunner = lclass('SystemRunner',Runner)
 
 function SystemRunner:__init()
   Runner.__init(self,"System")

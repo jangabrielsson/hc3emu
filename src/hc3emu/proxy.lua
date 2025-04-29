@@ -3,7 +3,7 @@ Emulator = Emulator
 local E = Emulator.emulator
 local json = require("hc3emu.json")
 local copas = require("copas")
-local socket = require("socket")
+local lclass = require("hc3emu.class")
 local urlencode
 local fmt = string.format
 
@@ -138,11 +138,11 @@ local function getProxy(name,devTempl)
 end
 
 local SocketServer = E.util.SocketServer
-class 'RecieveServer'(SocketServer)
-local RecieveServer = _G['RecieveServer'] _G['RecieveServer'] = nil
-function RecieveServer:__init(ip,port) SocketServer.__init(self,ip,port,"proxy") end
+local RecieveServer = lclass('RecieveServer',SocketServer)
+function RecieveServer:__init(ip,port) SocketServer.__init(self,ip,port,"proxy","server") end
 function RecieveServer:handler(skt)
   while true do
+    ---print("Waiting for data")
     local reqdata = copas.receive(skt)
     if not reqdata then break end
     local stat,msg = pcall(json.decode,reqdata)

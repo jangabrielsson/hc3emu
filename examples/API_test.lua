@@ -10,7 +10,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%dark=true
 --%%state=test/apitest.db
 --%%offline=true
---%%webui="install"
+--%%webui=true
 
 local function printf(...) print(string.format(...)) end
 local function setLocal(flag) fibaro.setOffline(flag) end

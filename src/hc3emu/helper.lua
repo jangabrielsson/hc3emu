@@ -2,7 +2,7 @@ local exports = {}
 Emulator = Emulator
 local E = Emulator.emulator
 local copas = require("copas")
-local json = require("hc3emu.json")
+local lclass = require("hc3emu.class")
 
 local helperStarted = false
 local HELPER_UUID = "hc3emu-00-01"
@@ -23,8 +23,7 @@ local function installHelper()
 end
 
 local SocketServer = E.util.SocketServer
-class 'RequestServer'(SocketServer)
-local RequestServer = _G['RequestServer'] _G['RequestServer'] = nil
+local RequestServer = lclass('RequestServer',SocketServer)
 function RequestServer:__init(ip,port) SocketServer.__init(self,ip,port,"helper") end
 function RequestServer:handler(skt)
   self.queue = self.queue or copas.queue.new()

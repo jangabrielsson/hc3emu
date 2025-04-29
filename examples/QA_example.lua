@@ -128,7 +128,7 @@ class 'MyChild'(QuickAppChild)
 function MyChild:__init(dev) QuickAppChild.__init(self,dev) end
 
 function QuickApp:testChildren()
-  if not self.__isProxy then 
+  if not self.isProxy then 
     self:debug("testChildren only works with proxy")
     return
   end

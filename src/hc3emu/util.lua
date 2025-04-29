@@ -5,6 +5,7 @@ local E = Emulator.emulator
 local json = require("hc3emu.json")
 local copas = require("copas")
 local mobdebug = require("mobdebug")
+local lclass = require("hc3emu.class")
 
 local fmt = string.format 
 local _print = print
@@ -455,8 +456,7 @@ end
 
 local socket = require("socket")
 
-class 'SocketServer'
-local SocketServer = _G['SocketServer'] _G['SocketServer'] = nil
+local SocketServer = lclass('SocketServer')
 function SocketServer:__init(ip,port,name,debug)
   self.name = name or "socket server"
   self.btag = debug or "server"
@@ -464,7 +464,7 @@ function SocketServer:__init(ip,port,name,debug)
   self.port = port
   function self:start()
     self.started = true
-    E:DEBUGF('info',"Starting %s at %s:%s",self.name,self.ip,self.port)
+    E:DEBUGF('server',"Opening %s socket at %s:%s",self.name,self.ip,self.port)
     E.stats.ports[self.port] = true
     local function handle(skt)
       E.mobdebug.on()
@@ -482,7 +482,6 @@ end
 
 exports._print = _print
 exports.pcall2 = pcall2
-exports.json = json
 exports.urlencode = urlencode
 exports.__assert_type = __assert_type
 exports.readFile = readFile

@@ -1,9 +1,9 @@
 --[[ Emulator api routes
 --]]
 local json = require("hc3emu.json")
+local lclass = require("hc3emu.class")
 
-class 'Resources'
-local Resources = _G['Resources']; _G['Resources'] = nil
+local Resources = lclass('Resources')
 
 function Resources:__init(api)
   self.resources = {
@@ -167,8 +167,7 @@ function Resources:refresh(op,typ,id,data)
   self:refreshOrg(r(id,data))
 end
 
-class 'EventMgr'
-local EventMgr = _G['EventMgr']; _G['EventMgr'] = nil
+local EventMgr = lclass('EventMgr') -- This is a class, but not a subclass of Resources
 
 local function match(pattern,event) -- See if pattern matches event
   if type(pattern) == 'table' and type(event) == 'table' then
@@ -201,7 +200,7 @@ end
 local filter = { DeviceActionRanEvent = true }
 function EventMgr:post(event,time)  -- Optional time in seconds
   if filter[event.type] then return end
-  print("Event:",event.type,json.encode(event.data))
+  --print("Event:",event.type,json.encode(event.data))
   self.emulator.util.systemTask(function() -- Do it as asynchronously as possible
     local handlers = self:getHandlers(event)
     for _,v in ipairs(handlers) do -- look through each defined event handler for this event type

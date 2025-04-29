@@ -4,6 +4,7 @@ local E = Emulator.emulator
 local json = require("hc3emu.json")
 local copas = require("copas")
 local socket = require("socket")
+local lclass = require("hc3emu.class")
 local urlencode
 local fmt = string.format
 
@@ -117,8 +118,7 @@ local function handleOPTIONS(path,headers,skt)
 end
 
 local SocketServer = E.util.SocketServer
-class 'WebServer'(SocketServer)
-local WebServer = _G['WebServer'] _G['WebServer'] = nil
+local WebServer = lclass('WebServer',SocketServer) -- lclass is a class from hc3emu
 function WebServer:__init(ip,port) SocketServer.__init(self,ip,port,"web") end
 function WebServer:handler(skt)
   local request = copas.receive(skt)

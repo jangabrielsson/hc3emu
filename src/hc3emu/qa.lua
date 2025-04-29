@@ -2,7 +2,7 @@ local exports = {}
 Emulator = Emulator
 local E = Emulator.emulator
 local json = require("hc3emu.json")
-local class = require("hc3emu.class") -- use simple class implementation
+local lclass = require("hc3emu.class") -- use simple class implementation
 local copas = require("copas")
 local fmt = string.format
 local userTime,userDate,urlencode,deviceTypes
@@ -12,10 +12,10 @@ local function init()
   urlencode = E.util.urlencode
   deviceTypes = E.config.loadResource("devices.json",true)
 end
+
 Runner = Runner 
 
-class 'QA'(Runner)
-local QA = _G['QA']; _G['QA'] = nil
+local QA = lclass('QA',Runner)
 
 function QA:__init(info,noRun) -- create QA struct, 
   Runner.__init(self,"QA")
@@ -340,7 +340,7 @@ end
 function E.EVENT._quickApp_initialized(ev)
   local qa = E:getQA(ev.id)
   E.refreshState.post.DeviceCreatedEvent(ev.id)
-  if qa.directives.webui then
+  if (qa.directives or qa.flags).webui then
     qa.webui = true
     if qa.isChild then
       local name = (qa.device.name or "Child"):gsub("[^%w]","")
@@ -485,8 +485,7 @@ local function addApiHooks(api)
   function api.qa.debugMessages(id,data) notImpl() end
 end
 
-class 'QAChild' -- Just a placeholder for child QA, NOT a runner, only mother QA is runner
-local QAChild = _G['QAChild']; _G['QAChild'] = nil
+local QAChild = lclass('QAChild') --  Just a placeholder for child QA, NOT a runner, only mother QA is runner
 
 function QAChild:__init(info)
   self.id = info.id

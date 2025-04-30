@@ -112,12 +112,13 @@ local function hc3(api)
   function self.delete(path) return call("DELETE",path) end
   local function syncCall(method,path,data)
     if not api.helper then return nil,501 end
-    local req = json.encode({method=method,path=path,data=data}).."\n"
+    local req = json.encode({method=method,path=path,data=data or {}}).."\n"
     local resp = api.helper.connection:send(req)
     if resp then
       local data = json.decode(resp)
       local res,code = table.unpack(data)
       if res == json.null then res = nil end
+      E:DEBUGF('http',"HTTP %s %s %s",method,path,code)
       return res,code
     end
     return nil,404
@@ -536,7 +537,7 @@ function API:setup()
   -- These we run via emuHelper with hc3.sync.* because they are not allowed remotely
   self:add("GET/plugins/<id>/variables",function(ctx) 
     local id = ctx.vars[1]
-    if not self.offline and not self.qa.isEmulated(tonumber(id)) then
+    if not self.offline then
       return self.hc3.sync.get(ctx.path)
     end
     local vars = rsrc.resources.internalStorage.items[id]
@@ -547,7 +548,7 @@ function API:setup()
   end)
   self:add("GET/plugins/<id>/variables/<name>",function(ctx) 
     local id = ctx.vars[1]
-    if not self.offline and not self.qa.isEmulated(tonumber(id)) then
+    if not self.offline then
       return self.hc3.sync.get(ctx.path)
     end
     local vars = rsrc.resources.internalStorage.items[id]
@@ -557,7 +558,7 @@ function API:setup()
   end)
   self:add("POST/plugins/<id>/variables",function(ctx) 
     local id = ctx.vars[1]
-    if not self.offline and not self.qa.isEmulated(tonumber(id)) then
+    if not self.offline then
       return self.hc3.sync.post(ctx.path,ctx.data)
     end
     local data = ctx.data
@@ -571,8 +572,8 @@ function API:setup()
   end)
   self:add("PUT/plugins/<id>/variables/<name>",function(ctx)
     local id = ctx.vars[1]
-    if not self.offline and not self.qa.isEmulated(tonumber(id)) then
-      return self.hc3.sync.put(ctx.path)
+    if not self.offline then
+      return self.hc3.sync.put(ctx.path,ctx.data)
     end
     local data = ctx.data
     local vars = rsrc.resources.internalStorage.items[id]

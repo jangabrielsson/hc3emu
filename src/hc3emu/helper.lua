@@ -6,6 +6,7 @@ local lclass = require("hc3emu.class")
 
 local helperStarted = false
 local HELPER_UUID = "hc3emu-00-01"
+local HELPER_VERSION = "1.0.0"
 
 local function installHelper()
   local fqa = E.config.loadResource("hc3emuHelper.fqa",true)
@@ -14,6 +15,8 @@ local function installHelper()
     return nil
   end
   fqa.visible = false
+  fqa.properties.quickAppUuid = HELPER_UUID
+  fqa.properties.model = HELPER_VERSION
   local helper,err = E.tools.uploadFQA(fqa)
   if not helper then
     E:ERRORF("Failed to install helper: %s",err or "Unknown error")
@@ -24,20 +27,57 @@ end
 
 local SocketServer = E.util.SocketServer
 local RequestServer = lclass('RequestServer',SocketServer)
-function RequestServer:__init(ip,port) SocketServer.__init(self,ip,port,"helper") end
+function RequestServer:__init(ip,port) 
+  SocketServer.__init(self,ip,port,"helper") 
+  self.queue = copas.queue.new()
+end
+
+local function sendParts(str,write,n0)
+  local len = #str
+  local n = (len-1) // n0
+  local i = 1
+  local p = str:sub(i,i+n0-1)
+  i = i+n0
+  write(string.format("%03d:%s",n+1,p))
+  while n > 0 do
+    p = str:sub(i,i+n0-1)
+    write(p)
+    i = i+n0
+    n = n-1
+  end
+end
+
+local function receieveParts(read)
+  local data = read()
+  if data == nil then return end
+  local n = tonumber(data:sub(1,3))
+  if not n then return end
+  data = data:sub(5)
+  local buff = {data}
+  for i=2,n do 
+    local l = read()
+    if not l then break end
+    buff[#buff+1] = l
+  end
+  return table.concat(buff)
+end
+
 function RequestServer:handler(skt)
-  self.queue = self.queue or copas.queue.new()
+  local function send(str) copas.send(skt,str) end
+  local function rec() return copas.receive(skt) end
   while true do
     local req = self.queue:pop(math.huge)
-    copas.send(skt,req.request)
-    local reqdata = copas.receive(skt)
+    --print("SEND:",req.request)
+    sendParts(req.request,send,500)
+    --copas.send(skt,req.request)
+    local reqdata = receieveParts(rec)
+    --print("REC:",reqdata)
     req.response = reqdata
     req.sem:destroy()
     if not reqdata then break end
   end
 end
 function RequestServer:send(msg)
-  self.queue = self.queue or copas.queue.new()
   local req = {request=msg,response=nil,sem = copas.semaphore.new(1,0,math.huge)}
   self.queue:push(req)
   req.sem:take()
@@ -49,7 +89,10 @@ local function startHelper()
   local ip = E.emuIP
   local port = E.emuPort+2
   local helper = (E.api.hc3.get("/devices?property=[quickAppUuid,"..HELPER_UUID.."]") or {})[1]
-  if not helper or helper.properties.quickAppUuid ~= HELPER_UUID then helper = installHelper() end
+  if not helper or helper.properties.model ~= HELPER_VERSION then 
+    if helper then E.api.hc3.delete("/devices/"..helper.id) end -- Old, remove and install new helper
+    helper = installHelper() 
+  end
   if not helper then
     return E:ERRORF("Failed to install helper")
   end

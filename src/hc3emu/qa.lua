@@ -436,6 +436,19 @@ function QA:_error(str)
   self.env.fibaro.error(self.env.__TAG,self:trimErr(str))
 end
 
+local function getVar(id,key)
+  id = tostring(id)
+  local vars = E.api.resources.resources.internalStorage.items[id] or {}
+  return vars[key]
+end
+local function setVar(id,key,value)
+  id = tostring(id)
+  local vars = E.api.resources.resources.internalStorage.items[id] or {}
+  vars[key] = value
+  E.api.resources.resources.internalStorage.items[id] = vars
+  E:flushState()
+end
+
 local QAChild = lclass('QAChild') --  Just a placeholder for child QA, NOT a runner, only mother QA is runner
 
 function QAChild:__init(info)
@@ -444,7 +457,12 @@ function QAChild:__init(info)
   self.device = info.device
   self.name = info.device.name or ("Child_"..self.id)
   if self.device.properties.uiView then
-    self.UI = E.ui.uiView2UI(self.device.properties.uiView,self.device.properties.uiCallbacks or {})
+    if self.device.properties.uiCallbacks == nil then
+      self.device.properties.uiCallbacks = getVar(self.id,"_uiCallbacks") or {}
+      info.qa.properties.uiCallbacks = self.device.properties.uiCallbacks
+      info.qa:setupUICallbacks()
+    end
+    self.UI = E.ui.uiView2UI(self.device.properties.uiView,self.device.properties.uiCallbacks)
   else self.UI = {} end
   local parentQA = E:getQA(self.device.parentId)
   self.isProxy = parentQA.isProxy
@@ -590,6 +608,8 @@ local function addApiHooks(api)
     if qa.isProxy and not E.api.offline then
       dev,code = E.api.hc3.post("/plugins/createChildDevice",data)
       if code > 206 then return nil,code end
+      setVar(dev.id,"_uiCallbacks",(data.initialProperties or {}).uiCallbacks)
+      dev.properties.uiCallbacks = data.initialProperties.uiCallbacks
     else
       dev = table.copy(deviceTypes[data.type])
       assert(dev,"Device type "..data.type.." not found")

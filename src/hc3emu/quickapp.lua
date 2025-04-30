@@ -252,7 +252,7 @@ class 'QuickAppChild' (QuickAppBase)
 function QuickAppChild:__init(device)
   QuickAppBase.__init(self, device)
 
-  local qaChild = E.qa.QAChild({id=self.id,device=device,env=_G})
+  local qaChild = E.qa.QAChild({id=self.id,device=device,env=_G,qa=self})
   qaChild.qa = self
   E:registerQA(qaChild) -- A child device, register it locally
   E:post({type='quickApp_initialized', id=self.id})

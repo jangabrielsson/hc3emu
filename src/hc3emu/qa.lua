@@ -436,55 +436,6 @@ function QA:_error(str)
   self.env.fibaro.error(self.env.__TAG,self:trimErr(str))
 end
 
-local function addApiHooks(api)
-  local function notImpl() error("QA func not implemented",2) end
-  function api.qa.call(id,action,data)  
-    local qa = E:getQA(id)
-    if qa.device.parentId and qa.device.parentId > 0 then
-      qa = E:getQA(qa.device.parentId)
-      assert(qa,"Parent QA not found")
-    end
-    qa:onAction(id,{actionName=action,deviceId=id, args=data.args})
-    return 'OK',200
-  end
-  function api.qa.update(id,data) notImpl() end
-  function api.qa.prop(id,prop,value) 
-    local qa = E:getQA(id)
-    qa.device.properties[prop] = value
-    qa:watchesProperty(prop,value)
-    return 'OK',200
-  end
-  function api.qa.getFile(id,name) notImpl() end
-  function api.qa.writeFile(id,name,data) notImpl() end
-  function api.qa.createFile(id,data) notImpl() end
-  function api.qa.deleteFile(id,name) notImpl() end
-  function api.qa.createFQA(id) notImpl() end
-  function api.qa.updateView(id,data)
-    local qa = E:getQA(tonumber(data.deviceId))
-    qa:updateView(data)
-    return nil,200
-  end
-  function api.qa.restart(id) notImpl() end
-  function api.qa.createChildDevice(parentId,data)
-    local id = E:getNextDeviceId()
-    local dev = {
-      id=id,
-      name=data.name,
-      type=data.type,
-      parentId=parentId,
-      interfaces=data.initialInterfaces or {},
-      properties=data.initialProperties or {},
-    }
-    E.api.resources:create("devices",dev)
-    return dev,200
-  end
-  function api.qa.removeChildDevice(id)
-    E.api.resources:delete("devices",id)
-    return nil,200
-  end
-  function api.qa.debugMessages(id,data) notImpl() end
-end
-
 local QAChild = lclass('QAChild') --  Just a placeholder for child QA, NOT a runner, only mother QA is runner
 
 function QAChild:__init(info)

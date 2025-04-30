@@ -634,15 +634,16 @@ local function addApiHooks(api)
   end
   
   function api.qa.createChildDevice(parentId,data)
-    local id = E:getNextDeviceId()
-    local dev = {
-      id=id,
-      name=data.name,
-      type=data.type,
-      parentId=parentId,
-      interfaces=data.initialInterfaces or {},
-      properties=data.initialProperties or {},
-    }
+    local qa = E:getQA(parentId)
+    local dev,code = nil,nil
+    if qa.isProxy and not E.api.offline then
+      dev,code = E.api.hc3.post("/plugins/createChildDevice",data)
+      if code > 206 then return nil,code end
+    else
+      dev = table.copy(deviceTypes[data.type])
+      assert(dev,"Device type "..data.type.." not found")
+      dev.id = E:getNextDeviceId()
+    end
     E.api.resources:create("devices",dev)
     return dev,200
   end

@@ -403,7 +403,7 @@ function API:setup()
   self:add("POST/plugins/createChildDevice",function(ctx) 
     local id = ctx.data.parentId
     if self.qa.isEmulated(id) then
-      return self.qa.createChildDevice(id,ctx.data),200
+      return self.qa.createChildDevice(id,ctx.data)
     elseif not self.offline then
       return self.hc3.post(ctx.path,ctx.data)
     else return nil,501 end

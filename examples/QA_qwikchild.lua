@@ -10,7 +10,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%type=com.fibaro.genericDevice
 --%%proxy=QCProxy
 --%%port=8265
---%%offline=true
+--%% offline=true
 --%%dark=true
 --%%state=state.db
 --%%webui=true
@@ -32,6 +32,7 @@ function MyChild:mySlider(event)
 end
 function MyChild:setValue(v)
   self:debug("setValue",v)
+  self:updateProperty('value',v)
 end
 function MyChild:childFun(a,b)
   printf("childFun called %s+%s=%s",a,b,a+b)
@@ -48,19 +49,19 @@ local children = {
       {slider='s1',text='S1',onChanged='mySlider'}
     },
   },
-  -- bar22 = {
-  --   name = "Bar2",
-  --   type = "com.fibaro.multilevelSwitch",
-  --   className = "MyChild"
-  -- },
-  -- bar3 = {
-  --   name = "Bar3",
-  --   type = "com.fibaro.multilevelSwitch",
-  --   className = "MyChild"
-  -- },
+  bar22 = {
+    name = "Bar2",
+    type = "com.fibaro.multilevelSwitch",
+    className = "MyChild"
+  },
+  bar3 = {
+    name = "Bar3",
+    type = "com.fibaro.multilevelSwitch",
+    className = "MyChild"
+  },
 }
 function QuickApp:onInit()
   self:initChildren(children)
-  --fibaro.call(self.children.bar3.id,"childFun",5,7)
+  fibaro.call(self.children.bar3.id,"childFun",5,7)
 end
 

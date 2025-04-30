@@ -1,4 +1,5 @@
 *.fqa
+!hc3emuHelper.fqa
 *.db
 *.rock
 test.lua

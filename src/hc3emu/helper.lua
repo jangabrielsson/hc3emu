@@ -62,15 +62,13 @@ local function receieveParts(read)
   return table.concat(buff)
 end
 
-function RequestServer:handler(skt)
-  local function send(str) copas.send(skt,str) end
-  local function rec() return copas.receive(skt) end
+function RequestServer:handler(io)
   while true do
     local req = self.queue:pop(math.huge)
     --print("SEND:",req.request)
-    sendParts(req.request,send,500)
+    sendParts(req.request,io.write,500)
     --copas.send(skt,req.request)
-    local reqdata = receieveParts(rec)
+    local reqdata = receieveParts(io.read)
     --print("REC:",reqdata)
     req.response = reqdata
     req.sem:destroy()

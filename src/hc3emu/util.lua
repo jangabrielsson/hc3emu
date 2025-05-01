@@ -471,7 +471,10 @@ function SocketServer:__init(ip,port,name,debug)
       E:setRunner(E.systemRunner)
       local name = skt:getpeername() or "N/A"
       E:DEBUGF(self.btag,"%s connection from: %s",self.name,name)
-      self:handler(skt)
+      local function read(len) return copas.receive(skt,len) end
+      local function write(str) return copas.send(skt,str) end
+      local function close() return copas.close(skt) end
+      self:handler({skt=skt,read=read,write=write,close=close})
       E:DEBUGF(self.btag,"Connection closed: %s",name)
     end
     local server,err = socket.bind('*', port)

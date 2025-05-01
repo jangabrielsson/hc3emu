@@ -23,7 +23,7 @@ function commands.install(params,_)
   if E.config[params.cmd] then E.config[params.cmd](params) end
 end
 
-function commands.getLocal(params,skt)
+function commands.getLocal(params,io)
   local path = urldecode(params.path)
   local content = nil
   if params.type and params.type == 'rsrc' then
@@ -33,14 +33,14 @@ function commands.getLocal(params,skt)
     if f then content = f:read("*a") f:close() end
   end
   if content then
-    copas.send(skt,"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: "..(#content).."\r\n\r\n"..content)
+    io.write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: "..(#content).."\r\n\r\n"..content)
     return true
   else
     E:ERRORF("Failed to open file for reading: %s",params.path)
   end
 end
 
-function commands.saveSettings(data,params,skt)
+function commands.saveSettings(data,params,io)
   local typ = params.type
   E.config.saveSettings(typ,data)
 end
@@ -61,12 +61,12 @@ local function parseUrl(url)
   return path,params
 end
 
-local function handleGET(url,headers,skt)
+local function handleGET(url,headers,io)
   local path,params = parseUrl(url)
   if path=="multi" then params.selectedOptions = params.selectedOptions or {} end
   --print(path,json.encode(params))
   if commands[path] then
-    return commands[path](params,skt)
+    return commands[path](params,io)
   end
   if params.qa then
     local qa = E:getQA(params.qa)
@@ -94,25 +94,25 @@ local function handleGET(url,headers,skt)
   end
 end
 
-local function handlePOST(url,headers,skt)
+local function handlePOST(url,headers,io)
   local path,params = parseUrl(url)
   local len = 0
   for _,header in ipairs(headers) do
     len = header:match("Content%-Length: (%d+)")
     if len then len = tonumber(len) or 0 break end
   end
-  local data = copas.receive(skt,len)
+  local data = io.read(len)
   if commands[path] then
-    commands[path](data,params,skt)
+    commands[path](data,params,io)
   end
-  copas.send(skt,"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
+  io.write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
   return true
 end
 
 -- CORS control from client - answer yes...
-local function handleOPTIONS(path,headers,skt)
+local function handleOPTIONS(path,headers,io)
   local date = os.date("!%a, %d %b %Y %H:%M:%S GMT")
-  copas.send(skt,
+  io.write(
   "HTTP/1.1 200 OK\r\nDate: " .. date .. "\r\nServer: Apache/2.0.61 (Unix)\r\nAccess-Control-Allow-Origin:*\r\nAccess-Control-Allow-Methods: POST, GET, OPTIONS\r\nAccess-Control-Allow-Headers:X-PINGOTHER, Content-Type\r\n\r\n")
   return true
 end
@@ -120,24 +120,24 @@ end
 local SocketServer = E.util.SocketServer
 local WebServer = lclass('WebServer',SocketServer) -- lclass is a class from hc3emu
 function WebServer:__init(ip,port) SocketServer.__init(self,ip,port,"web") end
-function WebServer:handler(skt)
-  local request = copas.receive(skt)
+function WebServer:handler(io)
+  local request = io.read()
   local headers = {}
   while true do
-    local header = copas.receive(skt)
+    local header = io.read()
     headers[#headers+1] = header
     if header == "" then
       local method,path = request:match("([^%s]+) ([^%s]+)")
-      if method == 'GET' and handleGET(path,headers,skt) then 
+      if method == 'GET' and handleGET(path,headers,io) then 
         break
       end
       if method == "OPTIONS" then 
-        handleOPTIONS(path,headers,skt) break 
+        handleOPTIONS(path,headers,io) break 
       end
       if method == "POST" then 
-        handlePOST(path,headers,skt) break
+        handlePOST(path,headers,io) break
       end
-      copas.send(skt, "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
+      io.write("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
       break
     end
   end

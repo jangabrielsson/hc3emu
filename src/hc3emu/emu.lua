@@ -24,7 +24,7 @@ lua-websockets-bit32 >= 2.0.1-7
 argparse >= 0.7.1-1
 mobdebug >= 0.80-1
 --]]
-local VERSION = "1.0.87"
+local VERSION = "1.0.88"
 local lclass = require("hc3emu.class") -- use simple class implementation
 
 local fmt = string.format
@@ -111,7 +111,7 @@ function Emulator:__init(debug,info)
   local luaType,_ = load(luaTypeCode,nil,"t",{type=type,rawget=rawget})()
   self.luaType = luaType
   
-  self.lua = {require = require, dofile = dofile, loadfile = loadfile, type = type, io = io, print = _print, package = package } -- used from fibaro.hc3emu.lua.x 
+  self.lua = {os = os, require = require, dofile = dofile, loadfile = loadfile, type = type, io = io, print = _print, package = package } -- used from fibaro.hc3emu.lua.x 
 
   self.silent = debug.silent
   self.nodebug = debug.nodebug
@@ -321,6 +321,7 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
   end
   
   local directive = {}
+  self._directive = directive
   --@D name=<name> - Name of the QA
   function directive.name(d,val) flags.name = val end
   --@D type=<type> - Type of the QA, ex. --%%type=com.fibaro.binarySwitch
@@ -464,8 +465,16 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
     assert(delay and trigger,"Bad trigger directive: "..d)
     flags.triggers[#flags.triggers + 1] = {delay = tonumber(delay), trigger = eval(trigger,d)}
   end
-  --@D html=<path> - If true generates UI webpages in path, ex. --%%html=html
+  --@D webui=<bool> - If true generates UI webpages in /emu, ex. --%%webui=true
   function directive.webui(d,val) flags.webui = eval(val) end
+  --@D plugin=<path> - loads emulator extensions, ex. --%%plugin=$hc3emu.image
+  function directive.plugin(d,val)
+    local path = val
+    if path:match("^%$") then 
+      path = package.searchpath(path:sub(2),package.path)
+    end
+    dofile(path)
+   end
 
   local truncCode = info.src
   local eod = info.src:find("ENDOFDIRECTIVES")
@@ -498,7 +507,7 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
     if v1 then v = v1 end
     if f:match("^u%d+$") then f="u" end -- backward compatibility
     if directive[f] then
-      directive[f](p,v)
+      directive[f](p,v,flags)
     else self:WARNINGF("Unknown directive: %s",tostring(f)) end
   end)
   

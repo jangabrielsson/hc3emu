@@ -114,6 +114,7 @@ do
     if not self.UIHandler then
       function self:UIHandler(event)
         local obj = self
+---@diagnostic disable-next-line: cast-local-type
         if self.id ~= event.deviceId then obj = (self.childDevices or {})[event.deviceId] end
         if not obj then return end
         local elm,etyp = event.elementName, event.eventType

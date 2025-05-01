@@ -140,10 +140,10 @@ end
 local SocketServer = E.util.SocketServer
 local RecieveServer = lclass('RecieveServer',SocketServer)
 function RecieveServer:__init(ip,port) SocketServer.__init(self,ip,port,"proxy","server") end
-function RecieveServer:handler(skt)
+function RecieveServer:handler(io)
   while true do
     ---print("Waiting for data")
-    local reqdata = copas.receive(skt)
+    local reqdata = io.read()
     if not reqdata then break end
     local stat,msg = pcall(json.decode,reqdata)
     if stat then

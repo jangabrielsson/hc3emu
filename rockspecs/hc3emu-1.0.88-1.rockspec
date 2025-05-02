@@ -26,6 +26,7 @@ dependencies = {
    "lua-websockets-bit32 >= 2.0.1-7",
    "timerwheel >= 1.0.2-1",
    "luafilesystem >= 1.8.0-1",
+   "luasystem >=  0.6.2-1",
    "argparse >= 0.7.1-1",
    "datafile >= 0.10-1",
    "mobdebug >= 0.80-1",
@@ -66,7 +67,9 @@ build = {
       ["hc3emu.qwikchild"] = "src/hc3emu/qwikchild.lua",
       ["hc3emu.eventlib"] = "src/hc3emu/eventlib.lua",
       ["hc3emu.sha2"] = "src/hc3emu/sha2.lua",
-      ["hc3emu.image"] = "src/hc3emu/image.lua"
+
+      ["hc3emu.image"] = "src/hc3emu/image.lua",
+      ["hc3emu.image"] = "src/hc3emu/terminal.lua"
   },
   copy_directories = { "doc", "rsrcs" }
 }

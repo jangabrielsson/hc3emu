@@ -61,7 +61,7 @@ local charMap = {
   ['\n']=""
 }
 
-function E.EVENT._quickApp_loaded(event) -- Add image file to QA when loaded
+function E.EVENT._quickApp_registered(event) -- Add image file to QA when loaded
   local qa = E:getQA(event.id)
   if not qa then return end
   local images = qa.directives.images

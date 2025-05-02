@@ -189,6 +189,8 @@ function Emulator:setupApi()
     resources.resources.settings_info.items = res.info
     resources.resources.settings_location.items = res.location
     resources.resources.devices.items[1] = res.device1
+    local defroom = {id = 219, name = "Default Room", sectionID = 219, isDefault = true, visible = true}
+    resources.resources.rooms.items[219] = defroom
   end
   function self.api.qa.isEmulated(id) return self.QA_DIR[id]~= nil end
   function self.api.scene.isEmulated(id) return self.SCENE_DIR[id]~= nil end

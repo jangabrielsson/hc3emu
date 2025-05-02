@@ -61,7 +61,7 @@ function Resources:get(typ,id)
   local r = self.resources[typ] assert(r)
   if not r.inited then self:_init(typ) end  
   if id == nil then 
-    if r.idx == nil then return r.items,200
+    if r.index == nil then return r.items,200
     else return toList(r.items),200 end
   elseif not r.items[id] then return nil, 404 
   else return r.items[id],200 end

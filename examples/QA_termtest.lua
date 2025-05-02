@@ -5,11 +5,13 @@ if require and not QuickApp then require('hc3emu') end
 --%%type=com.fibaro.binarySwitch
 --%%plugin=$hc3emu.terminal
 
+local sys = fibaro.hc3emu.lua.require("system")
 function QuickApp:onInit()
   print("Hello")
   setInterval(function() print("Ping") end,3000)
   fibaro.hc3emu.terminal.setExitKey(27)
   fibaro.hc3emu.terminal.setKeyHandler(function(key, keytype)
+    fibaro.hc3emu.lua.print("\027[2J") -- clear screen  
     if keytype == "char" then
       -- just a key
       local b = key:byte()

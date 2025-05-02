@@ -17,7 +17,7 @@ function QuickApp:onInit()
         key = "." -- replace control characters with a simple "." to not mess up the screen
       end
 
-      print("Key received: " .. key .. " (bytes: " .. b .. ")")
+      print("Key received: " .. key .. " (byte: " .. b .. ")")
       
     elseif keytype == "ansi" then
       -- we got an ANSI sequence

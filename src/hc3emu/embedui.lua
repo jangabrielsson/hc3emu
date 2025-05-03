@@ -18,7 +18,9 @@ local embedUIs = {
     {{slider='__setValue',text='',onChanged='setValue'}},
     {{slider='__setColorComponentR',text='Red:',max='255',onChanged='setValue'}},
     {{slider='__setColorComponentG',text='Green:',max='255',onChanged='setValue'}},
-    {{slider='__setColorComponentB',text='Blue:',max='255',onChanged='setValue'}}
+    {{slider='__setColorComponentB',text='Blue:',max='255',onChanged='setValue'}},
+    {{slider='__setColorComponentW',text='WW:',max='255',onChanged='setValue'}}
+
   },
   ["com.fibaro.multilevelSensor"] = {
     {{label='__multisensorValue',text='0'}},
@@ -73,14 +75,15 @@ local embedProps  = {
   end,
   __colorComponentValue = function(qa)
     local format = function(value)
-      local col = fmt('style="background-color:rgb(%s, %s, %s);"',value.red,value.green,value.blue)
-      local str = fmt('R: %s G: %s B: %s',value.red or "",value.green or "",value.blue or "")
+      local col = fmt('style="background-color:rgb(%s, %s, %s); font-size: 16px; color: black"',value.red,value.green,value.blue)  -- corrected 'font-color' to 'color'
+      local str = fmt('R:%s,G:%s,B:%s,W:%s',value.red or "",value.green or "",value.blue or "",value.warmWhite or "")
       return title(fmt('<div %s>%s</div>',col,str)) end
     qa.propWatches['colorComponents'] = function(value) 
       qa.qa:updateView('__colorComponentValue','text',format(value))
       qa.qa:updateView('__setColorComponentR','value',tostring(value.red))
       qa.qa:updateView('__setColorComponentG','value',tostring(value.green))
       qa.qa:updateView('__setColorComponentB','value',tostring(value.blue))
+      qa.qa:updateView('__setColorComponentW','value',tostring(value.warmWhite))
     end
     qa.propWatches['value'] = function(value) 
       qa.qa:updateView('__setValue','value',tostring(value))
@@ -130,6 +133,8 @@ local embedHooks = {
   __setColorComponentG = function(qa,params) setColorComponents(qa,'green', params)
   end,
   __setColorComponentB = function(qa,params) setColorComponents(qa,'blue', params)
+  end,
+  __setColorComponentW = function(qa,params) setColorComponents(qa,'warmWhite', params)
   end,
 }
 

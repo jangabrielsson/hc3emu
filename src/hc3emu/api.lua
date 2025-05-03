@@ -393,6 +393,14 @@ function API:setup()
       return self.hc3.post(ctx.path,ctx.data)
     else return nil,501 end
   end)
+  self:add("POST/plugins/interfaces",function(ctx) 
+    local data = ctx.data
+    local id = data.deviceId
+    if not self.offline then
+      local res,code = self.hc3.sync.post(ctx.path,ctx.data)
+      return res,code
+    else return nil,501 end
+  end)
   self:add("POST/plugins/restart",function(ctx)
     local id = ctx.data.deviceId
     if self.qa.isEmulated(id) then

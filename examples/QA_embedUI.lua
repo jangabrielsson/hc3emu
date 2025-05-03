@@ -33,7 +33,7 @@ function QuickApp:setColor(r,g,b,w)
     local color = string.format("%d,%d,%d,%d", r or 0, g or 0, b or 0, w or 0) 
     self:debug("color controller color set to: ", color)
     self:updateProperty("color", color)
-    self:setColorComponents({red=r, green=g, blue=b, white=w})
+    self:setColorComponents({red=r, green=g, blue=b, warmWhite=w})
 end
 
 function QuickApp:setColorComponents(colorComponents)
@@ -47,17 +47,21 @@ function QuickApp:setColorComponents(colorComponents)
     end
     if isColorChanged == true then
         self:updateProperty("colorComponents", cc)
-        self:setColor(cc["red"], cc["green"], cc["blue"], cc["white"])
+        self:setColor(cc["red"], cc["green"], cc["blue"], cc["warmWhite"])
     end
 end
 
 function QuickApp:onInit()
     self:debug(self.name,self.id)
+   local a,b = fibaro.hc3emu.api.hc3.post("/plugins/updateProperty",{deviceId=self.id,propertyName='value',value=100})
     local ifs = self.interfaces
-    local done = false
+    local done = 0
     for _,k in ipairs(ifs) do
-        if f == 'colorComponents' then done = true end
-        self:debug(k)
+        if k == 'colorTemperature' then done = done + 1 end
+        if k == 'ringColor' then done = done+1 end
+    end
+    if done < 2 then 
+      self:addInterfaces({'colorTemperature','ringColor'})
     end
     self:updateProperty("colorComponents", {red=0, green=0, blue=0, warmWhite=0})
 end

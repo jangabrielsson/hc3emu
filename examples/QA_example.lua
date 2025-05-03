@@ -41,12 +41,12 @@ function QuickApp:onInit()
   self:debug(self.name,self.id,self.type)
   local fqa = api.get("/quickApp/export/"..self.id) -- Get my own fqa struct
   printf("Size of '%s' fqa: %s bytes",self.name,#json.encode(fqa))
-  -- self:testRefreshStates()
-  -- self:testBasic()
-  -- self:testChildren() -- Only works with proxy
+  self:testRefreshStates()
+  self:testBasic()
+  self:testChildren() -- Only works with proxy
   self:testTCP()
-  -- self:testMQTT()
-  -- self:testWebSocket() -- have problem with work with wss
+  self:testMQTT()
+  self:testWebSocket() -- have problem with work with wss
   --self:listFuns()
   print("Done!")
 end

@@ -622,13 +622,13 @@ local function addApiHooks(api)
       dev,code = E.api.hc3.post("/plugins/createChildDevice",data)
       if code > 206 then return nil,code end
       setVar(dev.id,"_uiCallbacks",(data.initialProperties or {}).uiCallbacks)
-      dev.properties.uiCallbacks = data.initialProperties.uiCallbacks
+      dev.properties.uiCallbacks = (data.initialProperties or {}).uiCallbacks
     else
       dev = table.copy(deviceTypes[data.type])
       assert(dev,"Device type "..data.type.." not found")
       dev.parentId = parentId
       dev.interfaces = data.initialInterfaces or {}
-      dev.properties.uiView = data.initialProperties.uiView
+      dev.properties.uiView = (data.initialProperties or {}).uiView
       dev.id = E:getNextDeviceId()
     end
     E.api.resources:create("devices",dev)

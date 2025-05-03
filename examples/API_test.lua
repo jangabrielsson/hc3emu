@@ -1,7 +1,7 @@
 --This QA test of local and external api calls return the same values
 
 ---@diagnostic disable: duplicate-set-field
---_DEVELOP = true
+_DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
 --%%name=APItest

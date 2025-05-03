@@ -67,7 +67,7 @@ local embedProps  = {
     return tostring(dflt(qa.device.properties.value, 0))
   end,
   __multisensorValue = function(qa)
-    local format = function(value) return title("%.2f%%",value) end
+    local format = function(value) return title("%.2f %s",value,qa.qa.properties.unit or "") end
     qa.propWatches['value'] = function(value) 
       qa.qa:updateView('__multisensorValue','text',format(value))
     end

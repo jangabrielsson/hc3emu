@@ -226,11 +226,12 @@ end
 
 local function generateUIpage(id,name,fname,UI)
   local format,t0 = string.format,os.clock()
+  local qa = E:getQA(id)
   local SIP = E.emuIP
   --SIP="127.0.0.1"
   local pr = prBuff(format(header,SIP,E.emuPort+1,id))
   --print("Generating UI page")
-  pr:printf('<div class="label">Device: %s %s</div>',id,name)
+  pr:printf('<div class="label">Device: %s %s (%s)</div>',id,name,qa.qa.type)
   for _,row in ipairs(UI) do
     if not row[1] then row = {row} end
     pr:print('<div class="device-card">')
@@ -241,7 +242,6 @@ local function generateUIpage(id,name,fname,UI)
     pr:print('</div>')
     pr:print('</div>')
   end
-  local qa = E:getQA(id)
   local qvars = qa.qa.properties.quickAppVariables
   if qvars and next(qvars) then -- qvars={{name=<name>,value=<value>}} end
     pr:print('<hr>')

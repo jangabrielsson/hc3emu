@@ -634,9 +634,12 @@ local function addApiHooks(api)
     else
       dev = table.copy(deviceTypes[data.type])
       assert(dev,"Device type "..data.type.." not found")
+      dev.name = data.name or "Child_"..data.type
       dev.parentId = parentId
       dev.interfaces = data.initialInterfaces or {}
-      dev.properties.uiView = (data.initialProperties or {}).uiView
+      for k,v in pairs(data.initialProperties or {}) do
+        dev.properties[k] = v
+      end
       dev.id = E:getNextDeviceId()
     end
     E.api.resources:create("devices",dev)

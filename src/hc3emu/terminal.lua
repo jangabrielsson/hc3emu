@@ -70,3 +70,4 @@ end
 E.terminal = {}
 E.terminal.setExitKey = function(b) setupTerm() exitKey = b end
 E.terminal.setKeyHandler = function(f) setupTerm() keyPoller() keyHandler = f end
+function E.terminal.clear() print("\027[2J") end

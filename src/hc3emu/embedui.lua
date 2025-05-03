@@ -1,5 +1,6 @@
 
 -- Extra UI declarations added first in QAs
+local json = require("hc3emu.json")
 
 local embedUIs = {
   ["com.fibaro.binarySwitch"] = {
@@ -10,6 +11,14 @@ local embedUIs = {
     {{label='__multiswitchValue',text='0'}},
     {{button='__turnOn',text='Turn On',onReleased='turnOn'},{button='__turnOff',text='Turn Off',onReleased='turnOff'}},
     {{slider='__setValue',text='Set Value',onChanged='setValue'}}
+  },
+  ["com.fibaro.colorController"] = {
+    {{label='__colorComponentValue',text='white'}},
+    {{button='__turnOn',text='Turn On',onReleased='turnOn'},{button='__turnOff',text='Turn Off',onReleased='turnOff'}},
+    {{slider='__setValue',text='',onChanged='setValue'}},
+    {{slider='__setColorComponentR',text='Red:',max='255',onChanged='setValue'}},
+    {{slider='__setColorComponentG',text='Green:',max='255',onChanged='setValue'}},
+    {{slider='__setColorComponentB',text='Blue:',max='255',onChanged='setValue'}}
   },
   ["com.fibaro.multilevelSensor"] = {
     {{label='__multisensorValue',text='0'}},
@@ -62,6 +71,22 @@ local embedProps  = {
     end
     return format(dflt(qa.device.properties.value, 0))
   end,
+  __colorComponentValue = function(qa)
+    local format = function(value)
+      local col = fmt('style="background-color:rgb(%s, %s, %s);"',value.red,value.green,value.blue)
+      local str = fmt('R: %s G: %s B: %s',value.red or "",value.green or "",value.blue or "")
+      return title(fmt('<div %s>%s</div>',col,str)) end
+    qa.propWatches['colorComponents'] = function(value) 
+      qa.qa:updateView('__colorComponentValue','text',format(value))
+      qa.qa:updateView('__setColorComponentR','value',tostring(value.red))
+      qa.qa:updateView('__setColorComponentG','value',tostring(value.green))
+      qa.qa:updateView('__setColorComponentB','value',tostring(value.blue))
+    end
+    qa.propWatches['value'] = function(value) 
+      qa.qa:updateView('__setValue','value',tostring(value))
+    end
+    return format(dflt(qa.device.properties.colorComponents, {red=0,green=0,blue=0}))
+  end,
   __doorSensor = function(qa)
     local function format(value) return title(value and "Open" or "Closed") end
     qa.propWatches['value'] = function(value) 
@@ -92,9 +117,26 @@ local embedProps  = {
   end,
 }
 
+local function setColorComponents(qa,color,params)
+  local cc = table.copy(qa.qa.properties.colorComponents)
+  cc[color] = params.value
+  params.id = '__setColorComponents'
+  params.value = cc
+end
+
+local embedHooks = {
+  __setColorComponentR = function(qa,params) setColorComponents(qa,'red', params)
+  end,
+  __setColorComponentG = function(qa,params) setColorComponents(qa,'green', params)
+  end,
+  __setColorComponentB = function(qa,params) setColorComponents(qa,'blue', params)
+  end,
+}
+
 return {
   embedUIs = embedUIs,
   embedProps = embedProps,
+  embedHooks = embedHooks,
 }
 
 

@@ -6,12 +6,16 @@ if require and not QuickApp then require('hc3emu') end
 --%%plugin=$hc3emu.terminal
 
 local sys = fibaro.hc3emu.lua.require("system")
+local term = fibaro.hc3emu.terminal
+local pr = fibaro.hc3emu.lua.print
+
 function QuickApp:onInit()
   print("Hello")
-  setInterval(function() print("Ping") end,3000)
-  fibaro.hc3emu.terminal.setExitKey(27)
-  fibaro.hc3emu.terminal.setKeyHandler(function(key, keytype)
-    fibaro.hc3emu.lua.print("\027[2J") -- clear screen  
+  --setInterval(function() print("Ping") end,3000)
+  term.setExitKey(27)
+  term.setKeyHandler(function(key, keytype)
+    --term.clear() -- clear screen  
+    --pr("\027[H")
     if keytype == "char" then
       -- just a key
       local b = key:byte()

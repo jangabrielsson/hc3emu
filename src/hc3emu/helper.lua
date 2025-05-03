@@ -15,8 +15,8 @@ local function installHelper()
     return nil
   end
   fqa.visible = false
-  fqa.properties.quickAppUuid = HELPER_UUID
-  fqa.properties.model = HELPER_VERSION
+  fqa.initialProperties.quickAppUuid = HELPER_UUID
+  fqa.initialProperties.model = HELPER_VERSION
   local helper,err = E.tools.uploadFQA(fqa)
   if not helper then
     E:ERRORF("Failed to install helper: %s",err or "Unknown error")

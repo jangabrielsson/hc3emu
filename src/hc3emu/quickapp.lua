@@ -64,7 +64,7 @@ function QuickAppBase:error(...) fibaro.error(__TAG, ...) end
 function QuickAppBase:trace(...) fibaro.trace(__TAG, ...) end
 
 function QuickAppBase:updateProperty(name, value, forceUpdate)
-  if (self.properties[name] ~= value or forceUpdate == true) then
+  if (type(value)=='table' or self.properties[name] ~= value or forceUpdate == true) then
     self.properties[name] = value
     api.post("/plugins/updateProperty", {
       deviceId= self.id,

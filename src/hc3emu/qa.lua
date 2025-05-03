@@ -297,6 +297,7 @@ end
 local embeds = require("hc3emu.embedui")
 local embedUIs = embeds.embedUIs
 local embedProps = embeds.embedProps
+local embedHooks = embeds.embedHooks
 
 local function addEmbedUI(typ,UI)
   local embed = embedUIs[typ]
@@ -383,6 +384,12 @@ function QA:updateView(data)
   if self.isProxy then 
     local a,b = E.api.hc3.post("/plugins/updateView",data)
     a=b
+  end
+end
+
+function QA:embedPatch(params)
+  if embedHooks[params.id] then
+    embedHooks[params.id](self,params)
   end
 end
 
@@ -488,6 +495,12 @@ function QAChild:updateView(data)
   if value ~= elm[propertyName] then 
     elm[propertyName] = value 
     E:post({type='quickApp_updateView',id=self.id})
+  end
+end
+
+function QAChild:embedPatch(params)
+  if embedHooks[params.id] then
+    embedHooks[params.id](self,params)
   end
 end
 

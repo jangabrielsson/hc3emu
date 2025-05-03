@@ -73,6 +73,7 @@ local function handleGET(url,headers,io)
     if qa then
       local typ = ({button='onReleased',switch='onReleased',slider='onChanged',select='onToggled',multi='onToggled'})[path]
       if params.id:sub(1,2)=="__" then -- special embedded UI element
+        qa:embedPatch(params)
         local actionName = params.id:sub(3)
         local args = {
           deviceId=qa.id,
@@ -177,15 +178,15 @@ local function member(e,l) for _,k in ipairs(l) do if e == k then return true en
 local pages = {}
 local render = {}
 function render.label(pr,item)
-  pr:printf('<div class="label">%s</div>',item.text)
+  pr:printf('<div style="width: 100%%;" class="label">%s</div>',item.text)
 end
 function render.button(pr,item)
   pr:printf([[<button id="%s" class="control-button" onclick="fetchAction('button', this.id)">%s</button>]],item.button,item.text)
 end
 function render.slider(pr,item)
   local indicator = item.slider.."Indicator"
-  pr:printf([[<input id="%s" type="range" value="%s" class="slider-container" oninput="handleSliderInput(this,'%s')">
-<span id="%s">%s</span>]],item.slider,item.value or 0,indicator,indicator,item.value or 0)
+  pr:printf([[<div>%s<input id="%s" type="range" value="%s" min="%s" max="%s" class="slider-container" oninput="handleSliderInput(this,'%s')"></div>
+<span id="%s">%s</span>]],item.text or "",item.slider,item.value or 0,item.min or 0,item.max or 100,indicator,indicator,item.value or 0)
 end
 function render.switch(pr,item)
   -- Determine the initial state based on item.value
@@ -238,6 +239,19 @@ local function generateUIpage(id,name,fname,UI)
       render[item.type](pr,item)
     end
     pr:print('</div>')
+    pr:print('</div>')
+  end
+  local qa = E:getQA(id)
+  local qvars = qa.qa.properties.quickAppVariables
+  if qvars and next(qvars) then -- qvars={{name=<name>,value=<value>}} end
+    pr:print('<hr>')
+    pr:print('<div class="quickapp-variables">')
+    pr:print('  <div class="label">QuickApp Variables</div>')
+    for _,item in ipairs(qvars) do
+      local name = item.name
+      local value = json.encode(item.value)
+      pr:printf('  <div class="label">%s: %s</div>',name,value)
+    end
     pr:print('</div>')
   end
   pr:print(footer)

@@ -38,7 +38,7 @@ local function sendParts(str,write,n0)
   local i = 1
   local p = str:sub(i,i+n0-1)
   i = i+n0
-  write(string.format("%03d:%s",n+1,p))
+  write(string.format("%03d:%s\n",n+1,p))
   while n > 0 do
     p = str:sub(i,i+n0-1)
     write(p)
@@ -51,15 +51,15 @@ local function receieveParts(read)
   local data = read()
   if data == nil then return end
   local n = tonumber(data:sub(1,3))
-  if not n then return end
+  if not n then print("Not n","x",data) return end
   data = data:sub(5)
   local buff = {data}
   for i=2,n do 
     local l = read()
-    if not l then break end
+    if not l then  print("Not l",i) break end
     buff[#buff+1] = l
   end
-  return table.concat(buff)
+  return table.concat(buff):gsub("\n","")
 end
 
 function RequestServer:handler(io)
@@ -107,7 +107,7 @@ local function startHelper()
 
   E.util.systemTask(function()
     while true do
-      local _ = exports.connection:send("Ping\n")
+      local _ = exports.connection:send("Ping")
       copas.pause(10)
     end
   end)

@@ -46,7 +46,7 @@ local fmt = string.format
 local function title(f,...) return fmt("<center><font size='5' color='blue'>%s</font></center>",fmt(f,...)) end
 local function dflt(val,def) if val == nil then return def else return val end end
 
--- Special formatter. Maps a property to UI element that should be updated when the property changes.
+-- Special formatter. Maps an UI element to a property that should be updated when the property changes.
 local embedProps  = {
   __binarysensorValue = function(qa)
     local function format(value) return title(value and "On" or "Off") end
@@ -120,6 +120,7 @@ local embedProps  = {
   end,
 }
 
+-- Special hack for translating slider event from one color into a combined setColorComponents for all colors...
 local function setColorComponents(qa,color,params)
   local cc = table.copy(qa.qa.properties.colorComponents)
   cc[color] = params.value

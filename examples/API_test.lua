@@ -19,6 +19,8 @@ local hc3 = fibaro.hc3emu.api.hc3
 local hc3id = hc3.get("/devices?name=TestProxy")[1].id
 fibaro.hc3emu.helper.start()
 
+local a,b = hc3.get("/plugins/"..(1873).."/variables/token")
+
 function QuickApp:part1()
   local a,b = hc3.delete("/globalVariables/hc3emuvar",{})
 

@@ -110,9 +110,11 @@ local function hc3(api)
   function self.post(path,data) return call("POST",path,data) end
   function self.put(path,data) return call("PUT",path,data) end
   function self.delete(path) return call("DELETE",path) end
+  local seqID = 0
   local function syncCall(method,path,data)
     if not api.helper then return nil,501 end
-    local req = json.encode({method=method,path=path,data=data or {}}).."\n"
+    local req = json.encode({method=method,path=path,data=data or {},seqID=seqID}).."\n"
+    seqID = seqID + 1
     local resp = api.helper.connection:send(req)
     if resp then
       local data = json.decode(resp)

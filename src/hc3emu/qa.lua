@@ -639,7 +639,7 @@ local function addApiHooks(api)
     else
       dev = table.copy(deviceTypes[data.type])
       assert(dev,"Device type "..data.type.." not found")
-      dev.name = data.name or "Child_"..data.type
+      dev.name = data.name or ("Child_"..data.type)
       dev.parentId = parentId
       dev.interfaces = data.initialInterfaces or {}
       for k,v in pairs(data.initialProperties or {}) do

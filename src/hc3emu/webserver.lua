@@ -23,6 +23,24 @@ function commands.install(params,_)
   if E.config[params.cmd] then E.config[params.cmd](params) end
 end
 
+function commands.getDeviceStructure(params,io)
+  local id = tonumber(params.id)
+  if not id then
+    io.write("HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nContent-Length: 36\r\n\r\n{\"error\":\"Invalid device ID parameter\"}")
+    return true
+  end
+  
+  local qa = E:getQA(id)
+  if not qa then
+    io.write("HTTP/1.1 404 Not Found\r\nContent-Type: application/json\r\nContent-Length: 30\r\n\r\n{\"error\":\"Device not found\"}")
+    return true
+  end
+  
+  local structure = json.encode(qa.device)
+  io.write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: "..(#structure).."\r\n\r\n"..structure)
+  return true
+end
+
 function commands.getLocal(params,io)
   local path = urldecode(params.path)
   local content = nil
@@ -232,6 +250,7 @@ local function generateUIpage(id,name,fname,UI)
   local pr = prBuff(format(header,SIP,E.emuPort+1,id))
   --print("Generating UI page")
   pr:printf('<div class="label">Device: %s %s (%s)</div>',id,name,qa.qa.type)
+  
   for _,row in ipairs(UI) do
     if not row[1] then row = {row} end
     pr:print('<div class="device-card">')
@@ -242,8 +261,10 @@ local function generateUIpage(id,name,fname,UI)
     pr:print('</div>')
     pr:print('</div>')
   end
+  
   local qvars = qa.qa.properties.quickAppVariables
-  if qvars and next(qvars) then -- qvars={{name=<name>,value=<value>}} end
+  -- qvars={{name=<name>,value=<value>}} end
+  if qvars and next(qvars) then 
     pr:print('<hr>')
     pr:print('<div class="quickapp-variables">')
     pr:print('  <div class="label">QuickApp Variables</div>')
@@ -254,6 +275,14 @@ local function generateUIpage(id,name,fname,UI)
     end
     pr:print('</div>')
   end
+  
+  pr:print('<hr>')
+  -- Add Device Structure toggle button
+  pr:print('<div class="device-structure-container">')
+  pr:print('  <button id="deviceStructureBtn" class="control-button-small" onclick="toggleDeviceStructure()">Show Device Structure</button>')
+  pr:print('  <div id="deviceStructure" class="device-structure" style="display: none;"><pre id="deviceStructureContent"></pre></div>')
+  pr:print('</div>')
+  
   pr:print(footer)
   local f = io.open(E.config.EMU_DIR.."/"..fname,"w")
   if f then
@@ -305,7 +334,7 @@ local function updateEmuPage()
   local f = io.open(E.config.EMUSUB_DIR.."/info.json","w")
   if f then f:write((json.encode(emuInfo))) f:close() end
 end
-    
+
 local started = false
 local function generateEmuPage()
   if started then return else started = true end

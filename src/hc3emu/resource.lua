@@ -337,6 +337,7 @@ function Resources:run()
   local props = {'name','roomID','viewXml','hasUIView','visible','enabled'}
   eventMgr:addHandler({type='DeviceModifiedEvent'},function(event)
     local src = self.api.hc3.get("/devices/"..event.data.id)
+    if not src then return end
     local dest = self:get("devices",event.data.id) or {}
     for _,p in ipairs(props) do dest[p] = src[p] end
     rsrc:refreshOrg(event)

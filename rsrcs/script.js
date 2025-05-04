@@ -82,3 +82,21 @@ function fetchActionWithState(action, buttonId, state) {
     .then(() => console.log(`Action '${action}' triggered by button '${buttonId}' with state '${state}'`))
     .catch(console.error);
 }
+
+
+function toggleDeviceStructure() {
+  const structureDiv = document.getElementById("deviceStructure");
+  const btn = document.getElementById("deviceStructureBtn");
+  if (structureDiv.style.display === "none") {
+    fetch(`${SERVER_IP}/getDeviceStructure?id=${DEVICE_ID}`)
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById("deviceStructureContent").textContent = JSON.stringify(data, null, 2);
+      structureDiv.style.display = "block";
+      btn.textContent = "Hide Device Structure";
+    });
+  } else {
+    structureDiv.style.display = "none";
+    btn.textContent = "Show Device Structure";
+  }
+}

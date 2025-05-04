@@ -129,6 +129,8 @@ function QA:setupProxy(flags,info,deviceStruct)
   return deviceStruct
 end
 
+local addEmbedUI
+
 function QA:setupUI(flags)
   local uiCallbacks,viewLayout,uiView
   if flags.u and #flags.u > 0 then
@@ -153,6 +155,7 @@ function QA:setupUI(flags)
   end
   if flags.u == nil then flags.u = {} end
   self.UI = flags.u
+  addEmbedUI(flags.type, self.UI)
   return uiCallbacks,viewLayout,uiView
 end
 
@@ -238,7 +241,9 @@ function QA:setupEnv()
   env.plugin.mainDeviceId = self.id 
 end
 
-function QA:run() -- run QA:  load QA files. Runs in a copas task.
+-- run QA:  load QA files. Runs in a copas task.
+-- This is also done every time the QA restarts.
+function QA:run() 
   E.mobdebug.on()
   local env,flags = self.env,self.directives or {}
   E:addThread(self,function()
@@ -299,7 +304,7 @@ local embedUIs = embeds.embedUIs
 local embedProps = embeds.embedProps
 local embedHooks = embeds.embedHooks
 
-local function addEmbedUI(typ,UI)
+function addEmbedUI(typ,UI)
   local embed = embedUIs[typ]
   if not embed then return end
   for i,r in ipairs(embed) do table.insert(UI,i,r) end
@@ -350,7 +355,7 @@ function E.EVENT._quickApp_initialized(ev)
       local name = qa.device.name:gsub("[^%w]","")
       qa.uiPage = fmt("%s.html",name)
     end
-    addEmbedUI(qa.device.type,qa.UI)
+    --addEmbedUI(qa.device.type,qa.UI)
     local index = {}
     initializeUI(qa,qa.UI,index)
     setmetatable(qa.UI,{

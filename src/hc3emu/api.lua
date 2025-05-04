@@ -592,7 +592,7 @@ function API:setup()
   end)
   self:add("DELETE/plugins/<id>/variables/<name>",function(ctx)
     local id = ctx.vars[1]
-    if not self.offline and not self.qa.isEmulated(tonumber(id)) then
+    if not self.offline then
       return self.hc3.sync.delete(ctx.path)
     end
     local vars = rsrc.resources.internalStorage.items[id]

@@ -43,7 +43,7 @@ local embedUIs = {
 }
 
 local fmt = string.format
-local function title(f,...) return fmt("<center><font size='6' color='blue'>%s</font></center>",fmt(f,...)) end
+local function title(f,...) return fmt("<center><font size='5' color='blue'>%s</font></center>",fmt(f,...)) end
 local function dflt(val,def) if val == nil then return def else return val end end
 
 -- Special formatter. Maps a property to UI element that should be updated when the property changes.

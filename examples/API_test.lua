@@ -5,7 +5,7 @@ _DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
 --%%name=APItest
---%%proxy=TestProxy
+--%% proxy=TestProxy
 --%%debug=info:false,api:true,http:true
 --%%dark=true
 --%%state=test/apitest.db
@@ -20,7 +20,7 @@ local hc3id = hc3.get("/devices?name=TestProxy")[1].id
 fibaro.hc3emu.helper.start()
 
 function QuickApp:part1()
-  local a,b = hc3.delete("/globalVariables/hc3emuvar")
+  local a,b = hc3.delete("/globalVariables/hc3emuvar",{})
 
   local a1,b1 = api.get("/globalVariables/hc3emuvar")
   local a2,b2 = hc3.get("/globalVariables/hc3emuvar")
@@ -31,12 +31,12 @@ function QuickApp:part1()
   compare(a1,a2,b1,b2)
 
   a1,b1 = api.post("/globalVariables",{name='hc3emuvar',value='a'})
-  a2,b2 = hc3.post("/globalVariables/hc3emuvar",{name='hc3emuvar',value='a'})
+  a2,b2 = hc3.post("/globalVariables",{name='hc3emuvar',value='a'})
   compare(a1,a2,b1,b2)
 
 
   a1,b1 = api.delete("/globalVariables/hc3emuvar",{})
-  a2,b2 = hc3.delete("/globalVariables/hc3emuvar")
+  a2,b2 = hc3.delete("/globalVariables/hc3emuvar",{})
   compare(a1,a2,b1,b2)
   
   a1,b2 = api.get("/devices/"..self.id)
@@ -118,11 +118,15 @@ function QuickApp:part3()
     hc3.delete("/plugins/removeChildDevice/"..child.id)
   end
 
-  
-
 end
 
-function QuickApp:setPart(part) self:internalStorageSet("Part",part) end
+function QuickApp:setPart(part) 
+  if part ~= nil then
+    return self:internalStorageSet("Part",part) 
+  else
+    return self:internalStorageRemove("Part")
+  end
+end
 function QuickApp:onInit()
   print(self.name,self.id)
   function self:initChildDevices() end
@@ -134,7 +138,7 @@ function QuickApp:onInit()
     self:setPart(part+1)
     self[fun](self)
   else 
-    self:setPart(nil)
+    local a,b = self:setPart(nil)
     return print("Please restart")
   end
   print("Done part",part)

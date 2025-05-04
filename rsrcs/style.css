@@ -64,9 +64,22 @@ body {
   border-radius: 4px;
   cursor: pointer;
 }
+.control-button-small {
+  font-family: Arial,  sans-serif, sans-serif;
+  font-size: 12px;
+  /* font-weight: bold; /* corrected from --font-weight */
+  font-style: italic;
+  padding: 5px;
+  background-color: #4d4e4f;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
 .slider-container {
   margin-top: 20px;
-  width: 100%;
+  width: 75%;
+  align-content: center;
 }
 .slider {
   width: 100%;
@@ -100,6 +113,8 @@ body {
 .label { 
   /* font-weight: bold;  */
   margin-bottom: 5px; 
+  align-content: center;
+  width: fit-content;
 }
 .dropdown-container { 
   position: relative; 

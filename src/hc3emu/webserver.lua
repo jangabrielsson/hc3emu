@@ -36,7 +36,7 @@ function commands.getDeviceStructure(params,io)
     return true
   end
   
-  local structure = json.encode(qa.device)
+  local structure = json.encodeFormated(qa.device)
   io.write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: "..(#structure).."\r\n\r\n"..structure)
   return true
 end

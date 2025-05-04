@@ -1,7 +1,7 @@
 --This QA test of local and external api calls return the same values
 
 ---@diagnostic disable: duplicate-set-field
-_DEVELOP = true
+--_DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
 --%%name=APItest
@@ -18,8 +18,6 @@ local compare,equal
 local hc3 = fibaro.hc3emu.api.hc3
 local hc3id = hc3.get("/devices?name=TestProxy")[1].id
 fibaro.hc3emu.helper.start()
-
-local a,b = hc3.get("/plugins/"..(1873).."/variables/token")
 
 function QuickApp:part1()
   local a,b = hc3.delete("/globalVariables/hc3emuvar",{})

@@ -6,7 +6,7 @@ local lclass = require("hc3emu.class")
 
 local helperStarted = false
 local HELPER_UUID = "hc3emu-00-01"
-local HELPER_VERSION = "1.0.0"
+local HELPER_VERSION = "1.0.1"
 
 local function installHelper()
   local fqa = E.config.loadResource("hc3emuHelper.fqa",true)
@@ -23,6 +23,7 @@ local function installHelper()
     return nil
   end
   E.api.hc3.put("/devices/"..helper.id,{visible=false}) -- Hide helper
+  return helper
 end
 
 local SocketServer = E.util.SocketServer

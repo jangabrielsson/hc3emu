@@ -75,6 +75,17 @@ local embedProps  = {
   end,
   __colorComponentValue = function(qa)
     local format = function(value)
+      -- local r, g, b = value.red or 0, value.green or 0, value.blue or 0
+      -- local w = value.warmWhite or 0
+      
+      -- -- Simple white blending algorithm (approximate how white light affects perception)
+      -- if w > 0 then
+      --   local wFactor = w / 255
+      --   r = math.min(255, r + (w * 0.9))
+      --   g = math.min(255, g + (w * 0.85))
+      --   b = math.min(255, b + (w * 0.8))
+      -- end
+
       local col = fmt('style="background-color:rgb(%s, %s, %s); font-size: 16px; color: black"',value.red,value.green,value.blue)  -- corrected 'font-color' to 'color'
       local str = fmt('R:%s,G:%s,B:%s,W:%s',value.red or "",value.green or "",value.blue or "",value.warmWhite or "")
       return title(fmt('<div %s>%s</div>',col,str)) end

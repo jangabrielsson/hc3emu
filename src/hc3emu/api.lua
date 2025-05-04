@@ -227,7 +227,13 @@ end
 
 function API:call(method, path, data) 
   local handler, vars, query = self:getRoute(method, path)
-  if not handler then return nil, 501 end
+  if not handler then
+    if not self.offline then
+      E:DEBUG("API not implemented: %s %s - trying HC3",method,path)
+      return self.hc3.sync.get(path)
+    end
+    return nil, 501 
+  end
   return handler({method=method, path=path, data=data, vars=vars, query=query})
 end
 

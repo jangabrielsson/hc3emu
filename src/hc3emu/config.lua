@@ -207,7 +207,7 @@ local function createGlobal()
   return createconfig(GLOBFILE,"settings.json")
 end
 
-local function installation(creds)
+local function installation(creds,directives)
   setupDirectory("install")
   createGlobal()
   createProj()
@@ -219,10 +219,13 @@ local function installation(creds)
   end
   local user = findOption("user")
   user.value = creds.user
+  directives.user = user.value
   local password = findOption("password")
   password.value = creds.pass
+  directives.password = password.value
   local IP = findOption("IP")
   local url = creds.url
+  directives.IP = url
   if not url:match("https?://") then
     url = "http://"..url
   end

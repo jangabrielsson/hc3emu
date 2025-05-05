@@ -1,5 +1,5 @@
 local HELPER_UUID = "hc3emu-00-01"
-local HELPER_VERSION = "1.0.1"
+local HELPER_VERSION = "1.0.2"
 local connections = {}
 local DBG = true
 local function DEBUG(...) if DBG then print(string.format(...)) end end
@@ -13,12 +13,14 @@ end
 local function doCommand(msg)
    --DEBUG("MSG: %s",msg)
    local req = json.decode(msg)
+   --print("DECODED")
    local stat = {pcall(function() return api[req.method:lower()](req.path,req.data) end)}
    if not stat[1] then 
        print(stat[2]) 
        return json.encode({nil,506}).."\n"
    end
    local res = json.encode({stat[2],stat[3]})
+   --print("RET",res)
    return res
 end
 
@@ -51,7 +53,7 @@ local function startConnection(key,ip,port)
             local n = tonumber(data:sub(1,3))
             if not n then return end
             data = data:sub(5)
-            if n == 1 then return cmd(data) end
+            if n == 1 then return cmd(data:gsub("\n","")) end
             sock:read({
                success=function(resp) readParts(resp,n-2,{data}) end,
                error=err
@@ -83,8 +85,9 @@ local function startConnection(key,ip,port)
    end
 
    function cmd(msg)
+      --print("LAST",string.byte(msg:sub(-1)),msg:sub(-1) == '\n')
       local resp = "Pong"
-      if msg~="Ping\n" then
+      if msg~="Ping" then
          resp = doCommand(msg) 
       end
       write(resp)

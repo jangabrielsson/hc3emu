@@ -48,6 +48,7 @@
 --
 -- Plugins:
 --   POST/plugins/updateProperty           - Update plugin property
+--   POST/plugins/interfaces               - Update plugin interfaces
 --   POST/plugins/updateView               - Update plugin view
 --   POST/plugins/restart                  - Restart plugin
 --   POST/plugins/createChildDevice        - Create child device
@@ -230,7 +231,7 @@ function API:call(method, path, data)
   if not handler then
     if not self.offline then
       E:DEBUG("API not implemented: %s %s - trying HC3",method,path)
-      return self.hc3.sync.get(path)
+      return self.hc3[method:lower()](path,data)
     end
     return nil, 501 
   end
@@ -293,7 +294,7 @@ function API:setup()
   self:add("POST/devices/<id>/action/<name>",function(ctx) 
     local id = tonumber(ctx.vars[1])
     if self.qa.isEmulated(id) then
-      self.qa.call(id,ctx.vars[2],ctx.data)
+      return self.qa.call(id,ctx.vars[2],ctx.data)
     elseif not self.offline then
       return self.hc3.post(ctx.path,ctx.data)
     else
@@ -317,6 +318,20 @@ function API:setup()
       qa:remove()
       return nil,200
     else return del(ctx,'devices') end
+  end)
+  self:add("GET/devices/<id>/action/<name>",function(ctx)
+    local id = tonumber(ctx.vars[1])
+    local action = ctx.vars[2]
+    if  self.qa.isEmulated(id) then
+      local data,args = {},{}
+      for k,v in pairs(ctx.query) do data[#data+1] = {k,v} end
+      table.sort(data,function(a,b) return a[1] < b[1] end)
+      for _,d in ipairs(data) do args[#args+1] = d[2] end
+      return self.qa.call(id,action,{args=args})
+    elseif not self.offline then
+      return self.hc3.get(ctx.path)
+    end
+    return nil,501
   end)
 
   self:add("GET/globalVariables",function(ctx) return get(ctx,'globalVariables') end)

@@ -11,6 +11,8 @@ if require and not QuickApp then require('hc3emu') end
 -- Color controller type should handle actions: turnOn, turnOff, setValue, setColor
 -- To update color controller state, update property color with a string in the following format: "r,g,b,w" eg. "200,10,100,255"
 -- To update brightness, update property "value" with integer 0-99
+
+api.post("/plugins/interfaces", {action='add',deviceId=3908, interfaces={"colorTemperature","ringColor"}})
 function QuickApp:turnOn()
     self:debug("color controller turned on")
     self:updateProperty("value", 99)

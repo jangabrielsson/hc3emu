@@ -168,7 +168,7 @@ function Emulator:__init(debug,info)
   self.webserver = loadModule("hc3emu.webserver")
   self.webserver.startServer()
 
-  if info.directives.installation then self.config.installation(info.directives.installation) end
+  if info.directives.installation then self.config.installation(info.directives.installation,info.directives) end
 end
 
 function Emulator:newLock()

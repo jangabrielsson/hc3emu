@@ -8,12 +8,18 @@
 	"customizations": {
 			"vscode": {
 					"extensions": [
-						"sumneko.lua",
-						"AlexeyMelnichuk.lua-mobdebug"
+						"LuaLS.lua-language-server",
+						"AlexeyMelnichuk.lua-mobdebug",
+						"gsonsoft-development.hc3emu-heler",
+						"LivePreview.vscode-live-server",
+						"LiveServer.live-server",
+						"ms-vscode.live-server"
 					]
 			}
 	},
 	"forwardPorts": [
-			8264
+		  8264,
+			8265,
+			8266
 	]
 }

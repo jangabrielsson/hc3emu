@@ -32,17 +32,22 @@ RUN apk add --no-cache \
     && rm -rf /tmp/* \
     && sudo luarocks --version \
     && sudo luarocks install luasocket \
-    && sudo luarocks install luafilesystem \    
-    && sudo luarocks install coxpcall \
-    && sudo luarocks install binaryheap \
-    && sudo luarocks install copas \
-    && sudo luarocks install CopasTimer \
     && sudo luarocks install luasec \
+    && sudo luarocks install luafilesystem \  
+    && sudo luarocks install luasystem \  
+    && sudo luarocks install timerwheel \
+    && sudo luarocks install copas \
+    && sudo luarocks install luamqttt \
     && sudo luarocks install mobdebug \
+    && sudo luarocks install lua-websockets-bit32 \
+    && sudo luarocks install lua-json \
+    && sudo luarocks install bit32 \
+    && sudo luarocks install argparse \
+    && sudo luarocks install datafile \
     && sudo luarocks install hc3emu \
     && apk del gcc make curl wget libc-dev moreutils coreutils \
     && cp /usr/bin/lua5.4 /usr/bin/lua
-    
+
 #ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib"
 
 WORKDIR /develop/

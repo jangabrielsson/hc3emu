@@ -6,7 +6,7 @@ if require and not QuickApp then require('hc3emu') end
 --%%description=My description
 --%%proxy=ColorEmbed
 --%%webui=true
---%%debug=onAction:true,onUIEvent:true
+--%%debug=onAction:true,onUIEvent:true,server:true,info:true
 
 -- Color controller type should handle actions: turnOn, turnOff, setValue, setColor
 -- To update color controller state, update property color with a string in the following format: "r,g,b,w" eg. "200,10,100,255"

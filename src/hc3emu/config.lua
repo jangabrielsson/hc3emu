@@ -220,7 +220,7 @@ local function installation(creds)
   local user = findOption("user")
   user.value = creds.user
   local password = findOption("password")
-  password.value = creds.password
+  password.value = creds.pass
   local IP = findOption("IP")
   local url = creds.url
   if not url:match("https?://") then

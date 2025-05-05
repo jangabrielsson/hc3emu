@@ -13,4 +13,7 @@
 -- New config system, emu folder introduction
 1.0.80
 -- Major rewrite of api handler.
+1.0.97
+-- Runs in dev container now (issue with Live Preview)
+-- 
 

@@ -6,7 +6,7 @@ local lclass = require("hc3emu.class")
 
 local helperStarted = false
 local HELPER_UUID = "hc3emu-00-01"
-local HELPER_VERSION = "1.0.1"
+local HELPER_VERSION = "1.0.2"
 
 local function installHelper()
   local fqa = E.config.loadResource("hc3emuHelper.fqa",true)
@@ -87,7 +87,16 @@ local function startHelper()
   if helperStarted then return end
   local ip = E.emuIP
   local port = E.emuPort+2
-  local helper = (E.api.hc3.get("/devices?property=[quickAppUuid,"..HELPER_UUID.."]") or {})[1]
+  local helpers = (E.api.hc3.get("/devices?property=[quickAppUuid,"..HELPER_UUID.."]") or {})
+  local helper
+  if #helpers > 1 then
+    E:ERRORF("Multiple helper instances found, will remove all but latest")
+    table.sort(helpers,function(a,b) return a.id < b.id end)
+    for i=1,#helpers-1 do
+      E.api.hc3.delete("/devices/"..helpers[i].id)
+    end
+  end
+  helper = helpers[#helpers]
   if not helper or helper.properties.model ~= HELPER_VERSION then 
     if helper then E.api.hc3.delete("/devices/"..helper.id) end -- Old, remove and install new helper
     helper = installHelper() 

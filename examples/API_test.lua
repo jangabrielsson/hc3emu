@@ -4,6 +4,8 @@
 _DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
+DESTRUCTIVE = false 
+
 --%%name=APItest
 --%% proxy=TestProxy
 --%%debug=info:false,api:true,http:true
@@ -51,7 +53,7 @@ function QuickApp:part1()
   a2,b2 = hc3.post("/plugins/updateProperty",{deviceId=3636,propertyName='value',value=false})
   compare(a1,a2,b1,b2)
 
-  self:setName("NewName")
+  self:setName("NewName") -- Causes restart
   print("Name",self.name)
 end
 
@@ -77,10 +79,11 @@ function QuickApp:part2()
 
   api.delete("/plugins/"..self.id.."/variables/fopp")
   local a1,b2 = hc3.sync.delete("/plugins/"..hc3id.."/variables/fopp")
-  plugin.restart()
+  plugin.restart(0)
 end
 
 function QuickApp:part3()
+  if not DESTRUCTIVE then return end
   local fqa = {
     name="TestQA",
     type="com.fibaro.binarySwitch",
@@ -117,20 +120,19 @@ function QuickApp:part3()
   for _, child in ipairs(children) do -- Clean up
     hc3.delete("/plugins/removeChildDevice/"..child.id)
   end
+end
 
+function QuickApp:part4()
+  
 end
 
 function QuickApp:setPart(part) 
-  if part ~= nil then
-    return self:internalStorageSet("Part",part) 
-  else
-    return self:internalStorageRemove("Part")
-  end
+  fibaro.hc3emu._testPart = part
 end
 function QuickApp:onInit()
   print(self.name,self.id)
   function self:initChildDevices() end
-  local part = tonumber(self:internalStorageGet("Part"))
+  local part = fibaro.hc3emu._testPart
   if part == nil then part = 1 self:setPart(part)  end
   local fun = "part"..part
   if self[fun] then 
@@ -140,6 +142,11 @@ function QuickApp:onInit()
   else 
     local a,b = self:setPart(nil)
     return print("Please restart")
+  end
+  if not self["part"..(part+1)] then
+    local a,b = self:setPart(nil)
+    print("No more parts")
+    os.exit(-1)
   end
   print("Done part",part)
 end

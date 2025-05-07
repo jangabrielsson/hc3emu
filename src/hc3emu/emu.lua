@@ -17,14 +17,14 @@ Installation:
 Dependencies:
 lua >= 5.3, <= 5.4
 copas >= 4.7.1-1  (luasocket, luasec, timerwheel)
-luamqtt >= 3.4.3-1
+luamqtt1 >= 1.0.2-1
 lua-json >= 1.0.0-1
 bit32 >= 5.3.5.1-1
 lua-websockets-bit32 >= 2.0.1-7
 argparse >= 0.7.1-1
 mobdebug >= 0.80-1
 --]]
-local VERSION = "1.0.99"
+local VERSION = "1.1.0"
 local lclass = require("hc3emu.class") -- use simple class implementation
 
 local fmt = string.format

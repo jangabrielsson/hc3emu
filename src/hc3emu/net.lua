@@ -347,6 +347,7 @@ function mqtt.Client.connect(uri, options)
     
     -- add keep-alive timer
     local timer = copas.addnamedthread(function()
+      --mobdebug.on()
       while client_registry[cl] do
         local next_check = cl:check_keep_alive()
         if next_check > 0 then

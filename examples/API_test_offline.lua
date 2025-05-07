@@ -4,7 +4,7 @@
 _DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
 
-DESTRUCTIVE = false 
+DESTRUCTIVE = true --false 
 
 --%%name=APItest
 --%% proxy=TestProxy
@@ -15,7 +15,7 @@ DESTRUCTIVE = false
 --%%webui=true
 
 local function printf(...) print(string.format(...)) end
-local function setLocal(flag) fibaro.setOffline(flag) end
+
 local compare,equal
 local hc3 = fibaro.hc3emu.api.hc3
 local hc3id = hc3.get("/devices?name=TestProxy")[1].id

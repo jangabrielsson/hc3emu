@@ -138,9 +138,9 @@ local function getProxy(name,devTempl)
 end
 
 local SocketServer = E.util.SocketServer
-local RecieveServer = lclass('RecieveServer',SocketServer)
-function RecieveServer:__init(ip,port) SocketServer.__init(self,ip,port,"proxy","server") end
-function RecieveServer:handler(io)
+local ProxyServer = lclass('ProxyServer',SocketServer)
+function ProxyServer:__init(ip,port) SocketServer.__init(self,ip,port,"proxy","server") end
+function ProxyServer:handler(io)
   while true do
     ---print("Waiting for data")
     local reqdata = io.read()
@@ -155,9 +155,11 @@ function RecieveServer:handler(io)
   end
 end
 
+local _proxyServer = nil
 local function start() 
-  local r = RecieveServer(E.emuIP,E.emuPort) 
-  r:start()
+  if _proxyServer then return end
+  _proxyServer = ProxyServer(E.emuIP,E.emuPort) 
+  _proxyServer:start()
 end
 
 exports.createProxy = createProxy

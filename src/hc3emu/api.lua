@@ -172,8 +172,6 @@ function API:__init(args)
   self:setup()
 end
 
-function API:setOffline(off) self.offline = off end
-
 function API:start()
   if not self.offline then E.helper.start() end
   self.resources:run()
@@ -442,11 +440,15 @@ function API:setup()
   end)
   self:add("DELETE/plugins/removeChildDevice/<id>",function(ctx)
     local id = tonumber(ctx.vars[1])
+    local child = rsrc:get('devices',id)
+    if not child.parentId or child.parentId == 0 then
+      return nil,404
+    end
     if self.qa.isEmulated(id) then
       return self.qa.removeChildDevice(id),200
     elseif not self.offline then
       return self.hc3.delete(ctx.path)
-    else return nil,501 end
+    else return rsrc:delete('devices',id) end
   end)
   
   self:add("POST/debugMessages",function(ctx) 

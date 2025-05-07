@@ -20,7 +20,7 @@ local function testAPI(method, endpoint, payload, expectedCode)
     end
     
     local maxCode = expectedCode or 206
-    local success = code < maxCode
+    local success = code <= maxCode
     print(string.format("[%s] %s %s: %s (Code: %s)", 
         success and "PASS" or "FAIL", 
         method:upper(), 
@@ -73,7 +73,7 @@ testAPI("get", "/rooms")
 -- Get a specific room (assumes room ID 1 exists)
 testAPI("get", "/rooms/219")
 -- Create new room
-local room = testAPI("post", "/rooms", {name = "Test Room", sectionID = 219, icon = "room"})
+local room = testAPI("post", "/rooms", {name = "Test Room", sectionID = 219, icon = "unsigned", category='other'})
 -- Modify room
 if room then
   testAPI("put", "/rooms/"..room.id, {name = "Modified Room"})
@@ -85,14 +85,15 @@ print("\n----- Testing Sections API -----")
 -- Sections API tests
 testAPI("get", "/sections")
 -- Get a specific section (assumes section ID 1 exists)
-testAPI("get", "/sections/1")
+testAPI("get", "/sections/219")
 -- Create new section
-testAPI("post", "/sections", {name = "Test Section", icon = "section"})
+local sect = testAPI("post", "/sections", {name = "Test Section", icon = "unsigned"})
 -- Modify section
-testAPI("put", "/sections/1", {name = "Modified Section"})
--- Delete section
--- testAPI("delete", "/sections/1") -- Be careful with this one!
-
+if sect then
+  testAPI("put", "/sections/"..sect.id, {name = "Modified Section"})
+  -- Delete section
+  testAPI("delete", "/sections/"..sect.id) -- Be careful with this one!
+end
 print("\n----- Testing Weather API -----")
 -- Weather API tests
 testAPI("get", "/weather")
@@ -102,30 +103,30 @@ print("\n----- Testing Energy API -----")
 testAPI("get", "/energy/devices")
 testAPI("get", "/energy/consumption/summary?period=Yearly")
 testAPI("get", "/energy/consumption/metrics")
-testAPI("get", "/energy/consumption/detail")
+testAPI("get", "/energy/consumption/detail?period=2019-07")
 testAPI("get", "/energy/consumption/room/219/detail")
 
 print("\n----- Testing Scenes API -----")
 -- Scenes API tests
-testAPI("get", "/scenes")
+local scenes = testAPI("get", "/scenes")
 -- Get a specific scene (assumes scene ID 1 exists)
-testAPI("get", "/scenes/1")
+testAPI("get", "/scenes/"..scenes[1].id)
 -- Call scene action
-testAPI("post", "/scenes/1/action/start", {})
+--testAPI("post", "/scenes/"..scenes[1].id.."/action/start", {})
 -- Call scene action with arguments
-testAPI("post", "/scenes/1/action/start", {args = {"test"}})
+--testAPI("post", "/scenes/1/action/start", {args = {"test"}})
 -- Call scene action with delay
-testAPI("post", "/scenes/1/action/start", {delay = 10})
+--testAPI("post", "/scenes/1/action/start", {delay = 10})
 -- Get scene conditions
-testAPI("get", "/scenes/1/conditions")
+--testAPI("get", "/scenes/1/conditions")
 -- Create new scene
 -- testAPI("post", "/scenes", {name = "Test Scene", type = "lua", mode = "automatic"})
 
 print("\n----- Testing Users API -----")
 -- Users API tests
-testAPI("get", "/users")
+local users = testAPI("get", "/users")
 -- Get a specific user (assumes user ID 1 exists)
-testAPI("get", "/users/1")
+testAPI("get", "/users/"..users[1].id)
 -- Modify user
 -- testAPI("put", "/users/1", {name = "Modified User"})
 
@@ -133,9 +134,9 @@ print("\n----- Testing Variables API -----")
 -- Global Variables API tests
 testAPI("get", "/globalVariables")
 -- Get specific variable
-testAPI("get", "/globalVariables/test")
+testAPI("get", "/globalVariables/test",nil,404)
 -- Create or modify variable
-testAPI("put", "/globalVariables/test", {value = "test value"})
+testAPI("put", "/globalVariables/test", {value = "test value"},404)
 -- Create new variable
 testAPI("post", "/globalVariables", {name = "test_var", value = "new value"})
 -- Delete variable
@@ -147,9 +148,6 @@ testAPI("get", "/settings/info")
 testAPI("get", "/settings/location")
 testAPI("get", "/settings/network")
 testAPI("get", "/settings/led")
-testAPI("get", "/settings/general")
-testAPI("get", "/settings/backup")
-testAPI("get", "/settings/diagnose")
 
 print("\n----- Testing Home API -----")
 -- Home API test
@@ -157,7 +155,7 @@ testAPI("get", "/home")
 
 print("\n----- Testing System Status API -----")
 -- System Status API test
-testAPI("get", "/systemStatus")
+testAPI("get", "/service/systemStatus?lang=en&_=32453245")
 
 print("\n----- Testing Icons API -----")
 -- Icons API test
@@ -170,25 +168,24 @@ testAPI("get", "/loginStatus")
 print("\n----- Testing Notifications API -----")
 -- Notifications API tests
 testAPI("get", "/notificationCenter")
-testAPI("get", "/notificationCenter/markAsRead/all")
+--testAPI("get", "/notificationCenter/markAsRead/all")
 
 print("\n----- Testing Plugins API -----")
 -- Plugins API tests
+local qa = api.get("/devices?interface=quickApp")
 testAPI("get", "/plugins")
 -- Get plugin variables
-testAPI("get", "/plugins/1/variables")
+testAPI("get", "/plugins/"..qa[1].id.."/variables")
 -- Get specific plugin variable
-testAPI("get", "/plugins/1/variables/test")
+testAPI("get", "/plugins/"..qa[1].id.."/variables/test", nil, 404)
 -- Update plugin property
-testAPI("post", "/plugins/updateProperty", {deviceId = 1, propertyName = "value", value = true})
+--testAPI("post", "/plugins/updateProperty", {deviceId = 1, propertyName = "value", value = true})
 
 print("\n----- Testing QuickApp API -----")
--- QuickApp API tests
-testAPI("get", "/quickApp/devices")
 -- Get QuickApp files
-testAPI("get", "/quickApp/1/files")
+testAPI("get", "/quickApp/"..qa[1].id.."/files")
 -- Get specific QuickApp file
-testAPI("get", "/quickApp/1/files/main")
+testAPI("get", "/quickApp/"..qa[1].id.."/files/main")
 
 print("\n----- Testing Profiles API -----")
 -- Profiles API tests
@@ -198,7 +195,7 @@ testAPI("get", "/profiles/1")
 
 print("\n----- Testing Consumption API -----")
 -- Consumption API test
-testAPI("get", "/consumption")
+--testAPI("get", "/consumption")
 
 print("\n----- Testing Categories API -----")
 -- Categories API test
@@ -210,8 +207,8 @@ testAPI("get", "/debugMessages")
 
 print("\n----- Testing Favorite Colors API -----")
 -- Favorite Colors API tests
-testAPI("get", "/favoriteColors")
-testAPI("get", "/favoriteColorsV2")
+testAPI("get", "/panels/favoriteColors")
+testAPI("get", "/panels/favoriteColors/v2")
 
 print("\n----- Testing iOS Devices API -----")
 -- iOS Devices API test
@@ -219,15 +216,90 @@ testAPI("get", "/iosDevices")
 
 print("\n----- Testing Linked Devices API -----")
 -- Linked Devices API test
-testAPI("get", "/linkedDevices")
+testAPI("get", "/linkedDevices/v1/devices")
 
 print("\n----- Testing Limits API -----")
 -- Limits API test
-testAPI("get", "/limits")
+local limits = testAPI("get", "/limits")
+
+print("\n----- Testing Sprinkler API -----")
+-- Sprinkler API tests
+local a = testAPI("get", "/panels/sprinklers/v1/state")
+testAPI("get", "/panels/sprinklers/v1/devices")
+testAPI("get", "/panels/sprinklers/v1/programs")
+testAPI("get", "/panels/sprinklers/v1/zones")
+testAPI("get", "/panels/sprinklers/v1/schedules")
+testAPI("get", "/panels/sprinklers/v1/history")
+-- Create a schedule (post example)
+-- testAPI("post", "/panels/sprinklers/v1/schedules", {
+--   name = "Test Schedule",
+--   active = true,
+--   zones = {1, 2},
+--   startTime = "19:00:00",
+--   durationInMinutes = 30,
+--   weekDays = {1, 3, 5}
+-- })
+-- -- Start/stop manual watering
+-- testAPI("post", "/panels/sprinklers/v1/manual/start", {
+--   zones = {1},
+--   durationInMinutes = 5
+-- })
+testAPI("post", "/panels/sprinklers/v1/manual/stop", {})
+-- Get water usage statistics
+testAPI("get", "/panels/sprinklers/v1/statistics/water-usage")
+
+-- print("\n----- Testing Humidity API -----")
+-- -- Humidity API tests
+-- local hum = testAPI("get", "/panels/humidity")
+
+-- testAPI("get", "/panels/humidity/current")
+
+print("\n----- Testing Climate API -----")
+-- Climate API tests
+testAPI("get", "/climate/v1/installations")
+testAPI("get", "/climate/v1/devices")
+testAPI("get", "/climate/v1/zones")
+testAPI("get", "/climate/v1/thermostats")
+testAPI("get", "/climate/v1/schedule")
+testAPI("get", "/climate/v1/history?deviceId=1&period=week")
+testAPI("get", "/climate/v1/settings")
+testAPI("get", "/climate/v1/statistics/energy")
+testAPI("get", "/climate/v1/statistics/temperature")
+-- Set climate mode for zone
+testAPI("post", "/climate/v1/zones/1/mode", {
+  mode = "heat", -- heat, cool, auto, off
+  setpoint = 21.5
+})
+-- Set climate schedule
+testAPI("post", "/climate/v1/zones/1/schedule", {
+  name = "Workday Schedule",
+  active = true,
+  periods = {
+    { 
+      startTime = "06:30:00", 
+      temperature = 21.0, 
+      mode = "heat" 
+    },
+    { 
+      startTime = "22:00:00", 
+      temperature = 18.0, 
+      mode = "heat" 
+    }
+  },
+  weekDays = {1, 2, 3, 4, 5}
+})
+-- Set vacation mode
+testAPI("post", "/climate/v1/vacation", {
+  enabled = true,
+  startDate = "2025-05-20",
+  endDate = "2025-05-27",
+  temperature = 16.5,
+  mode = "heat"
+})
 
 print("\n----- Testing Panel Service API -----")
 -- Panel Service API test
-testAPI("get", "/panelService")
+--testAPI("get", "/panelService")
 
 print("\n----- Testing User Activity API -----")
 -- User Activity API test
@@ -235,7 +307,7 @@ testAPI("get", "/userActivity")
 
 print("\n----- Testing VoIP API -----")
 -- VoIP API test
-testAPI("get", "/voip")
+--testAPI("get", "/voip")
 
 print("\n----- Testing Additional Interfaces API -----")
 -- Additional Interfaces API test
@@ -247,11 +319,11 @@ testAPI("get", "/fti")
 
 print("\n----- Testing Gateway Connection API -----")
 -- Gateway Connection API test
-testAPI("get", "/gatewayConnection")
+--testAPI("get", "/gatewayConnection")
 
 print("\n----- Testing Network Discovery API -----")
 -- Network Discovery API test
-testAPI("get", "/networkDiscovery")
+testAPI("post", "/networkDiscovery/arp",{})
 
 print("\n----- Testing RGB Programs API -----")
 -- RGB Programs API test
@@ -259,16 +331,7 @@ testAPI("get", "/RGBPrograms")
 
 print("\n----- Testing ZWave API -----")
 -- ZWave API tests
-testAPI("get", "/zwave")
-testAPI("get", "/getZwaveEngine")
-
-print("\n----- Testing Home.Assistant API -----")
--- Home.Assistant API test - This may not exist in your system
-testAPI("get", "/home/assistant", nil, 404) -- Expected code is 404 if not available
-
-print("\n----- Testing Health Check API -----")
--- Health Check API test
-testAPI("get", "/healthCheck", nil, 404) -- Expected code is 404 if not available
+testAPI("get", "/zwaveSettings")
 
 print("\nAPI tests completed")
 

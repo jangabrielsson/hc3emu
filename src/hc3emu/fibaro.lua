@@ -28,8 +28,7 @@ api.get = _api.get
 api.post = _api.post
 api.put = _api.put
 api.delete = _api.delete
-function fibaro.setOffline(off) _api:setOffline(off) end
-fibaro.setOffline(E:getRunner().flags.offline)
+api.hc3 = _api.hc3
 
 local function __assert_type2(val, typ, msg)
   if type(val) ~= typ then error(fmt(msg,typ)..". Got: "..type(val),3) end
@@ -128,6 +127,19 @@ function fibaro.call(deviceId, action, ...)
     local arg = {...}
     local arg2 = #arg>0 and arg or nil
     return api.post("/devices/"..deviceId.."/action/"..action, { args = arg2 })
+  end
+end
+
+function fibaro.callhc3(deviceId, action, ...)
+  __assert_type(action, "string")
+  if type(deviceId) == "table" then
+    for _,id in pairs(deviceId) do __assert_type(id, "number") end
+    for _,id in pairs(deviceId) do fibaro.call(id, action, ...) end
+  else
+    __assert_type(deviceId, "number")
+    local arg = {...}
+    local arg2 = #arg>0 and arg or nil
+    return api.hc3.post("/devices/"..deviceId.."/action/"..action, { args = arg2 })
   end
 end
 

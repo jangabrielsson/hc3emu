@@ -78,7 +78,13 @@ function Resources:create(typ,data,hc3,refresh)
       if not RSRCINDEX[typ] then error("Resource "..typ.." does not have an index") end
       id = RSRCINDEX[typ] + 1; RSRCINDEX[typ] = id+1
       data[r.index] = id
-    else return  self.hc3.post(r.path,data) end
+    else   
+      local res,code = self.hc3.post(r.path,data) -- No id, so create it
+      if code > 204 then return nil, code end
+      data = res
+      id = data[r.index]
+      hc3 = true
+    end
   end
   if r.items[id] then 
     if hc3 then merge(r.items[id], data) end -- assume better data from HC3...

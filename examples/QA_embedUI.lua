@@ -4,7 +4,7 @@ if require and not QuickApp then require('hc3emu') end
 --%%name=MyQA
 --%%type=com.fibaro.colorController
 --%%description=My description
---%%proxy=ColorEmbed
+--%% proxy=ColorEmbed
 --%%webui=true
 --%%debug=onAction:true,onUIEvent:true,server:true,info:true
 

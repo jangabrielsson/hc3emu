@@ -13,8 +13,9 @@ local function foo()
 end
 
 function QuickApp:onInit()
+  --json.decode("")
   --bar()
-
+  assert(false,"assertion failed")
   --setTimeout(foo3,0)
   net.HTTPClient():request("http://www.google.com",{
     options = {

@@ -399,6 +399,12 @@ local function post(event) ---{type=..., ...}
   end
 end
 
+local function pruneTB(tb)
+  tb = tb:match("^.-'copas%.gettraceback'\n(.*)$")
+  tb = tb:match("%s+.-[/\\]hc3emu[/\\]util.lua:%d+:.-\n(.*)$") or tb
+  return tb
+end
+
 local tasks = {}
 local function errfun(msg,co,skt)
   -- Try to figure what QA/Scene started this task
@@ -408,7 +414,7 @@ local function errfun(msg,co,skt)
   else
     E:ERRORF("Task error: %s",msg)
   end
-  print(copas.gettraceback("",co,skt))
+  print(pruneTB(copas.gettraceback("",co,skt)))
 end
 
 local function addThread(runner,call,...)
@@ -427,7 +433,7 @@ local function addThread(runner,call,...)
       end
       if runner then runner:_error(res)
       else E:ERRORF("Task error: %s",res) end
-      print(copas.gettraceback("",coroutine.running(),nil))
+      print(pruneTB(copas.gettraceback("",coroutine.running(),nil)))
     end
     local stat,res = xpcall(call,ef,...) 
     runner:unlock()

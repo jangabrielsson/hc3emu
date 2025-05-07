@@ -42,7 +42,12 @@ end
 local function handler(t) if t.__array then t.__array = nil end return t end
 function json.decode(str,_,_) 
   local stat,res = pcall(decode,str,nil,handler) 
-  if not stat then error("json.decode error: "..tostring(res),2) end
+  if not stat then 
+    local reason = ""
+    if str == "" then reason = "Empty string, " end
+    if str == nil then reason = "Nil value, " end
+    error("json.decode error: "..reason..tostring(res),2) 
+  end
   return res
 end
 json.util = {}

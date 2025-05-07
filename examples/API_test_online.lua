@@ -244,7 +244,7 @@ testAPI("get", "/panels/sprinklers/v1/history")
 --   zones = {1},
 --   durationInMinutes = 5
 -- })
-testAPI("post", "/panels/sprinklers/v1/manual/stop", {})
+--testAPI("post", "/panels/sprinklers/v1/manual/stop", {})
 -- Get water usage statistics
 testAPI("get", "/panels/sprinklers/v1/statistics/water-usage")
 
@@ -256,46 +256,9 @@ testAPI("get", "/panels/sprinklers/v1/statistics/water-usage")
 
 print("\n----- Testing Climate API -----")
 -- Climate API tests
-testAPI("get", "/climate/v1/installations")
-testAPI("get", "/climate/v1/devices")
-testAPI("get", "/climate/v1/zones")
-testAPI("get", "/climate/v1/thermostats")
-testAPI("get", "/climate/v1/schedule")
-testAPI("get", "/climate/v1/history?deviceId=1&period=week")
-testAPI("get", "/climate/v1/settings")
-testAPI("get", "/climate/v1/statistics/energy")
-testAPI("get", "/climate/v1/statistics/temperature")
--- Set climate mode for zone
-testAPI("post", "/climate/v1/zones/1/mode", {
-  mode = "heat", -- heat, cool, auto, off
-  setpoint = 21.5
-})
--- Set climate schedule
-testAPI("post", "/climate/v1/zones/1/schedule", {
-  name = "Workday Schedule",
-  active = true,
-  periods = {
-    { 
-      startTime = "06:30:00", 
-      temperature = 21.0, 
-      mode = "heat" 
-    },
-    { 
-      startTime = "22:00:00", 
-      temperature = 18.0, 
-      mode = "heat" 
-    }
-  },
-  weekDays = {1, 2, 3, 4, 5}
-})
--- Set vacation mode
-testAPI("post", "/climate/v1/vacation", {
-  enabled = true,
-  startDate = "2025-05-20",
-  endDate = "2025-05-27",
-  temperature = 16.5,
-  mode = "heat"
-})
+local cl = testAPI("get", "/panels/climate")
+testAPI("get", "/panels/climate/1")
+testAPI("get", "/panels/climate/availableDevices")
 
 print("\n----- Testing Panel Service API -----")
 -- Panel Service API test

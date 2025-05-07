@@ -43,10 +43,10 @@ function QuickApp:onInit()
   printf("Size of '%s' fqa: %s bytes",self.name,#json.encode(fqa))
   self:testRefreshStates()
   self:testBasic()
-  self:testChildren() -- Only works with proxy
+  self:testChildren()
   self:testTCP()
   self:testMQTT()
-  self:testWebSocket() -- have problem with work with wss
+  self:testWebSocket() 
   --self:listFuns()
   print("Done!")
 end

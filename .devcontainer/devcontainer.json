@@ -17,6 +17,13 @@
 					]
 			}
 	},
+	"containerEnv": {
+		"HC3HOST": "192.168.1.32"
+	},
+	"runArgs": [
+		"--add-host=api.hc3emu.local:host-gateway",
+    "--add-host=hc3emu.local:host-gateway"
+	],
 	"forwardPorts": [
 		  8264,
 			8265,

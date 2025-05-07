@@ -245,7 +245,7 @@ end
 local function generateUIpage(id,name,fname,UI)
   local format,t0 = string.format,os.clock()
   local qa = E:getQA(id)
-  local SIP = E.emuIP
+  local SIP = E.emuIP2
   --SIP="127.0.0.1"
   local pr = prBuff(format(header,SIP,E.emuPort+1,id))
   --print("Generating UI page")

@@ -101,6 +101,7 @@ function Emulator:__init(debug,info)
     mySocket:setpeername(someRandomIP,someRandomPort)
     local myDevicesIpAddress,_ = mySocket:getsockname()-- returns IP and Port
     self.emuIP = myDevicesIpAddress == "0.0.0.0" and "127.0.0.1" or myDevicesIpAddress
+    self.emuIP2 = os.getenv("HC3HOST") or self.emuIP
   end
   
   function print(...) if self.silent then return else _print(...) end end

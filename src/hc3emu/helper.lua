@@ -106,10 +106,10 @@ local function startHelper()
   end
   local helperId = helper.id
   if helperId then
-    E.api.hc3.post("/devices/"..helperId.."/action/close",{ args={ip,port}} )
+    E.api.hc3.post("/devices/"..helperId.."/action/close",{ args={E.emuIP2,port}} )
     exports.connection = RequestServer(ip,port)
     exports.connection:start()
-    E.api.hc3.post("/devices/"..helperId.."/action/connect",{args={ip,port}})
+    E.api.hc3.post("/devices/"..helperId.."/action/connect",{args={E.emuIP2,port}})
   end
   
   helperStarted = true

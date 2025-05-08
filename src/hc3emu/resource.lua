@@ -163,6 +163,11 @@ end
 local refreshes = { created={}, modified={}, deleted={}, ops={} }
 
 function Resources:refreshOrg(event)
+  --self.addEvent(event)
+  --print("Refresh:",event.type,json.encode(event.data))
+end
+
+function Resources:refreshOrg2(event)
   self.addEvent(event)
   --print("Refresh:",event.type,json.encode(event.data))
 end
@@ -170,7 +175,7 @@ end
 function Resources:refresh(op,typ,id,data)
   local r = refreshes[op][typ]
   if not r then return end
-  self:refreshOrg(r(id,data))
+  self:refreshOrg2(r(id,data))
 end
 
 local EventMgr = lclass('EventMgr') -- This is a class, but not a subclass of Resources
@@ -191,7 +196,10 @@ function EventMgr:__init(emulator)
   if not self.offline then
     emulator.refreshState.addRefreshStateListener(handler)
   end
-  function self.addEvent(event) emulator.refreshState.addRefreshStateEvent(event,handler) end
+  function self.addEvent(event) 
+    --if event.type == 'CentralSceneEvent' then print("rsrc:addEvent") end
+    emulator.refreshState.addRefreshStateEvent(event,handler) 
+  end
 end
 
 function EventMgr:addHandler(pattern,handler) 

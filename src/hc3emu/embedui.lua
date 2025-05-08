@@ -56,7 +56,7 @@ local embedProps  = {
     return format(dflt(qa.device.properties.value, 0))
   end,
   __multiswitchValue = function(qa)
-    local format = function(value) return title("%.2f%%",value) end
+    local format = function(value) return title("%.2f%%",tonumber(value) or 0) end
     qa.propWatches['value'] = function(value) 
       qa.qa:updateView('__setValue','value',tostring(value)) 
       qa.qa:updateView('__multiswitchValue','text',format(value))
@@ -67,7 +67,7 @@ local embedProps  = {
     return tostring(dflt(qa.device.properties.value, 0))
   end,
   __multisensorValue = function(qa)
-    local format = function(value) return title("%.2f %s",value,qa.qa.properties.unit or "") end
+    local format = function(value) return title("%.2f %s",tonumber(value) or 0,qa.qa.properties.unit or "") end
     qa.propWatches['value'] = function(value) 
       qa.qa:updateView('__multisensorValue','text',format(value))
     end
@@ -116,14 +116,14 @@ local embedProps  = {
     return format(dflt(qa.device.properties.value,false))
   end,
   __temperatureSensor = function(qa)
-    local function format(value) return title("%.2f°",value) end
+    local function format(value) return title("%.2f°",tonumber(value) or 0) end
     qa.propWatches['value'] = function(value) 
       qa.qa:updateView('__temperatureSensor','text',format(value))
     end
     return format(dflt(qa.device.properties.value, 0))
   end,
   __humiditySensor = function(qa)
-    local function format(value) return title("%.2f%%",value) end
+    local function format(value) return title("%.2f%%",tonumber(value) or 0) end
     qa.propWatches['value'] = function(value) 
       qa.qa:updateView('__humiditySensor','text',format(value)) 
     end

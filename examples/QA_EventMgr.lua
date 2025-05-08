@@ -94,6 +94,7 @@ function EventMgr:getHandlers(event)
 end
 
 function EventMgr:post(event,time)  -- Optional time in seconds
+  --print(json.encode(event))
   if type(time)=="string" then  -- time string spec, convert.
     time = toTime(time)  
     if time < 0 then return end -- Negative time, post in the past, do not post
@@ -172,9 +173,9 @@ function EventMgr:setupSourceTriggers() -- Setup some transformation to sourceTr
   
   local keyTime = {}
   self:addHandler({type='CentralSceneEvent'},function(event)
-    local id,time = event.data.id,nil
-    time,keyTime[id] = keyTime[id] or 0,os.time()
-    local last = keyTime[id] - time
+    -- local id,time = event.data.id,nil
+    -- time,keyTime[id] = keyTime[id] or 0,os.time()
+    -- local last = keyTime[id] - time
     self:post({type='key', id=event.data.id, key = event.data.keyId, attribute = event.data.keyAttribute, last = last})
   end)
   
@@ -234,7 +235,8 @@ if fibaro then fibaro.EventMgr = EventMgr end
 ----------- Test the librray with a keypad event --------------------
 local em = EventMgr()
 
--- em:addHandler({type='key'},function(event) print("Event",json.encode(event)) end)
+em:addHandler({type='key'},function(event) print("Event",json.encode(event)) end)
+em:addHandler({type='device',property='value'},function(event) print("Event",json.encode(event)) end)
 
 -- em:sequence({{type='key',key=2},3,{type='key',key=3},3,{type='key',key=2}},
 --   function(e) 

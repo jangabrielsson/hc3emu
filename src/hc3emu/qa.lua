@@ -542,7 +542,7 @@ local function addApiHooks(api)
   
   function api.qa.prop(id,prop,value) 
     local qa = E:getQA(id)
-    qa.device.properties[prop] = value
+    --qa.device.properties[prop] = value
     qa:watchesProperty(prop,value)
     if qa.isProxy then
       local a,b = E.api.hc3.post("/plugins/updateProperty",{

@@ -24,7 +24,14 @@ local function addEvent(event,exclListener)
     queue[last] = nil
     last = last + 1
   end
-  for l,_ in pairs(listeners) do if l ~= exclListener then l(event) end end
+  -- if event.type == 'CentralSceneEvent' then 
+  --   print("addEvent") 
+  -- end
+  for l,_ in pairs(listeners) do 
+    if l ~= exclListener then 
+      l(event) 
+    end 
+  end
 end
 
 local events = require("hc3emu.refreshstateevents")

@@ -100,6 +100,7 @@ local E = Emulator.emulator
 local fmt = string.format
 local json = require("hc3emu.json")
 local lclass = require("hc3emu.class")
+local copas = require("copas")
 
 local function hc3(api)
   local self = { sync={}}
@@ -134,14 +135,15 @@ end
 
 local API  = lclass('API')
 
+local Resources = require("hc3emu.resource")
+
 function API:__init(args)
   self.E = E
   self.helper = E.helper
   self.DIR = { GET={}, POST={}, PUT={}, DELETE={} }
   self.hc3 = hc3(self)
   self.offline = args.offline
-  self.dispatcher = args.dispatcher
-  self.db = self.dispatcher.db
+  self.resources = Resources(self)
   self.qa = {}
   local function notImpl() error("QA func not implemented") end
   function self.qa.call(id,action,data) notImpl() end
@@ -172,6 +174,7 @@ end
 
 function API:start()
   if not self.offline then E.helper.start() end
+  self.resources:run()
 end
 
 function API:add(method, path, handler) 
@@ -266,17 +269,16 @@ local function filter(q,ds)
 end
 
 function API:setup()
-  local db = self.db
-  self.ED = self.dispatcher
+  local rsrc = self.resources
 
   local function num(x) return tonumber(x) or x end
-  local function get(ctx,typ) return db:get(typ,num(ctx.vars[1])) end
-  local function mod(ctx,typ) return db:modify(typ,num(ctx.vars[1]),ctx.data) end
-  local function event(typ,data)
-    return self.ED:newLocalEvent({type=typ,data=data})
-  end
+  local function get(ctx,typ) return rsrc:get(typ,num(ctx.vars[1])) end
+  local function create(ctx,typ) return rsrc:create(typ,ctx.data) end
+  local function mod(ctx,typ) return rsrc:modify(typ,num(ctx.vars[1]),ctx.data) end
+  local function del(ctx,typ) return rsrc:delete(typ,num(ctx.vars[1])) end
+
   self:add("GET/devices",function(ctx)
-    local devices,code = db:get('devices')
+    local devices,code = rsrc:get('devices')
     if not devices then return nil,code end
     devices = filter(ctx.query,devices)
     return devices,200
@@ -297,26 +299,23 @@ function API:setup()
       return nil,501
     end
   end)
-
   self:add("PUT/devices/<id>",function(ctx) 
     local id = tonumber(ctx.vars[1])
-    local data = table.copy(ctx.data)
-    data.id = id
-    local res,code = event('DeviceModifiedEvent',data)
-    if code < 206 and self.qa.isEmulated(id) then
+    if self.qa.isEmulated(id) then
+      local res,code = rsrc:modify('devices',id,ctx.data,true,true)
       self.qa.update(id,ctx.data)
+      return res,code
     end
-    return res,code
+    return mod(ctx,'devices')
   end)
-
   self:add("DELETE/devices/<id>",function(ctx) 
     local id = tonumber(ctx.vars[1])
-    local res,code = event('DeviceRemovedEvent',{id=id})
-    if code < 206 and self.qa.isEmulated(id) then
+    if self.qa.isEmulated(id) then
+      rsrc:delete('devices',id,true,true)
       local qa = E:getQA(id)
       qa:remove()
-    end
-    return res,code
+      return nil,200
+    else return del(ctx,'devices') end
   end)
   self:add("GET/devices/<id>/action/<name>",function(ctx)
     local id = tonumber(ctx.vars[1])
@@ -335,91 +334,52 @@ function API:setup()
 
   self:add("GET/globalVariables",function(ctx) return get(ctx,'globalVariables') end)
   self:add("GET/globalVariables/<name>",function(ctx)return get(ctx,'globalVariables') end)
-  self:add("POST/globalVariables",function(ctx)
-    local data = table.copy(ctx.data)
-    data.variableName = data.name
-    data.name = nil
-    return event('GlobalVariableAddedEvent',data)
-  end)
-  self:add("PUT/globalVariables/<name>",function(ctx)
-    local data = table.copy(ctx.data)
-    data.variableName = ctx.vars[1]
-    data.name = nil
-    return event('GlobalVariableChangedEvent',data)
-  end)
-  self:add("DELETE/globalVariables/<name>",function(ctx)
-    return event('GlobalVariableRemovedEvent',{variableName=ctx.vars[1]})
-  end)
+  self:add("POST/globalVariables",function(ctx)return create(ctx,'globalVariables') end)
+  self:add("PUT/globalVariables/<name>",function(ctx)return mod(ctx,'globalVariables') end)
+  self:add("DELETE/globalVariables/<name>",function(ctx)return del(ctx,'globalVariables') end)
   
   self:add("GET/rooms",function(ctx) return get(ctx,"rooms") end)
   self:add("GET/rooms/<id>",function(ctx) return get(ctx,'rooms') end)
-  self:add("POST/rooms",function(ctx) 
-    return event('RoomCreatedEvent',ctx.data) 
-  end)
+  self:add("POST/rooms",function(ctx) return create(ctx,'rooms') end)
   self:add("POST/rooms/<id>/action/setAsDefault",function(ctx) 
     local id = tonumber(ctx.vars[1])
-    self.db.defaultRoom = id
+    self.resources.defaultRoom = id
     if not self.offline then
-      return self.hc3.post("/rooms/"..id.."/action/setAsDefault",{})
+      return self.hc3.post("/rooms/"..id.."/action/setAsDefault")
     else return id,200 end
   end)
   self:add("POST/rooms/<id>/groupAssignment",function(ctx)
     if not self.offline then
       return self.hc3.post(ctx.path,ctx.data)
     else 
-      local roomID = tonumber(ctx.vars[1])
+      local id = tonumber(ctx.vars[1])
       for _,id in ipairs(ctx.data.deviceIds or {}) do
-        event('DeviceModifiedEvent',{id=id,roomID=roomID})
+        mod({vars={id},data={roomID=id}},'devices')
       end
-      return roomID,200
+      return id,200
     end
   end)
-  self:add("PUT/rooms/<id>",function(ctx) 
-    local data = table.copy(ctx.data)
-    data.id = tonumber(ctx.vars[1])
-    return event('RoomModifiedEvent',data) 
-  end)
-  self:add("DELETE/rooms/<id>",function(ctx) 
-    return event('RoomRemovedEvent',{id=tonumber(ctx.vars[1])})
-  end)
+  self:add("PUT/rooms/<id>",function(ctx) return mod(ctx,'rooms') end)
+  self:add("DELETE/rooms/<id>",function(ctx) return del(ctx,'rooms') end)
   
   self:add("GET/sections",function(ctx) return get(ctx,'sections') end)
   self:add("GET/sections/<id>",function(ctx) return get(ctx,'sections') end)
-  self:add("POST/sections",function(ctx) 
-    return event('SectionCreatedEvent',ctx.data)
-  end)
-  self:add("PUT/sections/<id>",function(ctx) 
-    local data = table.copy(ctx.data)
-    data.id = tonumber(ctx.vars[1])
-    return event('SectionModifiedEvent',data)
-  end)
-  self:add("DELETE/sections/<id>",function(ctx) 
-    return event('SectionRemovedEvent',{id=tonumber(ctx.vars[1])})
-  end)
+  self:add("POST/sections",function(ctx) return create(ctx,'sections') end)
+  self:add("PUT/sections/<id>",function(ctx) return mod(ctx,'sections') end)
+  self:add("DELETE/sections/<id>",function(ctx) return del(ctx,'sections') end)
   
   self:add("GET/customEvents",function(ctx) get(ctx,"customEvents") end)
   self:add("GET/customEvents/<name>",function(ctx) return get(ctx,'customEvents') end)
-  self:add("POST/customEvents",function(ctx) 
-    return event('CustomEventCreatedEvent',ctx.data)
-  end)
+  self:add("POST/customEvents",function(ctx) return create(ctx,'customEvents') end)
   self:add("POST/customEvents/<name>",function(ctx) 
     if not self.offline then
       self.hc3.post(ctx.path)
     else
-      local event = db:get('customEvents',ctx.vars[1])
-      if event then 
-        return event('CustomEvent',ctx.data)
-      else return nil,404 end
+      self.resources:refresh('ops','customEvents',ctx.vars[1],{name=ctx.vars[1]})
     end
   end)
-  self:add("PUT/customEvents/<name>",function(ctx) 
-    local data = table.copy(ctx.data)
-    data.name = ctx.vars[1]
-    return event('CustomEventModifiedEvent',data)
-  end)
-  self:add("DELETE/customEvents/<name>",function(ctx) 
-    return event('CustomEventRemovedEvent',{name=ctx.vars[1]})
-  end)
+  self:add("PUT/customEvents/<name>",function(ctx) return mod(ctx,'customEvents') end)
+  self:add("DELETE/customEvents/<name>",function(ctx) return del(ctx,'customEvents') end)
   
   self:add("GET/scenes",function(ctx) return get(ctx,'scenes') end)
   self:add("GET/scenes/<id>",function(ctx) return get(ctx,'scenes') end)
@@ -434,21 +394,17 @@ function API:setup()
   end) 
   
   self:add("GET/weather",function(ctx) return get(ctx,'weather') end)
-  self:add("PUT/weather",function(ctx) -- for debugging
-    return event('WeatherChangedEvent',ctx.data)
-  end)
+  self:add("PUT/weather",function(ctx) return mod(ctx,'weather') end)
 
   self:add("POST/plugins/updateProperty",function(ctx)
     local data = ctx.data
-    local id = data.deviceId
-    local args = {id=id,property=data.propertyName,newValue=data.value}
-    local res,code = event('DevicePropertyUpdatedEvent',args)
-    if code < 206 and self.qa.isEmulated(id) then
-      --self.qa.prop(id,data.propertyName,data.value)
+    local id,em = data.deviceId,false
+    if self.qa.isEmulated(id) then
+      em = true
+      self.qa.prop(id,data.propertyName,data.value)
     end
-    return res,code
+    return rsrc:modProp(id,data.propertyName,data.value,em,em)
   end)
-
   self:add("POST/plugins/updateView",function(ctx) 
     local data = ctx.data
     local id = data.deviceId
@@ -458,7 +414,6 @@ function API:setup()
       return self.hc3.post(ctx.path,ctx.data)
     else return nil,501 end
   end)
-
   self:add("POST/plugins/interfaces",function(ctx) 
     local data = ctx.data
     local id = data.deviceId
@@ -467,7 +422,6 @@ function API:setup()
       return res,code
     else return nil,501 end
   end)
-
   self:add("POST/plugins/restart",function(ctx)
     local id = ctx.data.deviceId
     if self.qa.isEmulated(id) then
@@ -486,7 +440,7 @@ function API:setup()
   end)
   self:add("DELETE/plugins/removeChildDevice/<id>",function(ctx)
     local id = tonumber(ctx.vars[1])
-    local child = db:get('devices',id)
+    local child = rsrc:get('devices',id)
     if not child.parentId or child.parentId == 0 then
       return nil,404
     end
@@ -494,7 +448,7 @@ function API:setup()
       return self.qa.removeChildDevice(id),200
     elseif not self.offline then
       return self.hc3.delete(ctx.path)
-    else return db:delete('devices',id) end
+    else return rsrc:delete('devices',id) end
   end)
   
   self:add("POST/debugMessages",function(ctx) 
@@ -513,36 +467,20 @@ function API:setup()
     else return self.hc3.sync.post(ctx.path,ctx.data) end
   end)
   
-  self:add("GET/panels/location",function(ctx) return get(ctx,'panels/location') end)
-  self:add("GET/panels/location/<id>",function(ctx) return get(ctx,'panels/location') end)
-  self:add("POST/panels/location",function(ctx)
-    return event('LocationCreatedEvent',ctx.data)
-  end)
-  self:add("PUT/panels/location/<id>",function(ctx)
-    local data = table.copy(ctx.data)
-    data.id = tonumber(ctx.vars[1])
-    return event('LocationModifiedEvent',data)
-  end)
-  self:add("DELETE/panels/location/<id>",function(ctx)
-    return event('LocationRemovedEvent',{id=tonumber(ctx.vars[1])})
-  end)
+  self:add("GET/panels/location",function(ctx) return get(ctx,'panels_location') end)
+  self:add("GET/panels/location/<id>",function(ctx) return get(ctx,'panels_location') end)
+  self:add("POST/panels/location",function(ctx) return create(ctx,'panels_location') end)
+  self:add("PUT/panels/location/<id>",function(ctx) return mod(ctx,'panels_location') end)
+  self:add("DELETE/panels/location/<id>",function(ctx) return del(ctx,'panels_location') end)
 
-  self:add("GET/settings/location",function(ctx) return get(ctx,'settings/location') end)
-  self:add("GET/settings/info",function(ctx) return get(ctx,'settings/info') end)
+  self:add("GET/settings/location",function(ctx) return get(ctx,'settings_location') end)
+  self:add("GET/settings/info",function(ctx) return get(ctx,'settings_info') end)
   
   self:add("GET/users",function(ctx) return get(ctx,'users') end)
   self:add("GET/users/<id>",function(ctx) return get(ctx,'users') end)
-  self:add("POST/users",function(ctx)
-    return event('UserCreatedEvent',ctx.data)
-  end)
-  self:add("PUT/users/<id>",function(ctx)
-    local data = table.copy(ctx.data)
-    data.id = tonumber(ctx.vars[1])
-    return event('UserModifiedEvent',data)
-  end)
-  self:add("DELETE/users/<id>",function(ctx)
-    return event('UserRemovedEvent',{id=tonumber(ctx.vars[1])})
-  end)
+  self:add("POST/users",function(ctx) return create(ctx,'user') end)
+  self:add("PUT/users/<id>",function(ctx) return mod(ctx,'user') end)
+  self:add("DELETE/users/<id>",function(ctx) return del(ctx,'users') end)
 
   self:add("GET/quickApp/<id>/files",function(ctx) 
     local id = tonumber(ctx.vars[1])
@@ -635,7 +573,7 @@ function API:setup()
     if not self.offline then
       return self.hc3.sync.get(ctx.path)
     end
-    local vars = db.db.internalStorage.items[id]
+    local vars = rsrc.resources.internalStorage.items[id]
     if not vars then return nil, 404 end
     local res = {}
     for k,v in pairs(vars) do res[#res+1]= {name=k, value=v, isHidden=false} end
@@ -646,7 +584,7 @@ function API:setup()
     if not self.offline then
       return self.hc3.sync.get(ctx.path)
     end
-    local vars = db.db.internalStorage.items[id]
+    local vars = rsrc.resources.internalStorage.items[id]
     local name = ctx.vars[2]
     if not (vars and vars[name] ~= nil) then return nil, 404 end
     return {value=vars[name],name=name, isHidden=false},200
@@ -657,7 +595,7 @@ function API:setup()
       return self.hc3.sync.post(ctx.path,ctx.data)
     end
     local data = ctx.data
-    local vars = db.db.internalStorage.items[id]
+    local vars = rsrc.resources.internalStorage
     if vars.items[id] == nil then vars.items[id] = {} end
     vars = vars.items[id]
     if vars[data.name] ~= nil then return nil, 409 end
@@ -671,7 +609,7 @@ function API:setup()
       return self.hc3.sync.put(ctx.path,ctx.data)
     end
     local data = ctx.data
-    local vars = db.db.internalStorage.items[id]
+    local vars = rsrc.resources.internalStorage.items[id]
     if not (vars and vars[data.name]~=nil) then return nil, 404 end
     vars[data.name] = data.value
     E:flushState()
@@ -682,7 +620,7 @@ function API:setup()
     if not self.offline then
       return self.hc3.sync.delete(ctx.path)
     end
-    local vars = db.db.internalStorage.items[id]
+    local vars = rsrc.resources.internalStorage.items[id]
     local name = ctx.vars[2]
     if not (vars and vars[name]~=nil) then return nil, 404 end
     vars[name] = nil
@@ -694,7 +632,7 @@ function API:setup()
     if not self.offline and not self.qa.isEmulated(tonumber(id)) then
       return self.hc3.sync.delete(ctx.path)
     end
-    local vars = db.db.internalStorage
+    local vars = rsrc.resources.internalStorage
     if vars.items[id] == nil then return nil, 404 end
     vars.items[id] = {}
     E:flushState()

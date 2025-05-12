@@ -58,4 +58,4 @@ end
 
 
 Event:post({type='device',id='X',value=1})
-setTimeout(function() Event:post({type='device',id='Y',value=1}) end, 2000)
+setTimeout(function() Event:post({type='device',id='Y',value=1}) end, 0)

@@ -8,13 +8,14 @@ if require and not QuickApp then require("hc3emu") end
 
 --%%name=QwikChildTest
 --%%type=com.fibaro.genericDevice
---%%proxy=QCProxy
+--%% proxy=QCProxy
+--%%offline=true
 --%%port=8265
 --%% offline=true
 --%%dark=true
 --%%state=state.db
 --%%webui=true
---%%debug=info:true,http:true,onAction:true,onUIEvent:true,proxyAPI:true
+--%%debug=info:true,http:true,onAction:true,onUIEvent:true,proxyAPI:true,rawrefresh:true
 --%%var=debug:"main,wsc,child,color,battery,speaker,send,late"
 --%%file=$hc3emu.qwikchild:QC
 
@@ -39,7 +40,7 @@ function MyChild:childFun(a,b)
 end
 
 local children = {
-  bar135 = {
+  bar134 = {
     name = "Bar1",
     type = "com.fibaro.multilevelSwitch",
     className = "MyChild",

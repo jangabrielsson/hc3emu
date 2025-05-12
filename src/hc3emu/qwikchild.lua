@@ -317,8 +317,8 @@ do
     -- CHeck if we run in emulator and warn if not setup correctly
     if fibaro.hc3emu and not fibaro.hc3emu.DBG.offline then 
       if not self.isProxy then
-        self:error("initChildren only works with proxy when using HC3emu online")
-        os.exit(-1)
+        self:warning("initChildren may not work well without when using HC3emu online")
+        --os.exit(-1)
       end
     end
     if fibaro.hc3emu and not fibaro.hc3emu.DBG.state then

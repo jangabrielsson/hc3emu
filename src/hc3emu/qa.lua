@@ -32,8 +32,6 @@ function QA:__init(info,noRun) -- create QA struct,
   self._lock = E:newLock()
   
   local flags = info.directives
-  local q5001 = E:getQA(5001)
-  local ds = E.api.resources.resources.devices.items[5001]
   local uiCallbacks,viewLayout,uiView = self:setupUI(flags)
   
   local deviceStruct =self:setupStruct(flags,uiCallbacks,viewLayout,uiView)
@@ -266,10 +264,14 @@ function QA:run()
   return self
 end
 
-function QA:restart(delay) -- delay in ms
+function QA:restartQA(delay) -- delay in ms
   E.timers.cancelTimers(self) 
   E.util.cancelThreads(self)
   self.env.setTimeout(function() self:run() end,delay or 0)
+end
+
+function QA:restart(t) -- delay in ms
+  self.env.plugin.restart(t or 0)
 end
 
 function QA:callAction(name,...)
@@ -279,8 +281,55 @@ function QA:callAction(name,...)
   copas.sleep(0.01) -- Give called QA a chance to run
 end
 
+local function getVar(id,key)
+  id = tostring(id)
+  local vars = E.api.db.db.internalStorage.items[id] or {}
+  return vars[key]
+end
+local function setVar(id,key,value)
+  id = tostring(id)
+  local vars = E.api.db.db.internalStorage.items[id] or {}
+  vars[key] = value
+  E.api.db.db.internalStorage.items[id] = vars
+  E:flushState()
+end
+
+function QA:createChildDevice(data)
+  local dev,code = nil,nil
+  if self.isProxy and not E.api.offline then
+    dev,code = E.api.hc3.post("/plugins/createChildDevice",data)
+    if code > 206 then return nil,code end
+    setVar(dev.id,"_uiCallbacks",(data.initialProperties or {}).uiCallbacks)
+    dev.properties.uiCallbacks = (data.initialProperties or {}).uiCallbacks
+  else
+    dev = table.copy(deviceTypes[data.type])
+    assert(dev,"Device type "..data.type.." not found")
+    dev.name = data.name or ("Child_"..data.type)
+    dev.parentId = self.id
+    dev.interfaces = data.initialInterfaces or {}
+    for k,v in pairs(data.initialProperties or {}) do
+      dev.properties[k] = v
+    end
+    dev.id = E:getNextDeviceId()
+  end
+  E.api.db:create("devices",dev)
+  return dev,200
+end
+
+local UIMap={onReleased='value',onChanged='value',onToggled='value',onLongPressDown='value',onLongPressReleased='value'}
+
 function QA:onAction(deviceId,value)
   E:addThread(self,self.env.onAction,deviceId,value)
+  if value.actionName == 'UIAction' then
+    local qa = self.id == deviceId and self or E:getQA(deviceId) -- Parent
+    if qa then
+      qa:updateView({
+        componentName=value.args[2],
+        propertyName=UIMap[value.args[1]],
+        newValue=value.args[3],
+      })
+    end
+  end
   copas.sleep(0.01) -- Give called QA a chance to run
 end
 
@@ -288,14 +337,18 @@ function QA:watchesProperty(name,value)
   if self.propWatches[name] then self.propWatches[name](value) end
 end
 
-local UIMap={onReleased='value',onChanged='value',onToggled='value',onLongPressDown='value',onLongPressReleased='value'}
 function QA:onUIEvent(deviceId,value)
   E:addThread(self,self.env.onUIEvent,deviceId,value)
   local componentName = value.elementName
   local propertyName = UIMap[value.eventType]
   local value2 = value.values
   if propertyName == 'text' then value2 = value2[1] end
-  self:updateView({componentName=componentName,propertyName=propertyName,newValue=value2})
+  local qa = self.id == deviceId and self or E:getQA(deviceId) -- Parent
+  if qa then
+    qa:updateView({
+      componentName=componentName,propertyName=propertyName,newValue=value2
+    })
+  end
   copas.sleep(0.01) -- Give called QA a chance to run
 end
 
@@ -345,7 +398,7 @@ end
 
 function E.EVENT._quickApp_initialized(ev)
   local qa = E:getQA(ev.id)
-  E.refreshState.post.DeviceCreatedEvent(ev.id)
+  E.dispatcher:addEvent({type='DeviceCreatedEvent',data={id = ev.id}})
   if (qa.directives or qa.flags).webui then
     qa.webui = true
     if qa.isChild then
@@ -355,7 +408,6 @@ function E.EVENT._quickApp_initialized(ev)
       local name = qa.device.name:gsub("[^%w]","")
       qa.uiPage = fmt("%s.html",name)
     end
-    --addEmbedUI(qa.device.type,qa.UI)
     local index = {}
     initializeUI(qa,qa.UI,index)
     setmetatable(qa.UI,{
@@ -386,10 +438,7 @@ function QA:updateView(data)
     elm[propertyName] = value 
     E:post({type='quickApp_updateView',id=self.id})
   end
-  if self.isProxy then 
-    local a,b = E.api.hc3.post("/plugins/updateView",data)
-    a=b
-  end
+  if self.isProxy then E.api.hc3.post("/plugins/updateView",data) end
 end
 
 function QA:embedPatch(params)
@@ -444,22 +493,64 @@ function QA:timerCallback(ref,what)
   end
 end
 
+local function findFile(name,files)
+  for i,f in ipairs(files) do if f.name == name then return i end end
+end
+
+function QA:getFile(name)
+  if name == nil then
+    local fs = {}
+    for _,f in ipairs(self.files) do
+      fs[#fs+1] = {name=f.name, type='lua', isOpen=false, isMain=false}
+    end
+    fs[#fs+1] = {name='main', type='lua', isOpen=false, isMain=true}
+    return fs,200
+  else
+    local i = findFile(name,self.files)
+    if i then return self.files[i],200
+    else return nil,404 end
+  end
+end
+
+function QA:writeFile(name,data) 
+  local files = data
+  if name then files = {data} end
+  for _,f in ipairs(files) do
+    local i = f.name=='main' or findFile(f.name,self.files)
+    if not i then return nil,404 end
+  end
+  for _,f in ipairs(files) do
+    if f.name == 'main' then
+      self.src = f.content
+    else
+      local i = findFile(f.name,self.files)
+      self.files[i] = f
+    end
+  end
+  self:restart() -- Restart the QA immediately
+  return true,200
+end
+
+function QA:createFile(data) 
+  if findFile(data.name,qa.files) then return nil,409 end
+  data.fname="new" -- What fname to give it?
+  table.insert(self.files,data)
+  self:restart() -- Restart the QA
+end
+
+function QA:deleteFile(name) 
+  local i = findFile(name,self.files)
+  if i then 
+    table.remove(self.files,i) 
+    self:restart()
+  else return nil,404 end
+end
+
 function QA:_error(str)
   self.env.fibaro.error(self.env.__TAG,self:trimErr(str))
 end
 
-local function getVar(id,key)
-  id = tostring(id)
-  local vars = E.api.resources.resources.internalStorage.items[id] or {}
-  return vars[key]
-end
-local function setVar(id,key,value)
-  id = tostring(id)
-  local vars = E.api.resources.resources.internalStorage.items[id] or {}
-  vars[key] = value
-  E.api.resources.resources.internalStorage.items[id] = vars
-  E:flushState()
-end
+------------------------------------------
 
 local QAChild = lclass('QAChild') --  Just a placeholder for child QA, NOT a runner, only mother QA is runner
 
@@ -476,6 +567,7 @@ function QAChild:__init(info)
     end
     self.UI = E.ui.uiView2UI(self.device.properties.uiView,self.device.properties.uiCallbacks)
   else self.UI = {} end
+  addEmbedUI(self.device.type, self.UI)
   local parentQA = E:getQA(self.device.parentId)
   self.isProxy = parentQA.isProxy
   self.flags = parentQA.flags
@@ -497,9 +589,20 @@ function QAChild:updateView(data)
   local elm = UI[componentName]
   if not elm then return end
   if compMap[propertyName] then value = compMap[propertyName](value) end
+  if propertyName == 'value' then value = tostring(value) end
   if value ~= elm[propertyName] then 
     elm[propertyName] = value 
     E:post({type='quickApp_updateView',id=self.id})
+  end
+  data.deviceId = self.id
+  if self.isProxy then 
+    local a,b = E.api.hc3.post("/plugins/updateView",{
+      deviceId=self.id,
+      componentName=componentName,
+      propertyName=propertyName,
+      newValue=value
+    }) 
+    a=b
   end
 end
 
@@ -514,156 +617,11 @@ function QAChild:createFQA() error("Child can not be converted to .fqa") end
 function QAChild:save() error("Child can not be saved") end
 
 ----------------------
-local function findFile(name,files)
-  for i,f in ipairs(files) do if f.name == name then return i end end
-end
-
-local function addApiHooks(api)
-  local function notImpl() error("QA func not implemented",2) end
-  
-  function api.qa.call(id,action,data)  
-    local qa = E:getQA(id)
-    if qa.device.parentId and qa.device.parentId > 0 then
-      qa = E:getQA(qa.device.parentId)
-      assert(qa,"Parent QA not found")
-    end
-    qa:onAction(id,{actionName=action,deviceId=id, args=data.args})
-    return 'OK',200
-  end
-  
-  local props = {"name","visible","enabled","roomID"}
-  function api.qa.update(id,data) -- Change toplevel props like name....
-    local qa = E:getQA(id)
-    local QA = qa.qa  
-    for _,k in ipairs(props) do if data[k]~=nil then QA[k] = data[k] end end
-    qa.env.plugin.restart(0)
-    return true,200
-  end 
-  
-  function api.qa.prop(id,prop,value) 
-    local qa = E:getQA(id)
-    --qa.device.properties[prop] = value
-    qa:watchesProperty(prop,value)
-    if qa.isProxy then
-      local a,b = E.api.hc3.post("/plugins/updateProperty",{
-        deviceId=qa.device.id,
-        propertyName=prop,
-        value=value
-      })
-      if b > 206 then return nil,b end
-    end
-    return 'OK',200
-  end
-
-  function api.qa.getFile(id,name)
-    local qa = E:getQA(tonumber(id))
-    if not qa then return nil,301 end
-    if name == nil then
-      local fs = {}
-      for _,f in ipairs(qa.files) do
-        fs[#fs+1] = {name=f.name, type='lua', isOpen=false, isMain=false}
-      end
-      fs[#fs+1] = {name='main', type='lua', isOpen=false, isMain=true}
-      return fs,200
-    else
-      local i = findFile(name,qa.files)
-      if i then return qa.files[i],200
-      else return nil,404 end
-    end
-  end
-  
-  function api.qa.writeFile(id,name,data) 
-    local qa = E:getQA(tonumber(id))
-    if not qa then return nil,301 end
-    local files = data
-    if name then files = {data} end
-    for _,f in ipairs(files) do
-      local i = f.name=='main' or findFile(f.name,qa.files)
-      if not i then return nil,404 end
-    end
-    for _,f in ipairs(files) do
-      if f.name == 'main' then
-        qa.src = f.content
-      else
-        local i = findFile(f.name,qa.files)
-        qa.files[i] = f
-      end
-    end
-    qa.env.plugin.restart(0) -- Restart the QA immediately
-    return true,200
-  end
-  
-  function api.qa.createFile(id,data) 
-    local qa = E:getQA(id)
-    if not qa then return nil,301 end
-    if findFile(data.name,qa.files) then return nil,409 end
-    data.fname="new" -- What fname to give it?
-    table.insert(qa.files,data)
-    qa.env.plugin.restart(0) -- Restart the QA
-  end
-  
-  function api.qa.deleteFile(id,name) 
-    local qa = E:getQA(id)
-    if not qa then return nil,301 end
-    local i = findFile(name,qa.files)
-    if i then 
-      table.remove(qa.files,i) 
-      qa.env.plugin.restart(0)
-    else return nil,404 end
-  end
-  
-  function api.qa.createFQA(id)
-    local qa = E:getQA(id)
-    return qa:createFQA(id),200 
-   end
-  
-  function api.qa.updateView(id,data)
-    local qa = E:getQA(tonumber(data.deviceId))
-    qa:updateView(data)
-    return nil,200
-  end
-  
-  function api.qa.restart(id) 
-    local qa = E:getQA(id)
-    qa.env.plugin.restart(0) -- Restart the QA
-  end
-  
-  function api.qa.createChildDevice(parentId,data)
-    local qa = E:getQA(parentId)
-    local dev,code = nil,nil
-    if qa.isProxy and not E.api.offline then
-      dev,code = E.api.hc3.post("/plugins/createChildDevice",data)
-      if code > 206 then return nil,code end
-      setVar(dev.id,"_uiCallbacks",(data.initialProperties or {}).uiCallbacks)
-      dev.properties.uiCallbacks = (data.initialProperties or {}).uiCallbacks
-    else
-      dev = table.copy(deviceTypes[data.type])
-      assert(dev,"Device type "..data.type.." not found")
-      dev.name = data.name or ("Child_"..data.type)
-      dev.parentId = parentId
-      dev.interfaces = data.initialInterfaces or {}
-      for k,v in pairs(data.initialProperties or {}) do
-        dev.properties[k] = v
-      end
-      dev.id = E:getNextDeviceId()
-    end
-    E.api.resources:create("devices",dev)
-    return dev,200
-  end
-  
-  function api.qa.removeChildDevice(id)
-    E.api.resources:delete("devices",id)
-    return nil,200
-  end
-  
-  function api.qa.debugMessages(id,data) notImpl() end
-end
 
 exports.QA = QA
 exports.QAChild = QAChild
 exports.embedUIs = embedUIs
 exports.embedProps = embedProps
-exports.addApiHooks = addApiHooks
 exports.init = init
 
 return exports

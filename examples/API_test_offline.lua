@@ -171,5 +171,7 @@ function equal(e1,e2)
 end
 
 function compare(a1,a2,b1,b2)
-  if not equal(a1,a2) or b1~=b2 then fibaro.error(__TAG,"GlobalVariable compare failed",a1,a2,b1,b2) end
+  if not equal(a1,a2) or b1~=b2 then 
+    fibaro.error(__TAG,"GlobalVariable compare failed",a1,a2,b1,b2) 
+  end
 end

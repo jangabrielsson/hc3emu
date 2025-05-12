@@ -33,14 +33,6 @@ function Scene:__init(info)
   self.timerCount = 0
 end
 
-local function addApiHooks(api)
-  function api.scene.execute(id,name) 
-    local scene = E:getScene(tonumber(id))
-    assert(name=='execute',"Invalid scene action")
-    scene:trigger({type='user', property='execute',id=2})
-  end
-end
-
 function Scene:lock() self._lock:get() end
 function Scene:unlock() self._lock:release() end
 

@@ -14,7 +14,7 @@ function QuickApp:onInit()
   fibaro.setGlobalVariable("test","abc")
   api.delete("/globalVariables/test")
 
-  local room = api.post("/rooms",{ name = "test" })
+  local room,code = api.post("/rooms",{ name = "test" })
   api.put("/rooms/"..room.id,{ name = "test2" })
   api.delete("/rooms/"..room.id)
 

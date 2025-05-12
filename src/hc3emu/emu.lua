@@ -24,7 +24,7 @@ lua-websockets-bit32 >= 2.0.1-7
 argparse >= 0.7.1-1
 mobdebug >= 0.80-1
 --]]
-local VERSION = "1.1.1"
+local VERSION = "1.1.2"
 local lclass = require("hc3emu.class") -- use simple class implementation
 
 local fmt = string.format
@@ -157,10 +157,9 @@ function Emulator:__init(debug,info)
   self.timers = loadModule("hc3emu.timers") 
   logTime = self.timers.userTime
   userDate = self.timers.userDate
-  self.helper = loadModule("hc3emu.helper") -- Helper functions
+  self.helper = loadModule("hc3emu.helper")
   self.API = loadModule("hc3emu.api")
-  self.proxy = loadModule("hc3emu.proxy")        -- Proxy creation and Proxy API routes
-  self.refreshState = loadModule("hc3emu.refreshstate")
+  self.proxy = loadModule("hc3emu.proxy")
   self.ui = loadModule("hc3emu.ui") 
   self.tools = loadModule("hc3emu.tools")
   self.qa = loadModule("hc3emu.qa") 
@@ -181,22 +180,23 @@ function Emulator:getNextDeviceId() self.DEVICEID = self.DEVICEID + 1 return sel
 function Emulator:getNextSceneId() self.SCENEID = self.SCENEID + 1 return self.SCENEID end
 
 function Emulator:setupApi()
-  self.api = self.API.API({offline=self.DBG.offline})
+  local EventDispatcher = require("hc3emu.eventdispatcher")
+  local eventDispatcher = EventDispatcher(self.DBG.offline)
+  self.dispatcher = eventDispatcher
+  self.api = self.API.API(eventDispatcher)
+  eventDispatcher:start(self.api)
+
   local EM = self
   function self.api:loadResources(resources)
     local res = EM.config.loadResource("stdStructs.json",true)
-    local resources = EM.api.resources
-    resources.resources.home.items = res.home
-    resources.resources.settings_info.items = res.info
-    resources.resources.settings_location.items = res.location
-    resources.resources.devices.items[1] = res.device1
+    local db = EM.api.db
+    db.db.home.items = res.home
+    db.db.settings_info.items = res.info
+    db.db.settings_location.items = res.location
+    db.db.devices.items[1] = res.device1
     local defroom = {id = 219, name = "Default Room", sectionID = 219, isDefault = true, visible = true}
-    resources.resources.rooms.items[219] = defroom
+    db.db.rooms.items[219] = defroom
   end
-  function self.api.qa.isEmulated(id) return self.QA_DIR[id]~= nil end
-  function self.api.scene.isEmulated(id) return self.SCENE_DIR[id]~= nil end
-  self.qa.addApiHooks(self.api)
-  self.scene.addApiHooks(self.api)
   self.api:start()
 end
 
@@ -204,8 +204,8 @@ function Emulator:setupResources()
   local userTime,userDate = self.timers.userTime,self.timers.userDate
   
   local function updateSunTime()
-    local location = self.api.resources:get("settings_location")
-    local dev1 =  self.api.resources:get("devices",1)
+    local location = self.api.db:get("settings/location")
+    local dev1 =  self.api.db:get("devices",1)
     local longitude,latitude = location.longitude,location.latitude
     local sunrise,sunset = self.util.sunCalc(userTime(),latitude,longitude)
     self.sunriseHour = sunrise
@@ -217,7 +217,7 @@ function Emulator:setupResources()
   end
     
   function self.EVENT._emulator_started() -- Update lat,long,suntime at startup
-    local location = self.api.resources:get("settings_location")
+    local location = self.api.db:get("settings_location")
     if self.DBG.latitude and self.DBG.longitude then
       location.latitude = self.DBG.latitude
       location.longitude = self.DBG.longitude
@@ -245,7 +245,7 @@ function Emulator:readInState()
       if type(states)~='table' then states = {} end
       self.stateData = states
       local states2 = states[self.mainFile] or {} -- Key on main file
-      local qintern = self.api.resources.resources.internalStorage.items
+      local qintern = self.api.db.db.internalStorage.items
       for id,vars in pairs(states2.internalStorage or {}) do
         qintern[id] = vars
       end
@@ -259,7 +259,7 @@ function Emulator:flushState()
   if self.hasState then
     local f = io.open(self.stateFileName,"w")
     if f then
-      local states = {internalStorage = self.api.resources.resources.internalStorage.items }
+      local states = {internalStorage = self.api.db.db.internalStorage.items }
       self.stateData[self.mainFile] = states
       f:write(json.encode(self.stateData)) f:close() 
       self:DEBUGF('db',"State file written %s",self.stateFileName)
@@ -275,12 +275,11 @@ function Emulator:registerQA(qa)
     self.stats.qas = self.stats.qas + 1
   end
   self.QA_DIR[qa.id] = qa 
-  self.api.resources.resources.devices.items[qa.id] = qa.device
+  self.api.db.db.devices.items[qa.id] = qa.device
 end
 
 function Emulator:unregisterQA(id) 
   self.QA_DIR[id] = nil 
-  self.api.resources:delete("devices",id,true,true)
   self.stats.qas = self.stats.qas - 1
 end
 
@@ -288,7 +287,7 @@ function Emulator:registerScene(scene)
   assert(scene.id,"Can't register Scene without id")
   self.SCENE_DIR[scene.id] = scene
   self.stats.scenes = self.stats.scenes + 1
-  self.api.resources.resources.scenes.items[scene.id] = scene.device
+  self.api.db.db.scenes.items[scene.id] = scene.device
 end
 
 function Emulator:getQA(id) return self.QA_DIR[id] end

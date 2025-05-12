@@ -10,9 +10,9 @@ function QuickApp:onInit()
 end
 
 local modifier = {"Pressed","HeldDown","Released","Released"}
-local refresh = fibaro.hc3emu.refreshState.post
+local dispatcher = fibaro.hc3emu.dispatcher
 function QuickApp:post(keyId,keyAttribute)
-  refresh.CentralSceneEvent(plugin.mainDeviceId,keyId,keyAttribute)
+  dispatcher:addEvent({type='CentralSceneEvent',data={id=plugin.mainDeviceId, keyId=keyId, keyAttribute=keyAttribute}})
 end
 
 function QuickApp:b1() self:post(1,"Pressed") end

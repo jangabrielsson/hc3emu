@@ -4,6 +4,7 @@ if require and not QuickApp then require("hc3emu") end
 --%%name=Event test
 
 --%%file=$hc3emu.eventlib:Events
+--%%debug=refresh:true
 
 ------ENDOFDIRECTIVES------
 ---@diagnostic disable-next-line: undefined-global

@@ -7,7 +7,7 @@ local event = EVENT.event
 local post = EVENT.post
 
 local function startRefreshListener(scene)
-  E.refreshState.addRefreshStateListener(function(ev) -- Add event listener for refresh state events
+  E.dispatcher:addListener(function(ev) -- Add event listener for refresh state events
     if ev.created < scene.created  then return end -- Skip events before scene were created
     rs2st(ev, post)
   end)

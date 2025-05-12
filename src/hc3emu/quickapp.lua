@@ -27,7 +27,7 @@ function plugin.restart(t)
     E:DEBUG("Restarting QuickApp "..id.." in 5 seconds")
   end
   local qa = E:getQA(id)
-  qa:restart(t)
+  qa:restartQA(t)
 end
 
 local exit = os.exit
@@ -329,8 +329,8 @@ function RefreshStateSubscriber:unsubscribe(subscription)
   end
 end
 
-function RefreshStateSubscriber:run() E.refreshState.addRefreshStateListener(self.handle) end
-function RefreshStateSubscriber:stop() E.refreshState.removeRefreshStateListener(self.handle) end
+function RefreshStateSubscriber:run() E.dispatcher:addListener(self.handle) end
+function RefreshStateSubscriber:stop() E.dispatcher:removeListener(self.handle) end
 
 function __onAction(id, actionName, args)
   print("__onAction", id, actionName, args)

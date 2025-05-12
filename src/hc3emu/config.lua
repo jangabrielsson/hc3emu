@@ -53,6 +53,7 @@ local function setupRsrscsDir()
   end
   local datafile = require("datafile")
   local f,p = datafile.open(path)
+  if p:match("^.[/\\]rsrcs") then f:close(); f = nil end -- found wrong (local) directory
   if f then f:close() return p:sub(1,len) end
   p = package.searchpath("hc3emu",package.path)
   assert(p,"Failed to find "..path)

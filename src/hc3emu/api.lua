@@ -153,6 +153,7 @@ end
 
 function API:start()
   if not self.offline then E.helper.start() end
+  if self.offline then self:loadResources(self) end
 end
 
 function API:add(method, path, handler) 

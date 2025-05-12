@@ -21,9 +21,11 @@
 		"HC3HOST": "192.168.1.32"
 	},
 	"runArgs": [
+		//"--add-host=glob.hc3emu.local:host",
 		"--add-host=api.hc3emu.local:host-gateway",
     "--add-host=hc3emu.local:host-gateway"
 	],
+	"initializeCommand": "",
 	"forwardPorts": [
 		  8264,
 			8265,

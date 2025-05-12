@@ -101,7 +101,7 @@ function Emulator:__init(debug,info)
     mySocket:setpeername(someRandomIP,someRandomPort)
     local myDevicesIpAddress,_ = mySocket:getsockname()-- returns IP and Port
     self.emuIP = myDevicesIpAddress == "0.0.0.0" and "127.0.0.1" or myDevicesIpAddress
-    self.emuIP2 = os.getenv("HC3HOST") or self.emuIP
+    self.emuIP2 = os.getenv("HC3EMUHOST") or self.emuIP
   end
   
   function print(...) if self.silent then return else _print(...) end end
@@ -123,6 +123,8 @@ function Emulator:__init(debug,info)
   
   self.config = require("hc3emu.config")
 
+  self.rsrcsDir = self.config.setupRsrscsDir()
+  assert(self.rsrcsDir,"Failed to find rsrcs directory")
   self.baseFlags = self.config.getSettings() or {}
   
   self.mobdebug = { on = function() end, start = function(_,_) end }
@@ -141,8 +143,6 @@ function Emulator:__init(debug,info)
   end
   self.systemRunner.dbg = flags.debug or {}
 
-  self.rsrcsDir = self.config.setupRsrscsDir()
-  assert(self.rsrcsDir,"Failed to find rsrcs directory")
   self.config.setupDirectory(info.directives.webui)
   self.config.clearDirectory()
 
@@ -191,8 +191,8 @@ function Emulator:setupApi()
     local res = EM.config.loadResource("stdStructs.json",true)
     local db = EM.api.db
     db.db.home.items = res.home
-    db.db.settings_info.items = res.info
-    db.db.settings_location.items = res.location
+    db.db['settings/info'].items = res.info
+    db.db['settings/location'].items = res.location
     db.db.devices.items[1] = res.device1
     local defroom = {id = 219, name = "Default Room", sectionID = 219, isDefault = true, visible = true}
     db.db.rooms.items[219] = defroom
@@ -517,11 +517,23 @@ function Emulator:parseDirectives(info) -- adds {directives=flags,files=files} t
   info.files = flags.files
 end
 
+local function getEnvVar(var) 
+  local v = os.getenv(var) 
+  if v and v:sub(1,1) ~= '<' then return v end
+  return nil
+end
+
 function Emulator:checkConnection(flags)
   self.USER = flags.user or self.USER -- Get credentials
   self.PASSWORD = flags.password or self.PASSWORD
   self.URL = flags.IP or self.URL
   self.PIN = flags.pin or self.PIN
+
+  if not self.USER then self.USER = getEnvVar("HC3USER") end
+  if not self.PASSWORD then self.PASSWORD = getEnvVar("HC3PASSWORD") end
+  if not self.URL then self.URL = getEnvVar("HC3URL") end
+  if not self.PIN then self.PIN = getEnvVar("HC3PIN") end
+
   if self.URL and self.URL:sub(-1)~="/" then self.URL = self.URL.."/" end
   if not self.DBG.offline then -- Early check if we are connected.
     if not self.URL then 

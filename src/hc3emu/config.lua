@@ -116,6 +116,9 @@ end
 
 local function loadResource(file,decode)
   local f,p = rsrcPath(file,true)
+  if not f then
+    E:ERRORF("Failed to load resource %s", E.rsrcsDir..E.fileSeparator..file)
+  end
   assert(f, "Failed to open file: " .. file)
   local data = f:read("*a")
   f:close()

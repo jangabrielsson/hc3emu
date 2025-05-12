@@ -7,6 +7,10 @@
 --%%u={{button='b5',text='-',onReleased="b5"},{button='b6',text='+',onReleased="b6"}}
 function QuickApp:onInit()
   self:debug(self.name,self.id)
+  local emu = fibaro.hc3emu
+  local qa = fibaro.hc3emu:getQA(self.id)
+  local mainQA = fibaro.hc3emu:getQA(emu.mainDeviceId)
+  qa.dbg = mainQA.dbg
 end
 
 local modifier = {"Pressed","HeldDown","Released","Released"}

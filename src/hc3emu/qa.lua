@@ -577,6 +577,12 @@ function QAChild:__init(info)
   return self
 end
 
+function QAChild:remove()
+  -- E.timers.cancelTimers(self) 
+  -- E.util.cancelThreads(self)
+  E:unregisterQA(self.id)
+end
+
 function QAChild:watchesProperty(name,value)
   if self.propWatches[name] then self.propWatches[name](value) end
 end

@@ -650,6 +650,7 @@ function Emulator:run(info) -- { fname = "file.lua", src = "source code" }
     self:readInState()    -- Read in state from file
     self.timers.midnightLoop() -- Setup loop for midnight events, used to ex. update sunrise/sunset hour
     local runner = fileType == 'Scene' and self.scene.Scene(info) or self.qa.QA(info,nil)
+    self.mainDeviceId = runner.id
     self:post({type='emulator_started'})
     runner:run()
   end)

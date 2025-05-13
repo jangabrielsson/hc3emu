@@ -49,9 +49,9 @@ end
 
 function ResourceDB:initRsrc(typ)
   local r = self.db[typ]
-  r.inited = true
   if self.offline then return end
-  local res = self.hc3.get(r.path)
+  local res,code = self.hc3.get(r.path)
+  if r.inited then return else r.inited = true end
   local idx,items = r.index,r.items
   if idx==nil then items = res or {}
   else 

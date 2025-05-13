@@ -624,12 +624,12 @@ function API:setup()
     if info then return info.device,201 else return nil,401 end
   end)
   
-  local function isLocal(id) local qa = E:getQA(id) return qa and not qa.isProxy end
+  local function isProxy(id) local qa = E:getQA(id) return qa and qa.isProxy end
 
   -- These we run via emuHelper with hc3.sync.* because they are not allowed remotely
   self:add("GET/plugins/<id>/variables",function(ctx) 
     local id = ctx.vars[1]
-    if not self.offline or isLocal(id) then
+    if not self.offline and isProxy(id) then
       return self.hc3.sync.get(ctx.path)
     end
     local vars = db.db.internalStorage.items[id]
@@ -640,7 +640,7 @@ function API:setup()
   end)
   self:add("GET/plugins/<id>/variables/<name>",function(ctx) 
     local id = ctx.vars[1]
-    if not self.offline or isLocal(id) then
+    if not self.offline and isProxy(id) then
       return self.hc3.sync.get(ctx.path)
     end
     local vars = db.db.internalStorage.items[id]
@@ -650,7 +650,7 @@ function API:setup()
   end)
   self:add("POST/plugins/<id>/variables",function(ctx) 
     local id = ctx.vars[1]
-    if not self.offline or isLocal(id) then
+    if not self.offline and isProxy(id) then
       return self.hc3.sync.post(ctx.path,ctx.data)
     end
     local data = ctx.data
@@ -663,7 +663,7 @@ function API:setup()
   end)
   self:add("PUT/plugins/<id>/variables/<name>",function(ctx)
     local id = ctx.vars[1]
-    if not self.offline or isLocal(id) then
+    if not self.offline and isProxy(id) then
       return self.hc3.sync.put(ctx.path,ctx.data)
     end
     local data = ctx.data
@@ -675,7 +675,7 @@ function API:setup()
   end)
   self:add("DELETE/plugins/<id>/variables/<name>",function(ctx)
     local id = ctx.vars[1]
-    if not self.offline or isLocal(id) then
+    if not self.offline and isProxy(id) then
       return self.hc3.sync.delete(ctx.path)
     end
     local vars = db.db.internalStorage.items[id]
@@ -687,7 +687,7 @@ function API:setup()
   end)
   self:add("DELETE/plugins/<id>/variables",function(ctx)
     local id = ctx.vars[1]
-    if not self.offline or isLocal(id) then
+    if not self.offline and isProxy(id) then
       return self.hc3.sync.delete(ctx.path)
     end
     local vars = db.db.internalStorage

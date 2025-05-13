@@ -4,7 +4,6 @@ local json = hc3emu.json
 local _type = E.lua.type
 local copas = E.lua.require("copas")
 local fmt = string.format
-
 local function shutdown()
   if E._server then copas.removeserver(E._server) end
   if E._client then copas.close(E._client) end

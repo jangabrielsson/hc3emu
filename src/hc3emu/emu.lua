@@ -24,7 +24,7 @@ lua-websockets-bit32 >= 2.0.1-7
 argparse >= 0.7.1-1
 mobdebug >= 0.80-1
 --]]
-local VERSION = "1.1.5"
+local VERSION = "1.1.6"
 local lclass = require("hc3emu.class") -- use simple class implementation
 
 local fmt = string.format
@@ -184,7 +184,6 @@ function Emulator:setupApi()
   local eventDispatcher = EventDispatcher(self.DBG.offline)
   self.dispatcher = eventDispatcher
   self.api = self.API.API(eventDispatcher)
-  eventDispatcher:start(self.api)
 
   local EM = self
   function self.api:loadResources(resources)
@@ -197,6 +196,7 @@ function Emulator:setupApi()
     local defroom = {id = 219, name = "Default Room", sectionID = 219, isDefault = true, visible = true}
     db.db.rooms.items[219] = defroom
   end
+  eventDispatcher:start(self.api)
   self.api:start()
 end
 
@@ -206,6 +206,10 @@ function Emulator:setupResources()
   local function updateSunTime()
     local location = self.api.db:get("settings/location")
     local dev1 =  self.api.db:get("devices",1)
+    if dev1 == nil then
+      self:ERRORF("Failed to get device 1")
+      return
+    end
     local longitude,latitude = location.longitude,location.latitude
     local sunrise,sunset = self.util.sunCalc(userTime(),latitude,longitude)
     self.sunriseHour = sunrise
@@ -652,7 +656,6 @@ function Emulator:run(info) -- { fname = "file.lua", src = "source code" }
   
   print(self.log.colorStr('orange',"HC3Emu - Tiny QuickApp emulator for the Fibaro Home Center 3, v"..self.VERSION))
   local fileType = flags.type == 'scene' and 'Scene' or 'QuickApp'
-
   copas(function() -- This is the first task we create
     self.mobdebug.on()
     self:setRunner(self.systemRunner) -- Set environment for this coroutine

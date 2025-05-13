@@ -1,9 +1,9 @@
 --This is an all-in-one example of a QuickApp that demonstrates most of the features of the hc3emu
 
 ---@diagnostic disable: duplicate-set-field
-_DEVELOP = true
+--_DEVELOP = true
 if require and not QuickApp then require("hc3emu") end
-
+print(fibaro.hc3emu.rsrcsDir)
 --fibaro.USER = "admin" -- set creds in ./hc3emu_cfg.lua or ~/.hc3emu.lua
 --fibaro.PASSWORD = "admin"
 --fibaro.URL = "http://192.168.1.57/"

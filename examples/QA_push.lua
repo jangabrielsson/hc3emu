@@ -7,5 +7,5 @@ if require and not QuickApp then require('hc3emu') end
 
 
 function QuickApp:onInit()
-  hub.alert('push', { 2 }, 'text', false, '')
+  hub.alert('push', { 2 }, 'How are you?', false, '')
 end

@@ -66,6 +66,7 @@ local function sclass(name)
     end,
     __tostring = function() return "class "..name end,
   })
+  cls.__org = cls
   _G[name] = cls
   return function(p) getmetatable(cls).__index = p end
 end

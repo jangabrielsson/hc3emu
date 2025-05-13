@@ -20,7 +20,6 @@ dependencies = {
    "lua >= 5.3, <= 5.4",
    "copas >= 4.7.1-1",
    "luamqttt >= 1.0.2-1",
-   --"rapidjson >= 0.7.1-1", -- if already installed, will be used
    "lua-json >= 1.0.0-1",
    "bit32 >= 5.3.5.1-1",
    "lua-websockets-bit32 >= 2.0.1-7",

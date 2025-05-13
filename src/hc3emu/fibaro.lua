@@ -108,7 +108,7 @@ function fibaro.alert(alertType, ids, notification)
     end
   end
   for _, id in ipairs(ids) do
-    fibaro.call(id, action, notification, false)
+    fibaro.call(id, 'sendGlobalPushNotifications', notification, "false")
   end
 end
 

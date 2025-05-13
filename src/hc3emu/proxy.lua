@@ -119,8 +119,8 @@ end
   return res
 end
 
-local function getProxy(name,devTempl) print("GET proxy")
-  local devStruct = E.api.hc3.get("/devices?name="..urlencode(name)) print("Got proxy")
+local function getProxy(name,devTempl) 
+  local devStruct = E.api.hc3.get("/devices?name="..urlencode(name))
   assert(type(devStruct)=='table',"API error")
   if next(devStruct)==nil then
     devStruct = createProxy(name,devTempl)

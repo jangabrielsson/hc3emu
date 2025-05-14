@@ -418,7 +418,6 @@ end
 
 exports.Scene = Scene
 exports.trigger = sceneTrigger -- (trigger,id)
-exports.addApiHooks = addApiHooks
 exports.init = init
 
 return exports

@@ -532,7 +532,7 @@ function QA:writeFile(name,data)
 end
 
 function QA:createFile(data) 
-  if findFile(data.name,qa.files) then return nil,409 end
+  if findFile(data.name,self.files) then return nil,409 end
   data.fname="new" -- What fname to give it?
   table.insert(self.files,data)
   self:restart() -- Restart the QA

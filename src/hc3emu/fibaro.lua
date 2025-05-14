@@ -18,7 +18,9 @@ function __fibaro_get_partitions() return api.get('/alarms/v1/partitions') end
 function __fibaro_get_breached_partitions() return api.get("/alarms/v1/partitions/breached") end
 function __fibaroSleep(ms)
   E:WARNINGF("Avoid using fibaro.sleep in QuickApps")
+  E:getRunner():lock() -- stop other QA timers from running
   E.lua.require("copas").pause(ms/1000.0)
+  E:getRunner():unlock()
 end
 function __fibaroUseAsyncHandler(_) return true end
 

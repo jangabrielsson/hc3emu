@@ -4,19 +4,7 @@
   // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
   "version": "0.2.0",
   "configurations": [
-    
-    {
-      "type": "lua-local",
-      "request": "launch",
-      "name": "Debug Local-Lua",
-      "program": {
-        "lua": "lua",
-        "file": "${relativeFile}"
-      },
-      "args": [
-        "${workspaceFolder}"
-      ]
-    },
+
     {
       "type": "lua",
       "request": "launch",
@@ -46,9 +34,9 @@
         "close": true
       },
       "arguments": [
-          "${relativeFile}"
+        "${relativeFile}"
       ]
-  },
+    },
     {
       "name": "Lua MobDebug: Current File",
       "type": "luaMobDebug",
@@ -75,10 +63,10 @@
       "sourceEncoding": "UTF-8",
       "interpreter": "lua",
       "arguments": [
-        "${userHome}${pathSeparator}.vscode.lua", // move tools/vscode.lua to ~/.vscode.lua
-        //"tools/vscode.lua",
-        "_runQA",
-        "${relativeFile}"
+        "${userHome}${pathSeparator}.vscode.lua",
+        "-runQA",
+        "${relativeFile}",
+        "true"
       ],
       "listenPublicly": true
     }

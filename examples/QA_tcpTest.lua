@@ -7,6 +7,7 @@ if require and not QuickApp then require('hc3emu') end
 local ip,port = "localhost",8432
 
 local SocketServer = fibaro.hc3emu.util.SocketServer
+MyServer = MyServer
 class 'MyServer'(SocketServer)
 function MyServer:__init(ip,port) SocketServer.__init(self,ip,port,"proxy","server") end
 function MyServer:handler(io)

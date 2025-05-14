@@ -1,7 +1,7 @@
 --if require and not QuickApp then require("hc3emu") end 
 
 --This is the hc3emu file we require. It gets the calling file, main file, and then loads the emulator and runs it.
---If _DEVELOP is set to true ot will load the files from the local directory to allow us to develop and debug the emulator.
+--If _DEVELOP is set to true it will load the files from the local directory to allow us to develop and debug the emulator.
 --If _DEVELOP is false it will load the files from the package directory, the standard require way...
 
 _SCRIPTNAME = _SCRIPTNAME
@@ -31,21 +31,6 @@ if _DEVELOP then -- find our development files first if developing...
   end
 end
 
-local DBG = {info=true,dark=false,nodebug=false,shellscript=false,silent=false}
-
-local f = io.open(mainfile,"r")
-if not f then error("Could not read main file") end
-local src = f:read("*all") f:close()
--- We need to do some pre-look for directives...
-if src:match("%-%-%%%%info:false") then DBG.info = false else DBG.info=true end -- Peek 
-if src:match("%-%-%%%%dark=true") then DBG.dark = true end
-if src:match("%-%-%%%%nodebug=true") then DBG.nodebug = true end
-if src:match("%-%-%%%%shellscript=true") then DBG.nodebug = true DBG.shellscript=true end
-if src:match("%-%-%%%%silent=true") then DBG.silent = true end
-local port = src:match("%-%-%%%%dport=(%d+)") 
-if port then DBG.dport = tonumber(port) end
-
 local Emulator = require("hc3emu.emu") -- This is the emulator that we load and that will emulate the main file for us.
-local info = {fname=mainfile,src=src}
-local emulator = Emulator(DBG,info)
-emulator:run(info)
+local emulator = Emulator(mainfile)
+emulator:run()

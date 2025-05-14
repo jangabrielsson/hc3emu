@@ -173,9 +173,9 @@ function EventMgr:setupSourceTriggers() -- Setup some transformation to sourceTr
   
   local keyTime = {}
   self:addHandler({type='CentralSceneEvent'},function(event)
-    -- local id,time = event.data.id,nil
-    -- time,keyTime[id] = keyTime[id] or 0,os.time()
-    -- local last = keyTime[id] - time
+    local id,time = event.data.id,nil
+    time,keyTime[id] = keyTime[id] or 0,os.time()
+    local last = keyTime[id] - time
     self:post({type='key', id=event.data.id, key = event.data.keyId, attribute = event.data.keyAttribute, last = last})
   end)
   

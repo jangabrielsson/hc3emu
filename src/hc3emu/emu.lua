@@ -24,7 +24,7 @@ lua-websockets-bit32 >= 2.0.1-7
 argparse >= 0.7.1-1
 mobdebug >= 0.80-1
 --]]
-local VERSION = "1.1.6"
+local VERSION = "1.1.7"
 local lclass = require("hc3emu.class") -- use simple class implementation
 
 local fmt = string.format
@@ -63,9 +63,25 @@ local dateMark = function(str) return os.date("[%d.%m.%Y][%H:%M:%S][",logTime())
   {type='midnight'}
 --]]
 Emulator = Emulator -- fool linting...
-function Emulator:__init(debug,info)
+function Emulator:__init(mainfile)
   Emulator.emulator = self
   self.VERSION = VERSION
+  
+  local DBG = {info=true,dark=false,nodebug=false,shellscript=false,silent=false}
+  
+  local f = io.open(mainfile,"r")
+  if not f then error("Could not read main file") end
+  local src = f:read("*all") f:close()
+  -- We need to do some pre-look for directives...
+  if src:match("%-%-%%%%info:false") then DBG.info = false else DBG.info=true end -- Peek 
+  if src:match("%-%-%%%%dark=true") then DBG.dark = true end
+  if src:match("%-%-%%%%nodebug=true") then DBG.nodebug = true end
+  if src:match("%-%-%%%%shellscript=true") then DBG.nodebug = true DBG.shellscript=true end
+  if src:match("%-%-%%%%silent=true") then DBG.silent = true end
+  if src:match("%-%-%%%%lock=true") then DBG.lock = true end
+  local port = src:match("%-%-%%%%dport=(%d+)") 
+  if port then DBG.dport = tonumber(port) end
+  
   self.cfgFileName = "hc3emu.json"   -- Config file in current directory
   self.homeCfgFileName = ".hc3emu.json"  -- Config file in home directory
   
@@ -92,7 +108,6 @@ function Emulator:__init(debug,info)
 
   self.emuPort = 8264   -- Port for HC3 proxy to connect to
   self.emuIP = nil      -- IP of host running the emulator
-  self.DBG = {} -- Default flags and debug settings
   self.exports = {} -- functions to export to QA
   self.RunnerClass = Runner
   self.json = json -- Used by some lua libraries...
@@ -118,12 +133,13 @@ function Emulator:__init(debug,info)
   
   self.lua = {os = os, require = require, dofile = dofile, loadfile = loadfile, type = type, io = io, print = _print, package = package } -- used from fibaro.hc3emu.lua.x 
 
-  self.silent = debug.silent
-  self.nodebug = debug.nodebug
-  self.DBG = debug
+  self.DBG = DBG
+  self.silent = DBG.silent
+  self.nodebug = DBG.nodebug
+
   self.systemRunner = SystemRunner()
   self:setRunner(self.systemRunner)
-  self.mainFile = info.fname
+  self.mainFile = mainfile
   
   self.config = require("hc3emu.config")
 
@@ -142,6 +158,7 @@ function Emulator:__init(debug,info)
 
   -- The QA/Scene we invoke the emulator with is the ""main" file
   -- and will set the flags fo some overal settings self.DBG (offline, etc)
+  local info = {fname=mainfile, src=src}
   self:parseDirectives(info)
 
   local flags = info.directives
@@ -175,10 +192,13 @@ function Emulator:__init(debug,info)
   self.webserver = loadModule("hc3emu.webserver")
   self.webserver.startServer()
 
-  if info.directives.installation then self.config.installation(info.directives.installation,info.directives) end
+  if info.directives.installation then 
+    self.config.installation(info.directives.installation,info.directives) 
+  end
+  self.info = info
 end
 
-function Emulator:newLock()
+function Emulator:newLock() -- Used to run QA timers one at a time...
   if self.DBG.lock then return copas.lock.new(math.huge)           -- Lock with no timeout
   else return {get = function() end, release = function() end} end -- Nop lock
 end
@@ -193,7 +213,7 @@ function Emulator:setupApi()
   self.api = self.API.API(eventDispatcher)
 
   local EM = self
-  function self.api:loadResources(resources)
+  function self.api:loadResources()
     local res = EM.config.loadResource("stdStructs.json",true)
     local db = EM.api.db
     db.db.home.items = res.home
@@ -655,7 +675,8 @@ function Emulator:loadfile(path,env) -- Loads a file into specific environment
   return loadfile(path,"t",env)()
 end
 
-function Emulator:run(info) -- { fname = "file.lua", src = "source code" } 
+function Emulator:run() -- { fname = "file.lua", src = "source code" } 
+  local info = self.info
   self:DEBUGF('info',"Main QA file %s",info.fname)
   info.src = info.src:gsub("#!/usr/bin/env","--#!/usr/bin/env") 
   info.env = {}

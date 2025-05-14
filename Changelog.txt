@@ -16,4 +16,6 @@
 1.0.97
 -- Runs in dev container now (issue with Live Preview)
 -- 
-
+1.1.1
+-- improved performance and stability
+-- rsrcs directory discover, improved

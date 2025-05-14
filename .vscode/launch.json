@@ -18,6 +18,19 @@
       ]
     },
     {
+      "type": "lua",
+      "request": "launch",
+      "name": "Lua actboy",
+      "luaexe": "/opt/homebrew/bin/lua",
+      "program": "${relativeFile}",
+      "internalConsoleOptions": "openOnSessionStart",
+      "path": "${env:LUA_PATH}",
+      "cpath": "${env:LUA_CPATH}",
+      "console": "internalConsole",
+      "cwd": "${workspaceFolder}",
+      "stopOnEntry": false
+    },
+    {
       "name": "Lua MobDebug: Listen and Run",
       "type": "luaMobDebug",
       "request": "attach",

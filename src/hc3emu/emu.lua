@@ -38,6 +38,10 @@ require("copas.http")
 
 local _print = print
 local json = require("hc3emu.json")
+local cmdLine = arg[-1] or ""
+local debuggerType = "unknown"
+if cmdLine:match("actboy168") then debuggerType="actboy168" end
+if cmdLine:match("mobdebug") then debuggerType="mobdebug" end
 
 Emulator = lclass('Emulator') -- Main class 'Emulator'
 Runner = lclass('Runner')   -- Base class for stuff that runs in the emulator, QuickApps, Scenes, System tasks
@@ -129,8 +133,11 @@ function Emulator:__init(debug,info)
   
   self.mobdebug = { on = function() end, start = function(_,_) end }
   if not self.nodebug then
-    self.mobdebug = require("mobdebug") or self.mobdebug
-    self.mobdebug.start('localhost',self.DBG.dport or 8172) 
+    if debuggerType == "actboy168" then
+    elseif debuggerType == "mobdebug" or true then
+      self.mobdebug = require("mobdebug") or self.mobdebug
+      self.mobdebug.start('localhost',self.DBG.dport or 8172) 
+    end
   end
 
   -- The QA/Scene we invoke the emulator with is the ""main" file

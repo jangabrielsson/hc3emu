@@ -400,6 +400,7 @@ local function post(event) ---{type=..., ...}
 end
 
 local function pruneTB(tb)
+  if tb == nil then return "<unknown error, tb==nil>" end
   tb = tb:match("^.-'copas%.gettraceback'\n(.*)$")
   tb = tb:match("%s+.-[/\\]hc3emu[/\\]util.lua:%d+:.-\n(.*)$") or tb
   return tb

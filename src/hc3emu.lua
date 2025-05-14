@@ -23,6 +23,7 @@ end
 assert(mainfile,"Cannot find main lua file")
 
 if _DEVELOP then -- find our development files first if developing...
+  print("_DEVELOP set, using local hc3emu codebase")
   if type(_DEVELOP)=='boolean' then
     package.path = ";src/?;src/?.lua;"..package.path
   else

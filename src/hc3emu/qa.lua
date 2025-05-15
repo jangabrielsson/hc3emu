@@ -239,7 +239,7 @@ function QA:setupEnv()
   env.plugin.mainDeviceId = self.id 
 end
 
--- run QA:  load QA files. Runs in a copas task.
+-- run QA:  load QA files. Creates new environment, load Lua files, Save QA, Runs in a copas task.
 -- This is also done every time the QA restarts.
 function QA:run() 
   E.mobdebug.on()

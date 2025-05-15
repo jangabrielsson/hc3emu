@@ -147,7 +147,7 @@ function Emulator:__init(mainfile)
   assert(self.rsrcsDir,"Failed to find rsrcs directory")
   self.baseFlags = self.config.getSettings() or {}
   
-  self.mobdebug = { on = function() end, start = function(_,_) end }
+  self.mobdebug = { on = function() end, start = function(_,_) end, setbreakpoint = function() end }
   if not self.nodebug then
     if debuggerType == "actboy168" then
     elseif debuggerType == "mobdebug" or true then
@@ -690,7 +690,7 @@ function Emulator:run() -- { fname = "file.lua", src = "source code" }
     self:checkConnection(flags) -- If online, check connection to HC3 or bail-out
     self:setupApi()
     self:setupResources() -- Setup resources for the API
-    self:readInState()    -- Read in state from file
+    self:readInState()    -- Read in state from state file, if any
     self.timers.midnightLoop() -- Setup loop for midnight events, used to ex. update sunrise/sunset hour
     local runner = fileType == 'Scene' and self.scene.Scene(info) or self.qa.QA(info,nil)
     self.mainDeviceId = runner.id

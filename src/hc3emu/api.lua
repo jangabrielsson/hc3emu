@@ -156,7 +156,12 @@ function API:start()
   if self.offline then self:loadResources(self) end
 end
 
-function API:add(method, path, handler) 
+local converts = {
+  ['<id>'] = function(v) return tonumber(v) end,
+  ['<name>'] = function(v) return v end,
+}
+
+function API:add(method, path, handler)
   if type(path) == 'function' then -- shift args
     handler = path 
     method,path = method:match("(.-)(/.+)") -- split method and path
@@ -164,9 +169,11 @@ function API:add(method, path, handler)
   local path = string.split(path,'/')
   local d = self.DIR[method:upper()]
   for _,p in ipairs(path) do
+    local p0 = p
     p = ({['<id>']=true,['<name>']=true})[p] and '_match' or p
     local d0 = d[p]
     if d0 == nil then d[p] = {} end
+    if p == '_match' then d._fun = converts[p0] d._var = p0:sub(2,-2) end
     d = d[p]
   end
   assert(d._handler == nil,fmt("Duplicate path: %s/%s",method,path))
@@ -195,7 +202,12 @@ function API:getRoute(method,path)
   local path = string.split(path,'/')
   local d,vars = self.DIR[method:upper()],{}
   for _,p in ipairs(path) do
-    if d._match and not d[p] then vars[#vars+1] = p p = '_match' end
+    if d._match and not d[p] then 
+      local v = d._fun(p)
+      if v == nil then return nil,vars end
+      vars[d._var] =v 
+      p = '_match'
+    end
     local d0 = d[p]
     if d0 == nil then return nil,vars end
     d = d0
@@ -263,11 +275,11 @@ function API:setup()
     devices = filter(ctx.query,devices)
     return devices,200
   end)
-  self:add("GET/devices/<id>",function(ctx) return get(ctx,'devices') end)
+  self:add("GET/devices/<id>",function(ctx) return db:get('devices',ctx.vars.id) end)
   self:add("GET/devices/<id>/properties/<name>",function(ctx)
-    local device,code = get(ctx,'devices')
+    local device,code = db:get('devices',ctx.vars.id)
     if not device then return nil, code end
-    return {value=device.properties[ctx.vars[2]],modified=device.modified or os.time()}, 200
+    return {value=device.properties[ctx.vars.name],modified=device.modified or os.time()}, 200
   end)
 
   local function call(qa,action,data)  
@@ -281,10 +293,10 @@ function API:setup()
   end
 
   self:add("POST/devices/<id>/action/<name>",function(ctx) 
-    local id = tonumber(ctx.vars[1])
+    local id = ctx.vars.id
     local qa = E:getQA(id)
     if qa then
-      return call(qa,ctx.vars[2],ctx.data)
+      return call(qa,ctx.vars.name,ctx.data)
     elseif not self.offline then
       return self.hc3.post(ctx.path,ctx.data)
     else
@@ -292,9 +304,9 @@ function API:setup()
     end
   end)
   self:add("GET/devices/<id>/action/<name>",function(ctx)
-    local id = tonumber(ctx.vars[1])
+    local id = ctx.vars.id
     local qa = E:getQA(id)
-    local action = ctx.vars[2]
+    local action = ctx.vars.name
     if qa then
       local data,args = {},{}
       for k,v in pairs(ctx.query) do data[#data+1] = {k,v} end
@@ -308,19 +320,18 @@ function API:setup()
   end)
 
   self:add("PUT/devices/<id>",function(ctx) 
-    local id = tonumber(ctx.vars[1])
     local data = table.copy(ctx.data)
-    data.id = id
+    data.id = ctx.vars.id
     return event('DeviceModifiedEvent',data)
   end)
 
   self:add("DELETE/devices/<id>",function(ctx) 
-    local id = tonumber(ctx.vars[1])
+    local id = ctx.vars.id
     return event('DeviceRemovedEvent',{id=id})
   end)
 
-  self:add("GET/globalVariables",function(ctx) return get(ctx,'globalVariables') end)
-  self:add("GET/globalVariables/<name>",function(ctx)return get(ctx,'globalVariables') end)
+  self:add("GET/globalVariables",function(ctx) return db:get('globalVariables') end)
+  self:add("GET/globalVariables/<name>",function(ctx) return db:get('globalVariables',ctx.vars.name) end)
   self:add("POST/globalVariables",function(ctx)
     local data = table.copy(ctx.data)
     data.variableName = data.name
@@ -329,21 +340,21 @@ function API:setup()
   end)
   self:add("PUT/globalVariables/<name>",function(ctx)
     local data = table.copy(ctx.data)
-    data.variableName = ctx.vars[1]
+    data.variableName = ctx.vars.name
     data.name = nil
     return event('GlobalVariableChangedEvent',data)
   end)
   self:add("DELETE/globalVariables/<name>",function(ctx)
-    return event('GlobalVariableRemovedEvent',{variableName=ctx.vars[1]})
+    return event('GlobalVariableRemovedEvent',{variableName=ctx.vars.name})
   end)
   
-  self:add("GET/rooms",function(ctx) return get(ctx,"rooms") end)
-  self:add("GET/rooms/<id>",function(ctx) return get(ctx,'rooms') end)
+  self:add("GET/rooms",function(ctx) return db:get("rooms") end)
+  self:add("GET/rooms/<id>",function(ctx) return db:get("rooms",ctx.vars.id) end)
   self:add("POST/rooms",function(ctx) 
     return event('RoomCreatedEvent',ctx.data) 
   end)
   self:add("POST/rooms/<id>/action/setAsDefault",function(ctx) 
-    local id = tonumber(ctx.vars[1])
+    local id = ctx.vars.id
     self.db.defaultRoom = id
     if not self.offline then
       return self.hc3.post("/rooms/"..id.."/action/setAsDefault",{})
@@ -353,7 +364,7 @@ function API:setup()
     if not self.offline then
       return self.hc3.post(ctx.path,ctx.data)
     else 
-      local roomID = tonumber(ctx.vars[1])
+      local roomID = ctx.vars.id
       for _,id in ipairs(ctx.data.deviceIds or {}) do
         event('DeviceModifiedEvent',{id=id,roomID=roomID})
       end
@@ -362,29 +373,29 @@ function API:setup()
   end)
   self:add("PUT/rooms/<id>",function(ctx) 
     local data = table.copy(ctx.data)
-    data.id = tonumber(ctx.vars[1])
+    data.id = ctx.vars.id
     return event('RoomModifiedEvent',data) 
   end)
   self:add("DELETE/rooms/<id>",function(ctx) 
-    return event('RoomRemovedEvent',{id=tonumber(ctx.vars[1])})
+    return event('RoomRemovedEvent',{id=ctx.vars.id})
   end)
-  
-  self:add("GET/sections",function(ctx) return get(ctx,'sections') end)
-  self:add("GET/sections/<id>",function(ctx) return get(ctx,'sections') end)
+
+  self:add("GET/sections",function(ctx) return db:get('sections') end)
+  self:add("GET/sections/<id>",function(ctx) return db:get('sections',ctx.vars.id) end)
   self:add("POST/sections",function(ctx) 
     return event('SectionCreatedEvent',ctx.data)
   end)
   self:add("PUT/sections/<id>",function(ctx) 
     local data = table.copy(ctx.data)
-    data.id = tonumber(ctx.vars[1])
+    data.id = ctx.vars.id
     return event('SectionModifiedEvent',data)
   end)
   self:add("DELETE/sections/<id>",function(ctx) 
-    return event('SectionRemovedEvent',{id=tonumber(ctx.vars[1])})
+    return event('SectionRemovedEvent',{id=ctx.vars.id})
   end)
-  
-  self:add("GET/customEvents",function(ctx) get(ctx,"customEvents") end)
-  self:add("GET/customEvents/<name>",function(ctx) return get(ctx,'customEvents') end)
+
+  self:add("GET/customEvents",function(ctx) return db:get('customEvents') end)
+  self:add("GET/customEvents/<name>",function(ctx) return db:get('customEvents',ctx.vars.name) end)
   self:add("POST/customEvents",function(ctx) 
     return event('CustomEventCreatedEvent',ctx.data)
   end)
@@ -392,7 +403,7 @@ function API:setup()
     if not self.offline then
       self.hc3.post(ctx.path)
     else
-      local event = db:get('customEvents',ctx.vars[1])
+      local event = db:get('customEvents',ctx.vars.name)
       if event then 
         return event('CustomEvent',ctx.data)
       else return nil,404 end
@@ -400,18 +411,18 @@ function API:setup()
   end)
   self:add("PUT/customEvents/<name>",function(ctx) 
     local data = table.copy(ctx.data)
-    data.name = ctx.vars[1]
+    data.name = ctx.vars.name
     return event('CustomEventModifiedEvent',data)
   end)
   self:add("DELETE/customEvents/<name>",function(ctx) 
-    return event('CustomEventRemovedEvent',{name=ctx.vars[1]})
+    return event('CustomEventRemovedEvent',{name=ctx.vars.name})
   end)
-  
-  self:add("GET/scenes",function(ctx) return get(ctx,'scenes') end)
-  self:add("GET/scenes/<id>",function(ctx) return get(ctx,'scenes') end)
+
+  self:add("GET/scenes",function(ctx) return db:get('scenes') end)
+  self:add("GET/scenes/<id>",function(ctx) return db:get('scenes',ctx.vars.id) end)
   self:add("POST/scenes/<id>/<name>" , function(ctx)
-    local id = tonumber(ctx.vars[1])
-    local name = ctx.vars[2]
+    local id = ctx.vars.id
+    local name = ctx.vars.name
     local scene = E:getScene(id)
     if scene then
       assert(name=='execute',"Invalid scene action")
@@ -421,7 +432,7 @@ function API:setup()
     else return nil,501 end
   end) 
   
-  self:add("GET/weather",function(ctx) return get(ctx,'weather') end)
+  self:add("GET/weather",function(ctx) return db:get('weather') end)
   self:add("PUT/weather",function(ctx) -- for debugging
     return event('WeatherChangedEvent',ctx.data)
   end)
@@ -471,7 +482,7 @@ function API:setup()
     else return nil,501 end
   end)
   self:add("DELETE/plugins/removeChildDevice/<id>",function(ctx)
-    local id = tonumber(ctx.vars[1])
+    local id = tonumber(ctx.vars.id)
     local child = db:get('devices',id)
     if not child.parentId or child.parentId == 0 then
       return nil,404
@@ -500,39 +511,39 @@ function API:setup()
     else return self.hc3.sync.post(ctx.path,ctx.data) end
   end)
   
-  self:add("GET/panels/location",function(ctx) return get(ctx,'panels/location') end)
-  self:add("GET/panels/location/<id>",function(ctx) return get(ctx,'panels/location') end)
+  self:add("GET/panels/location",function(ctx) return db:get('panels/location') end)
+  self:add("GET/panels/location/<id>",function(ctx) return db:get('panels/location',ctx.vars.id) end)
   self:add("POST/panels/location",function(ctx)
     return event('LocationCreatedEvent',ctx.data)
   end)
   self:add("PUT/panels/location/<id>",function(ctx)
     local data = table.copy(ctx.data)
-    data.id = tonumber(ctx.vars[1])
+    data.id = ctx.vars.id
     return event('LocationModifiedEvent',data)
   end)
   self:add("DELETE/panels/location/<id>",function(ctx)
-    return event('LocationRemovedEvent',{id=tonumber(ctx.vars[1])})
+    return event('LocationRemovedEvent',{id=ctx.vars.id})
   end)
 
-  self:add("GET/settings/location",function(ctx) return get(ctx,'settings/location') end)
-  self:add("GET/settings/info",function(ctx) return get(ctx,'settings/info') end)
-  
-  self:add("GET/users",function(ctx) return get(ctx,'users') end)
-  self:add("GET/users/<id>",function(ctx) return get(ctx,'users') end)
+  self:add("GET/settings/location",function(ctx) return db:get('settings/location') end)
+  self:add("GET/settings/info",function(ctx) return db:get('settings/info') end)
+
+  self:add("GET/users",function(ctx) return db:get('users') end)
+  self:add("GET/users/<id>",function(ctx) return db:get('users',ctx.vars.id) end)
   self:add("POST/users",function(ctx)
     return event('UserCreatedEvent',ctx.data)
   end)
   self:add("PUT/users/<id>",function(ctx)
     local data = table.copy(ctx.data)
-    data.id = tonumber(ctx.vars[1])
+    data.id = ctx.vars.id
     return event('UserModifiedEvent',data)
   end)
   self:add("DELETE/users/<id>",function(ctx)
-    return event('UserRemovedEvent',{id=tonumber(ctx.vars[1])})
+    return event('UserRemovedEvent',{id=ctx.vars.id})
   end)
 
   self:add("GET/quickApp/<id>/files",function(ctx) 
-    local qa = E:getQA(tonumber(ctx.vars[1]))
+    local qa = E:getQA(ctx.vars.id)
     if not self.offline and not qa then
       return self.hc3.get(ctx.path)
     end
@@ -544,7 +555,7 @@ function API:setup()
     return nil, 404
   end)
   self:add("POST/quickApp/<id>/files",function(ctx) 
-    local qa = E:getQA(tonumber(ctx.vars[1]))
+    local qa = E:getQA(ctx.vars.id)
     if not self.offline and not qa then
       return self.hc3.post(ctx.path,ctx.data)
     end
@@ -556,33 +567,33 @@ function API:setup()
     return nil, 404
   end)
   self:add("GET/quickApp/<id>/files/<name>",function(ctx) 
-    local qa = E:getQA( tonumber(ctx.vars[1]))
+    local qa = E:getQA(ctx.vars.id)
     if not self.offline and not qa then
       return self.hc3.get(ctx.path)
     end
     if qa then
       if qa.isChild then return nil,501 end
-      local name = ctx.vars[2]
+      local name = ctx.vars.name
       local res = qa:getFile(name)
       if res then return res, 200 end
     end
     return nil, 404
   end)
   self:add("PUT/quickApp/<id>/files/<name>",function(ctx)
-    local qa = E:getQA(tonumber(ctx.vars[1]))
+    local qa = E:getQA(ctx.vars.id)
     if not self.offline and not qa then
       return self.hc3.put(ctx.path,ctx.data)
     end
     if qa then
       if qa.isChild then return nil,501 end
-      local name = ctx.vars[2]
+      local name = ctx.vars.name
       local res = qa:writeFile(name,ctx.data)
       if res then return res, 200 end
     end
     return nil, 404
   end)
   self:add("PUT/quickApp/<id>/files",function(ctx) 
-    local qa = E:getQA(tonumber(ctx.vars[1]))
+    local qa = E:getQA(ctx.vars.id)
     if not self.offline and not qa then
       return self.hc3.put(ctx.path,ctx.data)
     end
@@ -594,13 +605,13 @@ function API:setup()
     return nil, 404
   end)
   self:add("DELETE/quickApp/<id>/files/<name>",function(ctx) 
-    local qa = E:getQA(tonumber(ctx.vars[1]))
+    local qa = E:getQA(ctx.vars.id)
     if not self.offline and not qa then
       return self.hc3.delete(ctx.path)
     end
     if qa then
       if qa.isChild then return nil,501 end
-      local name = ctx.vars[2]
+      local name = ctx.vars.name
       local res = qa:deleteFile(name)
       if res then return res, 200 end
     end
@@ -608,7 +619,7 @@ function API:setup()
   end)
   
   self:add("GET/quickApp/export/<id>",function(ctx)
-    local id = tonumber(ctx.vars[1])
+    local id = ctx.vars.id
     local qa = E:getQA(id)
     if qa then
       if qa.isChild then return nil,501 end
@@ -628,71 +639,75 @@ function API:setup()
 
   -- These we run via emuHelper with hc3.sync.* because they are not allowed remotely
   self:add("GET/plugins/<id>/variables",function(ctx) 
-    local id = ctx.vars[1]
+    local id = ctx.vars.id
     if not self.offline and isProxy(id) then
       return self.hc3.sync.get(ctx.path)
     end
-    local vars = db.db.internalStorage.items[id]
+    local vars = db.db.internalStorage.items[tostring(id)]
     if not vars then return nil, 404 end
     local res = {}
     for k,v in pairs(vars) do res[#res+1]= {name=k, value=v, isHidden=false} end
     return res,200
   end)
   self:add("GET/plugins/<id>/variables/<name>",function(ctx) 
-    local id = ctx.vars[1]
+    local id = ctx.vars.id
     if not self.offline and isProxy(id) then
       return self.hc3.sync.get(ctx.path)
     end
-    local vars = db.db.internalStorage.items[id]
-    local name = ctx.vars[2]
+    local vars = db.db.internalStorage.items[tostring(id)]
+    local name = ctx.vars.name
     if not (vars and vars[name] ~= nil) then return nil, 404 end
     return {value=vars[name],name=name, isHidden=false},200
   end)
   self:add("POST/plugins/<id>/variables",function(ctx) 
-    local id = ctx.vars[1]
+    local id = ctx.vars.id
+    local ids = tostring(id)
     if not self.offline and isProxy(id) then
       return self.hc3.sync.post(ctx.path,ctx.data)
     end
     local data = ctx.data
-    local vars = db.db.internalStorage.items[id]
-    if vars == nil then vars = {} db.db.internalStorage.items[id] = vars end
+    local vars = db.db.internalStorage.items[ids]
+    if vars == nil then vars = {} db.db.internalStorage.items[ids] = vars end
     if vars[data.name] ~= nil then return nil, 409 end
     vars[data.name] = data.value
     E:flushState()
     return nil,200
   end)
   self:add("PUT/plugins/<id>/variables/<name>",function(ctx)
-    local id = ctx.vars[1]
+    local id = ctx.vars.id
+    local ids = tostring(id)
     if not self.offline and isProxy(id) then
       return self.hc3.sync.put(ctx.path,ctx.data)
     end
     local data = ctx.data
-    local vars = db.db.internalStorage.items[id]
-    if not (vars and vars[data.name]~=nil) then return nil, 404 end
-    vars[data.name] = data.value
+    local vars = db.db.internalStorage.items[ids]
+    if not (vars and vars[ctx.vars.name]~=nil) then return nil, 404 end
+    vars[ctx.vars.name] = data.value
     E:flushState()
     return data.value, 200
   end)
   self:add("DELETE/plugins/<id>/variables/<name>",function(ctx)
-    local id = ctx.vars[1]
+    local id = ctx.vars.id
+    local ids = tostring(id)
     if not self.offline and isProxy(id) then
       return self.hc3.sync.delete(ctx.path)
     end
-    local vars = db.db.internalStorage.items[id]
-    local name = ctx.vars[2]
+    local vars = db.db.internalStorage.items[ids]
+    local name = ctx.vars.name
     if not (vars and vars[name]~=nil) then return nil, 404 end
     vars[name] = nil
     E:flushState()
     return nil, 200
   end)
   self:add("DELETE/plugins/<id>/variables",function(ctx)
-    local id = ctx.vars[1]
+    local id = ctx.vars.id
+    local ids = tostring(id)
     if not self.offline and isProxy(id) then
       return self.hc3.sync.delete(ctx.path)
     end
     local vars = db.db.internalStorage
-    if vars.items[id] == nil then return nil, 404 end
-    vars.items[id] = {}
+    if vars.items[ids] == nil then return nil, 404 end
+    vars.items[ids] = {}
     E:flushState()
     return nil, 200
   end)

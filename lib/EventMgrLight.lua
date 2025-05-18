@@ -1,9 +1,3 @@
-_DEVELOP=true
-if require and not QuickApp then require('hc3emu') end
-
---%%name=EventMgrTest
---%%type=com.fibaro.binarySwitch
-
 local function match(pattern,event) -- See if pattern matches event
   if type(pattern) == 'table' and type(event) == 'table' then
     for k,v in pairs(pattern) do
@@ -77,7 +71,7 @@ EventMgr = EventMgr
 class 'EventMgr'
 function EventMgr:__init()
   self.events = {}
-  self:setupSourceTriggers()
+  if self.setupSourceTriggers then self:setupSourceTriggers() end
   local refresh = RefreshStateSubscriber()
   refresh:subscribe(function() return true end,function(event) self:post(event) end)
   refresh:run()
@@ -95,11 +89,11 @@ end
 
 function EventMgr:post(event,time)  -- Optional time in seconds
   --print(json.encode(event))
+  local now = os.time()
   if type(time)=="string" then  -- time string spec, convert.
-    time = toTime(time)  
+    time = toTime(time) - now
     if time < 0 then return end -- Negative time, post in the past, do not post
   else 
-    local now = os.time()
     time = time or now
     if time >= now then time = time - now else time = time + now end -- Absolute time in the future
   end
@@ -109,63 +103,6 @@ function EventMgr:post(event,time)  -- Optional time in seconds
       if match(v.pattern,event) and v.handler(event) then return end -- if matches event pattern , call handler with event
     end
   end,math.floor(1000*(time or 0)+0.5))
-end
-
-function EventMgr:allOf(events,timeout,handler)
-  local seen,first,ref = {},true,nil
-  local function action(res) -- reset, and call handler with false/fail, or list of events
-    if ref then ref = clearTimeout(ref) end
-    for i,_ in ipairs(seen) do seen[i] = false end
-    first = true
-    handler(res)
-  end
-  for i,event in ipairs(events) do
-    seen[i] = false
-    local n = i
-    self:addHandler(event,function(event) 
-      if seen[n] then return end -- Already seen
-      seen[n] = event
-      if first then ref = setTimeout(function() action(false) end,1000*timeout) first = false end
-      for _,e in ipairs(seen) do if not e then return true end end
-      action(seen)
-      return true -- Stop further processing
-    end)
-  end
-end
-
-function EventMgr:sequence(_events ,handler)
-  local events,i,timers,seen = {},2,{},{}
-  events[#events+1] = { event = _events[1], timeout = math.huge } -- First event, no timeout 
-  while i <= #_events do  -- Collect event arguments {type=...},<number>,{type=...}
-    local timeout = math.huge -- Event followed by number denotes timeout
-    if tonumber(_events[i]) then timeout = 1000*_events[i] i = i + 1 end
-    local event = _events[i]
-    events[#events+1] = { event = event, timeout = timeout}
-    i = i + 1
-  end
-  
-  for i,e in ipairs(events) do
-    local timeout,pattern,n = e.timeout,e.event,i
-    local nextHandler = events[i+1]
-    self:addHandler(pattern,function(event)
-      if n > 1 then
-        if not timers[n] then return end           -- Not triggered yet
-        timers[n] = clearTimeout(timers[n])        -- Ok, made it this far...
-      elseif next(seen) then return end            -- First event, already seen
-      seen[#seen+1] = event
-      if nextHandler then
-        timers[n+1] = setTimeout(function() timers,seen={},{} handler(false) end,nextHandler.timeout) -- Watch next event
-      else
-        timers = {}
-        handler(seen) -- Call handler with event
-        seen = {}
-      end
-    end)
-  end
-end
-
-function EventMgr:anyOf(events ,handler) -- for completness...
-  for _,event in ipairs(events) do self:addHandler(event,function(e) handler(e) return true end) end
 end
 
 function EventMgr:setupSourceTriggers() -- Setup some transformation to sourceTrigger style events
@@ -230,115 +167,3 @@ function EventMgr:setupSourceTriggers() -- Setup some transformation to sourceTr
 end
 
 if fibaro then fibaro.EventMgr = EventMgr end
-
------------ Test the librray with a keypad event --------------------
-local em = EventMgr()
-
--- em:addHandler({type='key'},function(event) print("Event",json.encode(event)) end)
--- em:addHandler({type='device',property='value'},function(event) print("Event",json.encode(event)) end)
-
--- em:sequence({{type='key',key=2},3,{type='key',key=3},3,{type='key',key=2}},
---   function(e) 
---     if e then print("Unlock") else print("Timeout") end
---   end)
--- em:allOf({{type='key',key=2},{type='key',key=3},{type='key',key=2}},5,
---   function(e) 
---     if e then print("Unlock") else print("Timeout") end
---   end)
-
--- <event>,<State> -> <Action>,<State>
--- <timeout>,<State> -> <Action>,<State>
-
-local function equal(e1,e2)
-  if e1==e2 then return true
-  else
-    if type(e1) ~= 'table' or type(e2) ~= 'table' then return false
-    else
-      for k1,v1 in pairs(e1) do if e2[k1] == nil or not equal(v1,e2[k1]) then return false end end
-      for k2,_  in pairs(e2) do if e1[k2] == nil then return false end end
-      return true
-    end
-  end
-end
-
-local fsms = {}
-local fevents = {}
-function EventMgr:fsm(id,state,event,action,newState,brk)
-  local fsm = fsms[id] or {state = nil, timeouts = {}, trans = {}}
-  fsms[id] = fsm
-  if tonumber(event) then
-    fsm.timeouts[state] = {d=tonumber(event)}
-    self:fsm(id,state,{type='_timeout'},action,newState)
-    return
-  end
-
-  if not fevents[event.type] then
-    fevents[event.type] = true
-    self:addHandler({type=event.type},function(e) -- Repost ST as fsm event
-      self:post({type='_fsm',fsm=id,event=e,state=fsms[id].state})
-    end)
-  end
-
-  local found = nil
-  for _,t in ipairs(fsm.trans) do
-    if equal(t.event,event) then found = t break end
-  end
-  if found == nil then
-    table.insert(fsm.trans,{event=event,states={state=true}})
-    if fsm.state==nil then fsm.state = state end
-  else 
-    assert(not found.states[state],"Duplicate state "..state.." for event "..event.type)
-    found.states[state] = true
-  end
-  
-  self:addHandler({type='_fsm',event=event,fsm=id,state=state},function(e)
-    --print("Event",json.encode(e))
-    e = e.event
-    local t = fsm.timeouts[state]
-    if t and t.ref then 
-      --print("Clearing timout for state",state)
-      t.ref = clearTimeout(t.ref)
-    end
-    fsm.state = newState
-    local t = fsm.timeouts[newState]
-    if t and t.d then 
-      --print("Setting timout for state",newState)
-      t.ref = setTimeout(function ()
-        self:post({type='_timeout',_fsm=id,_state=newState})
-      end,t.d*1000) end
-      if action then action(e) end
-      if brk then return true end
-    end)
-  end
-  
-  local function unlock() print("Key3: Unlock") end
-  local function first() print("Key1") end
-  local function second() print("Key2") end
-  local function start() print("Start") end
-  
-  -- em:fsm('code','Start',{type='key',key=2,attribute='Pressed'},first,'First')
-  -- em:fsm('code','First',{type='key',key=3,attribute='Pressed'},second,'Second')
-  -- em:fsm('code','First',{type='key',key='$!3',attribute='Pressed'},start,'Start')
-  -- em:fsm('code','First',3,start,'Start')
-  -- em:fsm('code','Second',{type='key',key=2,attribute='Pressed'},unlock,'Start')
-  -- em:fsm('code','Second',{type='key',key='$!2',attribute='Pressed'},start,'Start')
-  -- em:fsm('code','Second',3,start,'Start')
-  
-  local bath = 8
-  -- open_door
-  -- inside_open
-  -- maybe_inside
-  -- inside
-
-  -- em:fsm('bt','empty',{type='open',id=bath},turnOn,'open_door')
-  -- em:fsm('bt','open_door',{type='breached',id=bath},nil,'inside_open')
-  -- em:fsm('bt','open_door',{type='close',id=bath},nil,'maybe_inside')
-  -- em:fsm('bt','inside_open',{type='close',id=bath},nil,'maybe_inside')
-  -- em:fsm('bt','inside_open',{type='breached',id=bath},nil,'inside_open')
-  -- em:fsm('bt','maybe_inside',{type='breached',id=bath},nil,'inside')
-  -- em:fsm('bt','maybe_inside',{type='open',id=bath},nil,'open_inside')
-  -- em:fsm('bt','maybe_inside',30,turnOff,'empty')
-  
-  function QuickApp:onInit()
-    
-  end

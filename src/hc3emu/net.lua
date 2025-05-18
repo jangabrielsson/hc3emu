@@ -2,7 +2,7 @@ local hc3emu = fibaro.hc3emu
 local require = hc3emu.lua.require
 local copas = require("copas")
 local socket = require("socket")
-local mobdebug = require("mobdebug")
+local mobdebug = hc3emu.mobdebug
 
 local function async(fun,...)
   local runner = fibaro.hc3emu:getRunner()
@@ -240,6 +240,7 @@ if websock then
   end
   net.WebSocketClient = net.WebSocketClientTls
 end
+
 -------------- MQTT ----------------------------------
 local luamqtt = require("mqtt")
 local client_registry = {}

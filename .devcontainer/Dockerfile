@@ -22,7 +22,7 @@ RUN apk add --no-cache \
     && mkdir /usr/local/include \
     && export LUA_INCDIR=/usr/include/lua5.4  \
     && cd /tmp  \ 
-    && wget https://luarocks.org/releases/luarocks-3.11.1.tar.gz \
+    && wget --no-check-certificate https://luarocks.org/releases/luarocks-3.11.1.tar.gz \
     && tar zxpf luarocks-3.11.1.tar.gz \
     && cd luarocks-3.11.1  \
     && ./configure --with-lua-include=/usr/include/lua5.4 \

@@ -1,14 +1,6 @@
 # HC3 QuickApp Emulator
 <img src="doc/hc3emu.png" width="200" alt="HC3 Emulator"/>
 
-```mermaid
-graph TD;
-    A-->B;
-    A-->C;
-    B-->D;
-    C-->D;
-```
-
 ## Overview
 
 HC3Emu is a Lua-based emulator designed to simulate the Fibaro Home Center 3 QuickApp runtime environment. It allows developers to develop and test QuickApps offline before deploying them to a physical HC3 controller.

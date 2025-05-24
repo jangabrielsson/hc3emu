@@ -162,8 +162,8 @@ do
   local function getTimezone(now) return os.difftime(now, os.time(os.date("!*t", now))) end
   
   function sunCalc(time,latitude,longitude)
-    local lat = latitude or E.api:get("/settings/location").latitude or 0
-    local lon = longitude or E.api:get("/settings/location").longitude or 0
+    local lat = latitude or E.api.get("/settings/location").latitude or 0
+    local lon = longitude or E.api.get("/settings/location").longitude or 0
     time = time or E.timers.userTime()
     local utc = getTimezone(time) / 3600
     local zenith,zenith_twilight = 90.83, 96.0 -- sunset/sunrise 90°50′, civil twilight 96°0′

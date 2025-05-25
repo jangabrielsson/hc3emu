@@ -24,7 +24,7 @@ lua-websockets-bit32 >= 2.0.1-7
 argparse >= 0.7.1-1
 mobdebug >= 0.80-1
 --]]
-local VERSION = "1.1.10"
+local VERSION = "1.1.11"
 local lclass = require("hc3emu.class") -- use simple class implementation
 
 local fmt = string.format
@@ -559,7 +559,6 @@ function Emulator:checkConnection(flags)
   self.PASSWORD = flags.password or self.PASSWORD
   self.URL = flags.IP or self.URL
   self.PIN = flags.pin or self.PIN
-  self.URL = "http://192.168.1.58/"
 
   if not self.USER then self.USER = getEnvVar("HC3USER") end
   if not self.PASSWORD then self.PASSWORD = getEnvVar("HC3PASSWORD") end

@@ -24,7 +24,7 @@ lua-websockets-bit32 >= 2.0.1-7
 argparse >= 0.7.1-1
 mobdebug >= 0.80-1
 --]]
-local VERSION = "1.1.9"
+local VERSION = "1.1.10"
 local lclass = require("hc3emu.class") -- use simple class implementation
 
 local fmt = string.format
@@ -248,7 +248,7 @@ function Emulator:setupResources()
   end
     
   function self.EVENT._emulator_started() -- Update lat,long,suntime at startup
-    local location = self.api.db:get("settings_location")
+    local location = self.api.db:get("settings/location")
     if self.DBG.latitude and self.DBG.longitude then
       location.latitude = self.DBG.latitude
       location.longitude = self.DBG.longitude
@@ -559,6 +559,7 @@ function Emulator:checkConnection(flags)
   self.PASSWORD = flags.password or self.PASSWORD
   self.URL = flags.IP or self.URL
   self.PIN = flags.pin or self.PIN
+  self.URL = "http://192.168.1.58/"
 
   if not self.USER then self.USER = getEnvVar("HC3USER") end
   if not self.PASSWORD then self.PASSWORD = getEnvVar("HC3PASSWORD") end

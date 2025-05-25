@@ -74,6 +74,7 @@ function EventDispatcher:__init(offline)
   self.queue = EventQueue()
   self.db = ResourceDB()
   self.offline = offline==true
+  self.db.offline = self.offline
 end
 function EventDispatcher:start(api) 
   self.api = api
